@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CandidateApplicationsTable } from "@/components/candidates/candidate-applications-table";
+import { InviteCandidateForm } from "@/components/candidates/invite-candidate-form";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { CompetencyWeightsFields } from "@/components/jobs/competency-weights-fields";
 import { JobDetailsFields } from "@/components/jobs/job-details-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireCompanyContext } from "@/lib/auth/context";
+import { listJobCandidateApplications } from "@/lib/candidates/data";
 import { updateJobAction, updateJobWeightsAction } from "@/lib/jobs/actions";
 import { canManageJobs, JOB_STATUS_LABELS } from "@/lib/jobs/constants";
 import { getJobPageData } from "@/lib/jobs/data";
@@ -34,6 +37,12 @@ export default async function JobPage({
   }
 
   const mayManage = canManageJobs(context.activeCompany.role);
+  const applications = await listJobCandidateApplications(context.activeCompany.id, data.job.id);
+  const mayInvite =
+    mayManage &&
+    Boolean(data.job.assessmentPackageId) &&
+    data.job.status !== "closed" &&
+    data.job.status !== "archived";
 
   return (
     <div className="space-y-6">
@@ -87,14 +96,34 @@ export default async function JobPage({
         </CardContent>
       </Card>
 
-      <Card className="border-dashed">
+      <Card>
         <CardHeader>
           <CardTitle>Кандидаты</CardTitle>
           <CardDescription>
-            Приглашение кандидатов и результаты этой вакансии будут добавлены в следующих
-            milestones.
+            Добавьте кандидата и отправьте персональную ссылку на пакет оценки этой вакансии.
           </CardDescription>
         </CardHeader>
+        <CardContent className="space-y-8 pt-6">
+          {mayInvite ? <InviteCandidateForm jobId={data.job.id} /> : null}
+          {mayManage && !data.job.assessmentPackageId ? (
+            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+              Чтобы приглашать кандидатов, сначала назначьте вакансии пакет оценки.
+            </p>
+          ) : null}
+          {mayManage && (data.job.status === "closed" || data.job.status === "archived") ? (
+            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+              В закрытую или архивную вакансию новые приглашения не создаются.
+            </p>
+          ) : null}
+          <div className="space-y-3">
+            <h2 className="text-sm font-medium">Кандидаты вакансии</h2>
+            <CandidateApplicationsTable
+              applications={applications}
+              mayManage={mayManage}
+              returnTo={`/dashboard/jobs/${data.job.id}`}
+            />
+          </div>
+        </CardContent>
       </Card>
     </div>
   );
