@@ -4,6 +4,8 @@ import { cancelInvitationAction } from "@/lib/candidates/actions";
 import {
   APPLICATION_STATUS_LABELS,
   INVITATION_STATUS_LABELS,
+  RECOMMENDATION_LABELS,
+  RISK_LEVEL_LABELS,
 } from "@/lib/candidates/constants";
 import type { CandidateApplication } from "@/lib/candidates/data";
 
@@ -59,6 +61,7 @@ export function CandidateApplicationsTable({
             <th className="px-4 py-3 font-medium">Кандидат</th>
             {showJob ? <th className="px-4 py-3 font-medium">Вакансия</th> : null}
             <th className="px-4 py-3 font-medium">Статус</th>
+            <th className="px-4 py-3 font-medium">Результат</th>
             <th className="px-4 py-3 font-medium">Приглашение</th>
             {mayManage ? <th className="px-4 py-3 text-right font-medium">Действия</th> : null}
           </tr>
@@ -91,6 +94,32 @@ export function CandidateApplicationsTable({
                   <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
                     {APPLICATION_STATUS_LABELS[application.status]}
                   </span>
+                </td>
+                <td className="px-4 py-3">
+                  {application.overallScore !== null ||
+                  application.fitScore !== null ||
+                  application.requiresReview ||
+                  application.recommendation ? (
+                    <>
+                      <p>
+                        Overall: {application.overallScore !== null ? `${application.overallScore}%` : "-"}
+                        {" / "}
+                        Fit: {application.fitScore !== null ? `${application.fitScore}%` : "-"}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {application.requiresReview
+                          ? "Нужна ручная проверка"
+                          : application.recommendation
+                            ? RECOMMENDATION_LABELS[application.recommendation] ?? application.recommendation
+                            : "Без рекомендации"}
+                        {application.riskLevel
+                          ? ` / ${RISK_LEVEL_LABELS[application.riskLevel] ?? application.riskLevel}`
+                          : ""}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">Ожидает завершения</p>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   {invitation ? (

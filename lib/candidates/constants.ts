@@ -40,6 +40,21 @@ export const INVITATION_STATUS_LABELS: Record<(typeof INVITATION_STATUS_VALUES)[
   cancelled: "Отменена",
 };
 
+export const RECOMMENDATION_LABELS: Record<string, string> = {
+  backup: "Резерв",
+  consider: "Рассмотреть",
+  invite: "Пригласить далее",
+  not_recommended: "Не рекомендуется",
+  requires_review: "Нужна проверка",
+  strong_candidate: "Сильный кандидат",
+};
+
+export const RISK_LEVEL_LABELS: Record<string, string> = {
+  high: "Высокий риск",
+  low: "Низкий риск",
+  medium: "Средний риск",
+};
+
 export type ApplicationStatus = (typeof APPLICATION_STATUS_VALUES)[number];
 export type InvitationStatus = (typeof INVITATION_STATUS_VALUES)[number];
 

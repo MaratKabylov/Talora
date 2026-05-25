@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { scoreCompletedApplication } from "@/lib/scoring/service";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 
 type InvitationStatus =
@@ -321,6 +322,7 @@ export async function getAssessmentByToken(token: string): Promise<AssessmentAva
     sessions.every((session) => session.status === "completed")
   ) {
     const completedAt = new Date().toISOString();
+    await scoreCompletedApplication(invitation.application_id);
     const [{ error: invitationUpdateError }, { error: applicationUpdateError }] =
       await Promise.all([
         admin.from("invitations").update({ status: "completed" }).eq("id", invitation.id),

@@ -38,6 +38,9 @@ type ApplicationRecord = {
   invitations?: InvitationRecord[] | null;
   jobs: Relation<JobRecord>;
   overall_score: number | null;
+  recommendation: string | null;
+  requires_review: boolean;
+  risk_level: string | null;
   status: ApplicationStatus;
 };
 
@@ -68,6 +71,9 @@ export type CandidateApplication = {
     token: string;
   } | null;
   overallScore: number | null;
+  recommendation: string | null;
+  requiresReview: boolean;
+  riskLevel: string | null;
   status: ApplicationStatus;
 };
 
@@ -108,6 +114,9 @@ function normalizeApplication(record: ApplicationRecord): CandidateApplication {
         }
       : null,
     overallScore: record.overall_score,
+    recommendation: record.recommendation,
+    requiresReview: record.requires_review,
+    riskLevel: record.risk_level,
     status: record.status,
   };
 }
@@ -117,7 +126,7 @@ async function queryApplications(companyId: string, jobId?: string) {
   let query = supabase
     .from("candidate_applications")
     .select(
-      "id, candidate_id, status, current_stage, overall_score, fit_score, created_at, candidates(id, full_name, email, phone, city, source), jobs(id, title), invitations(id, token, status, expires_at, sent_at, opened_at, created_at)",
+      "id, candidate_id, status, current_stage, overall_score, fit_score, recommendation, risk_level, requires_review, created_at, candidates(id, full_name, email, phone, city, source), jobs(id, title), invitations(id, token, status, expires_at, sent_at, opened_at, created_at)",
     )
     .eq("company_id", companyId);
 

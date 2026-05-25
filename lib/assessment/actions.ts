@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { scoreCompletedApplication } from "@/lib/scoring/service";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import {
@@ -110,6 +111,12 @@ async function finishSessionAndContinue(
   if (nextSession) {
     await startSession(token, assessment, nextSession.id);
     redirect(testPath(token, nextSession.id));
+  }
+
+  try {
+    await scoreCompletedApplication(assessment.applicationId);
+  } catch {
+    redirectWithError(testPath(token, sessionId), "Не удалось рассчитать результат оценки.");
   }
 
   const [{ error: invitationError }, { error: applicationError }] = await Promise.all([
