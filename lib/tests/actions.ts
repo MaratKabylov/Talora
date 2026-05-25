@@ -150,6 +150,12 @@ export async function createTestTemplateAction(formData: FormData) {
   if (versionError) {
     await supabase
       .from("test_templates")
+      .update({ status: "archived" })
+      .eq("company_id", context.activeCompany.id)
+      .eq("id", createdTemplate.id)
+      .eq("is_system", false);
+    await supabase
+      .from("test_templates")
       .delete()
       .eq("company_id", context.activeCompany.id)
       .eq("id", createdTemplate.id)
@@ -239,6 +245,76 @@ export async function setTestTemplateStatusAction(formData: FormData) {
     "message",
     status.data === "archived" ? "Тест перемещен в архив." : "Тест восстановлен из архива.",
   );
+}
+
+export async function deleteArchivedTestTemplateAction(formData: FormData) {
+  const templateId = parseId(formData, "templateId");
+
+  if (!templateId.success) {
+    redirect("/dashboard/tests");
+  }
+
+  const context = await requireCompanyContext();
+  const path = getTestPath(templateId.data);
+
+  if (!canManageTests(context.activeCompany.role)) {
+    redirectWithFeedback(path, "error", "У вашей роли нет права удалять тесты.");
+  }
+
+  const supabase = await createClient();
+  const { data: template, error: templateError } = await supabase
+    .from("test_templates")
+    .select("id")
+    .eq("company_id", context.activeCompany.id)
+    .eq("id", templateId.data)
+    .eq("is_system", false)
+    .eq("status", "archived")
+    .maybeSingle();
+
+  if (templateError || !template) {
+    redirectWithFeedback(path, "error", "Удалять можно только архивные тесты компании.");
+  }
+
+  const { data: publishedVersion, error: versionError } = await supabase
+    .from("test_versions")
+    .select("id")
+    .eq("test_template_id", templateId.data)
+    .eq("status", "published")
+    .limit(1)
+    .maybeSingle();
+
+  if (versionError) {
+    redirectWithFeedback(path, "error", "Не удалось проверить версии теста.");
+  }
+
+  if (publishedVersion) {
+    redirectWithFeedback(
+      path,
+      "error",
+      "Тест с опубликованной версией нельзя удалить: версия нужна для истории оценок.",
+    );
+  }
+
+  const { data: deletedTemplate, error } = await supabase
+    .from("test_templates")
+    .delete()
+    .eq("company_id", context.activeCompany.id)
+    .eq("id", templateId.data)
+    .eq("is_system", false)
+    .eq("status", "archived")
+    .select("id")
+    .maybeSingle();
+
+  if (error || !deletedTemplate) {
+    redirectWithFeedback(
+      path,
+      "error",
+      "Не удалось удалить тест. Проверьте, что его версии не используются в пакете оценки.",
+    );
+  }
+
+  revalidatePath("/dashboard/tests");
+  redirectWithFeedback("/dashboard/tests", "message", "Архивный тест удален.");
 }
 
 export async function createTestVersionAction(formData: FormData) {

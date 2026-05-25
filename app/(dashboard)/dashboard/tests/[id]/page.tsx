@@ -11,6 +11,7 @@ import { requireCompanyContext } from "@/lib/auth/context";
 import {
   archiveTestDraftVersionAction,
   createTestVersionAction,
+  deleteArchivedTestTemplateAction,
   publishTestVersionAction,
   setTestTemplateStatusAction,
   updateTestTemplateAction,
@@ -49,6 +50,7 @@ export default async function TestPage({
   const mayManage = canManageTests(context.activeCompany.role);
   const isEditable = mayManage && !template.isSystem && template.status === "active";
   const draftVersion = template.versions.find((version) => version.status === "draft");
+  const hasPublishedVersion = template.versions.some((version) => version.status === "published");
 
   return (
     <div className="space-y-6">
@@ -254,6 +256,29 @@ export default async function TestPage({
               >
                 {draftVersion && isEditable ? "Открыть конструктор" : "Открыть preview"}
               </Link>
+            </CardContent>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {!template.isSystem && template.status === "archived" && mayManage ? (
+        <Card className="border-destructive/30">
+          <CardHeader>
+            <CardTitle>Удаление из архива</CardTitle>
+            <CardDescription>
+              {hasPublishedVersion
+                ? "Этот тест содержит опубликованную версию и сохраняется для истории оценок кандидатов."
+                : "Удаление необратимо: черновые и архивные версии вместе с содержимым будут удалены."}
+            </CardDescription>
+          </CardHeader>
+          {!hasPublishedVersion ? (
+            <CardContent className="pt-6">
+              <form action={deleteArchivedTestTemplateAction}>
+                <input name="templateId" type="hidden" value={template.id} />
+                <Button className="border-destructive/40 text-destructive hover:bg-destructive/10" type="submit" variant="outline">
+                  Удалить тест навсегда
+                </Button>
+              </form>
             </CardContent>
           ) : null}
         </Card>

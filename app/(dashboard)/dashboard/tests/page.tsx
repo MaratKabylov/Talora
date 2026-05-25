@@ -91,7 +91,12 @@ export default async function TestsPage({
   const params = await searchParams;
   const templates = await listTestTemplates(context.activeCompany.id);
   const systemTemplates = templates.filter((template) => template.isSystem);
-  const companyTemplates = templates.filter((template) => !template.isSystem);
+  const activeCompanyTemplates = templates.filter(
+    (template) => !template.isSystem && template.status === "active",
+  );
+  const archivedCompanyTemplates = templates.filter(
+    (template) => !template.isSystem && template.status === "archived",
+  );
   const mayManage = canManageTests(context.activeCompany.role);
 
   return (
@@ -128,15 +133,30 @@ export default async function TestsPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Тесты компании</CardTitle>
+          <CardTitle>Активные тесты компании</CardTitle>
           <CardDescription>
             Создавайте собственные тесты. Опубликованные версии остаются неизменяемыми.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           <TemplatesTable
-            emptyText="У компании пока нет собственных тестов."
-            templates={companyTemplates}
+            emptyText="У компании пока нет активных собственных тестов."
+            templates={activeCompanyTemplates}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Архив</CardTitle>
+          <CardDescription>
+            Архивный тест можно открыть, восстановить или удалить, если у него нет опубликованных версий.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <TemplatesTable
+            emptyText="Архивных тестов пока нет."
+            templates={archivedCompanyTemplates}
           />
         </CardContent>
       </Card>
