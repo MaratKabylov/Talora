@@ -12,7 +12,7 @@ const navigation = [
   { href: "/dashboard/company/members", label: "Участники", ready: true },
   { href: "/dashboard/jobs", label: "Вакансии", ready: true },
   { href: "#", label: "Кандидаты", ready: false },
-  { href: "#", label: "Тесты", ready: false },
+  { href: "/dashboard/tests", label: "Тесты", ready: true },
 ];
 
 type DashboardContext = Omit<AuthContext, "activeCompany"> & {

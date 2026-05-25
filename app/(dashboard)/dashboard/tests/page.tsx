@@ -1,0 +1,139 @@
+import Link from "next/link";
+
+import { FeedbackMessage } from "@/components/feedback-message";
+import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireCompanyContext } from "@/lib/auth/context";
+import {
+  canManageTests,
+  TEST_TEMPLATE_STATUS_LABELS,
+  TEST_VERSION_STATUS_LABELS,
+} from "@/lib/tests/constants";
+import { listTestTemplates, type TestTemplate } from "@/lib/tests/data";
+
+type TestsSearchParams = Promise<{
+  error?: string;
+  message?: string;
+}>;
+
+function TemplatesTable({
+  emptyText,
+  templates,
+}: {
+  emptyText: string;
+  templates: TestTemplate[];
+}) {
+  if (templates.length === 0) {
+    return <p className="text-sm text-muted-foreground">{emptyText}</p>;
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/50 text-left text-muted-foreground">
+          <tr>
+            <th className="px-4 py-3 font-medium">Тест</th>
+            <th className="px-4 py-3 font-medium">Статус</th>
+            <th className="px-4 py-3 font-medium">Последняя версия</th>
+            <th className="px-4 py-3 text-right font-medium">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {templates.map((template) => (
+            <tr className="border-t" key={template.id}>
+              <td className="px-4 py-3">
+                <p className="font-medium">{template.title}</p>
+                <p className="text-muted-foreground">{template.category ?? "Без категории"}</p>
+              </td>
+              <td className="px-4 py-3">
+                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
+                  {template.isSystem ? "Системный" : TEST_TEMPLATE_STATUS_LABELS[template.status]}
+                </span>
+              </td>
+              <td className="px-4 py-3">
+                {template.latestVersion ? (
+                  <>
+                    v{template.latestVersion.versionNumber} ·{" "}
+                    {TEST_VERSION_STATUS_LABELS[template.latestVersion.status]}
+                  </>
+                ) : (
+                  "Версий нет"
+                )}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <Link
+                  className={buttonVariants({ size: "sm", variant: "outline" })}
+                  href={`/dashboard/tests/${template.id}`}
+                >
+                  Открыть
+                </Link>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export default async function TestsPage({
+  searchParams,
+}: {
+  searchParams: TestsSearchParams;
+}) {
+  const context = await requireCompanyContext();
+  const params = await searchParams;
+  const templates = await listTestTemplates(context.activeCompany.id);
+  const systemTemplates = templates.filter((template) => template.isSystem);
+  const companyTemplates = templates.filter((template) => !template.isSystem);
+  const mayManage = canManageTests(context.activeCompany.role);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-sm text-muted-foreground">{context.activeCompany.name}</p>
+          <h1 className="text-3xl font-semibold tracking-tight">Библиотека тестов</h1>
+        </div>
+        {mayManage ? (
+          <Link className={buttonVariants()} href="/dashboard/tests/new">
+            Создать тест
+          </Link>
+        ) : null}
+      </div>
+
+      <FeedbackMessage error={params.error} message={params.message} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Системные тесты</CardTitle>
+          <CardDescription>
+            Предустановленные методики Talora доступны компании только для просмотра и
+            использования в пакетах оценки.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <TemplatesTable
+            emptyText="Системные тесты появятся после применения seed-миграции."
+            templates={systemTemplates}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Тесты компании</CardTitle>
+          <CardDescription>
+            Создавайте собственные тесты. Опубликованные версии остаются неизменяемыми.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <TemplatesTable
+            emptyText="У компании пока нет собственных тестов."
+            templates={companyTemplates}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
