@@ -326,6 +326,37 @@ function riskLevelForFlags(flags: Array<{ risk_level: "low" | "medium" | "high" 
   return flags.length > 0 ? "low" : null;
 }
 
+function createInterviewQuestions(
+  summaryRows: Array<{
+    competency_key: CompetencyKey;
+    is_below_minimum: boolean;
+    percentage: number | null;
+  }>,
+  requiresReview: boolean,
+) {
+  const questions = summaryRows
+    .filter(
+      (row) =>
+        !isMotivationCompetency(row.competency_key) &&
+        row.percentage !== null &&
+        (row.is_below_minimum || row.percentage < 65),
+    )
+    .map(
+      (row) =>
+        `Попросите привести пример ситуации, где проявлялась компетенция «${COMPETENCY_LABELS.get(row.competency_key) ?? row.competency_key}», и уточните ход решения.`,
+    );
+
+  if (requiresReview) {
+    questions.push("Уточните контекст и ход рассуждений в развернутых ответах кандидата.");
+  }
+
+  if (questions.length === 0) {
+    questions.push("Обсудите наиболее релевантный опыт кандидата и его вклад в похожей роли.");
+  }
+
+  return questions;
+}
+
 export async function scoreCompletedApplication(applicationId: string) {
   const admin = createAdminClient();
   const { data: applicationData, error: applicationError } = await admin
@@ -666,6 +697,20 @@ export async function scoreCompletedApplication(applicationId: string) {
     riskLevel === "high" && (baseRecommendation === "strong_candidate" || baseRecommendation === "invite")
       ? "consider"
       : baseRecommendation;
+  const strengths = summaryRows
+    .filter(
+      (row) =>
+        !isMotivationCompetency(row.competency_key) &&
+        row.percentage !== null &&
+        row.percentage >= 75,
+    )
+    .sort((left, right) => (right.percentage ?? 0) - (left.percentage ?? 0))
+    .map((row) => ({
+      competencyKey: row.competency_key,
+      label: COMPETENCY_LABELS.get(row.competency_key) ?? row.competency_key,
+      percentage: row.percentage,
+    }));
+  const interviewQuestions = createInterviewQuestions(summaryRows, requiresReview);
 
   const { error: applicationUpdateError } = await admin
     .from("candidate_applications")
@@ -698,6 +743,27 @@ export async function scoreCompletedApplication(applicationId: string) {
   );
   if (comparisonError) {
     throw new Error("Unable to save comparison scoring.");
+  }
+
+  const { error: reportError } = await admin.from("candidate_reports").upsert(
+    {
+      application_id: application.id,
+      candidate_id: application.candidate_id,
+      fit_score: fitScore,
+      interview_questions_json: interviewQuestions,
+      overall_score: overallScore,
+      recommendation,
+      report_text: requiresReview
+        ? "Оценка завершена. Перед выводом по кандидату требуется ручная проверка текстовых ответов."
+        : "Оценка завершена. Результаты отражают предварительное соответствие требованиям вакансии.",
+      risks_json: riskFlags,
+      strengths_json: strengths,
+      suggested_roles_json: [],
+    },
+    { onConflict: "application_id" },
+  );
+  if (reportError) {
+    throw new Error("Unable to save candidate report.");
   }
 
   return {

@@ -38,6 +38,15 @@ function canCancelInvitation(application: CandidateApplication) {
   );
 }
 
+function hasReport(application: CandidateApplication) {
+  return (
+    application.status === "completed" ||
+    application.overallScore !== null ||
+    application.fitScore !== null ||
+    application.requiresReview
+  );
+}
+
 export function CandidateApplicationsTable({
   applications,
   mayManage,
@@ -63,7 +72,7 @@ export function CandidateApplicationsTable({
             <th className="px-4 py-3 font-medium">Статус</th>
             <th className="px-4 py-3 font-medium">Результат</th>
             <th className="px-4 py-3 font-medium">Приглашение</th>
-            {mayManage ? <th className="px-4 py-3 text-right font-medium">Действия</th> : null}
+            <th className="px-4 py-3 text-right font-medium">Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -137,10 +146,18 @@ export function CandidateApplicationsTable({
                     </p>
                   )}
                 </td>
-                {mayManage ? (
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      {invitation && canCancelInvitation(application) ? (
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {hasReport(application) ? (
+                      <Link
+                        className={buttonVariants({ size: "sm", variant: "outline" })}
+                        href={`/dashboard/applications/${application.id}/report`}
+                      >
+                        Отчет
+                      </Link>
+                    ) : null}
+                    {mayManage ? (
+                      invitation && canCancelInvitation(application) ? (
                         <>
                           <CopyInvitationLinkButton token={invitation.token} />
                           <form action={cancelInvitationAction}>
@@ -151,17 +168,17 @@ export function CandidateApplicationsTable({
                             </Button>
                           </form>
                         </>
-                      ) : application.job ? (
+                      ) : application.job && !hasReport(application) ? (
                         <Link
                           className={buttonVariants({ size: "sm", variant: "outline" })}
                           href={`/dashboard/jobs/${application.job.id}`}
                         >
                           Открыть вакансию
                         </Link>
-                      ) : null}
-                    </div>
-                  </td>
-                ) : null}
+                      ) : null
+                    ) : null}
+                  </div>
+                </td>
               </tr>
             );
           })}
