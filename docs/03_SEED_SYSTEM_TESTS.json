@@ -1,0 +1,228 @@
+{
+  "system_tests": [
+    {
+      "title": "Универсальная карта потенциала",
+      "category": "general_potential",
+      "description": "Базовая оценка обучаемости, внимательности, логики, рабочего поведения и коммуникации.",
+      "duration_minutes": 30,
+      "sections": [
+        {
+          "title": "Обучаемость",
+          "competency_key": "learning_ability",
+          "question_count": 8
+        },
+        {
+          "title": "Внимательность",
+          "competency_key": "attention_to_detail",
+          "question_count": 8
+        },
+        {
+          "title": "Логика",
+          "competency_key": "logical_reasoning",
+          "question_count": 8
+        },
+        {
+          "title": "Рабочее поведение",
+          "competency_key": "work_behavior",
+          "question_count": 8
+        },
+        {
+          "title": "Коммуникация",
+          "competency_key": "communication",
+          "question_count": 6
+        }
+      ]
+    },
+    {
+      "title": "Обучаемость",
+      "category": "learning_ability",
+      "description": "Кандидат читает новую инструкцию и применяет ее к рабочим ситуациям.",
+      "duration_minutes": 12,
+      "sample_instruction": "Обращения клиентов делятся на A — срочно, B — консультация, C — жалоба, D — нецелевое. Если обращение подходит под несколько категорий, приоритет: C → A → B → D.",
+      "sample_questions": [
+        {
+          "type": "single_choice",
+          "text": "Клиент пишет: «Я оплатил вчера, но сегодня никто не приехал. Что происходит?»",
+          "options": [
+            {
+              "text": "A — срочно",
+              "points": 0
+            },
+            {
+              "text": "B — консультация",
+              "points": 0
+            },
+            {
+              "text": "C — жалоба",
+              "points": 1,
+              "competency_effect": {
+                "learning_ability": 2
+              }
+            },
+            {
+              "text": "D — нецелевое",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "type": "single_choice",
+          "text": "Клиент пишет: «Сколько стоит установка?»",
+          "options": [
+            {
+              "text": "A — срочно",
+              "points": 0
+            },
+            {
+              "text": "B — консультация",
+              "points": 1,
+              "competency_effect": {
+                "learning_ability": 1
+              }
+            },
+            {
+              "text": "C — жалоба",
+              "points": 0
+            },
+            {
+              "text": "D — нецелевое",
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Внимательность",
+      "category": "attention_to_detail",
+      "description": "Проверка аккуратности при сравнении данных, номеров, сумм и заявок.",
+      "duration_minutes": 10,
+      "sample_questions": [
+        {
+          "type": "single_choice",
+          "text": "В заявке телефон: +7 701 245 18 90. В CRM телефон: +7 701 245 18 09. Есть ли ошибка?",
+          "options": [
+            {
+              "text": "Ошибки нет",
+              "points": 0
+            },
+            {
+              "text": "Да, перепутаны последние цифры",
+              "points": 1,
+              "competency_effect": {
+                "attention_to_detail": 2
+              }
+            },
+            {
+              "text": "Да, ошибка в коде оператора",
+              "points": 0
+            },
+            {
+              "text": "Недостаточно данных",
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Рабочее поведение",
+      "category": "work_behavior",
+      "description": "Ситуационные кейсы про ответственность, самостоятельность, ошибки, дедлайны и конфликты.",
+      "duration_minutes": 12,
+      "sample_questions": [
+        {
+          "type": "single_choice",
+          "text": "Руководитель дал задачу, но вы не до конца поняли, что нужно сделать. Ваши действия?",
+          "options": [
+            {
+              "text": "Начну делать как понял, потом покажу",
+              "points": 0.3,
+              "competency_effect": {
+                "work_behavior": 0.5
+              }
+            },
+            {
+              "text": "Уточню цель, срок, формат результата и критерии успеха",
+              "points": 1,
+              "competency_effect": {
+                "work_behavior": 2,
+                "responsibility": 1
+              }
+            },
+            {
+              "text": "Подожду, пока руководитель сам объяснит подробнее",
+              "points": 0
+            },
+            {
+              "text": "Передам задачу коллеге",
+              "points": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Мотивационный профиль",
+      "category": "motivation",
+      "description": "Профиль мотивации без правильных и неправильных ответов.",
+      "duration_minutes": 8,
+      "scale": "1-5",
+      "sample_statements": [
+        {
+          "text": "Мне важно быстро расти в доходе",
+          "competency_key": "motivation_income"
+        },
+        {
+          "text": "Мне комфортнее работать по понятной инструкции",
+          "competency_key": "motivation_structure"
+        },
+        {
+          "text": "Мне важно иметь стабильный график и правила",
+          "competency_key": "motivation_stability"
+        },
+        {
+          "text": "Мне нравится общаться с новыми людьми",
+          "competency_key": "communication"
+        },
+        {
+          "text": "Мне важно иметь свободу в способах выполнения задачи",
+          "competency_key": "motivation_autonomy"
+        }
+      ]
+    }
+  ],
+  "system_packages": [
+    {
+      "title": "Стартовая позиция / общий потенциал",
+      "description": "Пакет для кандидатов без выраженной профессии.",
+      "tests": [
+        {
+          "title": "Обучаемость",
+          "weight": 0.3,
+          "required": true
+        },
+        {
+          "title": "Внимательность",
+          "weight": 0.2,
+          "required": true
+        },
+        {
+          "title": "Рабочее поведение",
+          "weight": 0.25,
+          "required": true
+        },
+        {
+          "title": "Мотивационный профиль",
+          "weight": 0.05,
+          "required": false
+        },
+        {
+          "title": "Универсальная карта потенциала",
+          "weight": 0.2,
+          "required": true
+        }
+      ]
+    }
+  ]
+}
