@@ -119,6 +119,7 @@ export default async function TestPage({
                     <th className="px-4 py-3 font-medium">Оценка</th>
                     <th className="px-4 py-3 font-medium">Время</th>
                     <th className="px-4 py-3 font-medium">Опубликована</th>
+                    <th className="px-4 py-3 text-right font-medium">Содержание</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -139,6 +140,14 @@ export default async function TestPage({
                         {version.publishedAt
                           ? new Intl.DateTimeFormat("ru-RU").format(new Date(version.publishedAt))
                           : "Нет"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          className={buttonVariants({ size: "sm", variant: "outline" })}
+                          href={`/dashboard/tests/${template.id}/builder?version=${version.id}`}
+                        >
+                          {isEditable && version.status === "draft" ? "Конструктор" : "Preview"}
+                        </Link>
                       </td>
                     </tr>
                   ))}
@@ -225,14 +234,24 @@ export default async function TestPage({
       )}
 
       {!template.isSystem ? (
-        <Card className="border-dashed">
+        <Card>
           <CardHeader>
             <CardTitle>Конструктор содержания</CardTitle>
             <CardDescription>
-              Секции, вопросы и варианты ответов будут добавлены в Milestone 5. Блокировка
-              опубликованного содержимого уже применяется на уровне базы.
+              Добавляйте секции, вопросы, варианты ответа и карту компетенций в черновой версии.
+              Опубликованное содержание остается доступным только для preview.
             </CardDescription>
           </CardHeader>
+          {template.latestVersion ? (
+            <CardContent className="pt-6">
+              <Link
+                className={buttonVariants()}
+                href={`/dashboard/tests/${template.id}/builder?version=${draftVersion?.id ?? template.latestVersion.id}`}
+              >
+                {draftVersion && isEditable ? "Открыть конструктор" : "Открыть preview"}
+              </Link>
+            </CardContent>
+          ) : null}
         </Card>
       ) : null}
     </div>
