@@ -15,8 +15,8 @@ export default function HomePage() {
           Оценка кандидатов для понятных решений о найме
         </h1>
         <p className="max-w-2xl text-lg text-muted-foreground">
-          Стартовый каркас HR Assessment SaaS. Вакансии, тесты и отчеты будут
-          добавляться по milestone.
+          Создавайте вакансии и тесты, приглашайте кандидатов по защищенной ссылке,
+          изучайте отчеты и сравнивайте соответствие роли.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link className={buttonVariants({ size: "lg" })} href="/login">
@@ -35,7 +35,7 @@ export default function HomePage() {
             <ClipboardCheck className="size-6 text-primary" />
             <CardTitle>Тесты и версии</CardTitle>
             <CardDescription>
-              Будущая библиотека системных и кастомных оценок.
+              Системные и кастомные тесты с неизменяемыми опубликованными версиями.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -44,7 +44,7 @@ export default function HomePage() {
             <ChartNoAxesColumnIncreasing className="size-6 text-primary" />
             <CardTitle>Отчеты и сравнение</CardTitle>
             <CardDescription>
-              Будущие результаты кандидатов внутри вакансии.
+              Результаты, риски и shortlist кандидатов внутри одной вакансии.
             </CardDescription>
           </CardHeader>
         </Card>

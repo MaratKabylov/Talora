@@ -13,7 +13,7 @@ const areas = [
   },
   {
     title: "Кандидаты",
-    description: "Приглашения и список кандидатов появятся в Milestone 6.",
+    description: "Отслеживайте приглашения, результаты оценки, отчеты и шорт-листы.",
   },
 ];
 
@@ -45,8 +45,8 @@ export default async function DashboardPage({
             Добро пожаловать, {context.profile?.fullName ?? context.user.email ?? "коллега"}
           </CardTitle>
           <CardDescription>
-            Вы работаете в роли {context.activeCompany.role}. Здесь будет сводка по вакансиям,
-            приглашениям и результатам.
+            Вы работаете в роли {context.activeCompany.role}. Перейдите в вакансии, чтобы
+            пригласить кандидатов и сравнить результаты оценки.
           </CardDescription>
         </CardHeader>
       </Card>

@@ -31,7 +31,22 @@ function redirectWithFeedback(path: string, type: "error" | "message", text: str
 }
 
 function safeReturnPath(value: string | undefined) {
-  return value?.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+  if (!value || value.includes("\\") || value.includes("\r") || value.includes("\n")) {
+    return "/dashboard";
+  }
+
+  try {
+    const origin = "https://talora.local";
+    const destination = new URL(value, origin);
+    const isDashboardPath =
+      destination.pathname === "/dashboard" || destination.pathname.startsWith("/dashboard/");
+
+    return destination.origin === origin && isDashboardPath
+      ? `${destination.pathname}${destination.search}${destination.hash}`
+      : "/dashboard";
+  } catch {
+    return "/dashboard";
+  }
 }
 
 export async function createFirstCompanyAction(formData: FormData) {
@@ -85,4 +100,3 @@ export async function selectActiveCompanyAction(formData: FormData) {
   revalidatePath("/dashboard", "layout");
   redirect(safeReturnPath(parsed.data.returnTo));
 }
-

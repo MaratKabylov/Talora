@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EmptyState } from "@/components/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireCompanyContext } from "@/lib/auth/context";
@@ -24,7 +25,13 @@ function formatDate(value: string | null) {
 
 function CompetencyRows({ competencies }: { competencies: ReportCompetency[] }) {
   if (competencies.length === 0) {
-    return <p className="text-sm text-muted-foreground">Данных для отображения пока нет.</p>;
+    return (
+      <EmptyState
+        className="py-6"
+        description="Результаты появятся после завершения тестов и расчета оценки."
+        title="Нет данных по компетенциям"
+      />
+    );
   }
 
   return (
@@ -226,7 +233,11 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
           {report.tests.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Кандидат еще не проходил тесты.</p>
+            <EmptyState
+              className="py-6"
+              description="История ответов появится после начала прохождения оценки."
+              title="Кандидат еще не проходил тесты"
+            />
           ) : (
             report.tests.map((test) => (
               <details className="rounded-lg border p-4" key={test.id}>

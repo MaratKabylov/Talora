@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { EmptyState } from "@/components/empty-state";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +25,12 @@ function TemplatesTable({
   templates: TestTemplate[];
 }) {
   if (templates.length === 0) {
-    return <p className="text-sm text-muted-foreground">{emptyText}</p>;
+    return (
+      <EmptyState
+        description={emptyText}
+        title="Доступных тестов пока нет"
+      />
+    );
   }
 
   return (

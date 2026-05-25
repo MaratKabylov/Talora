@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 
 import { AssessmentShell, AssessmentUnavailable } from "@/components/assessment/assessment-shell";
 import { FeedbackMessage } from "@/components/feedback-message";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { acceptAssessmentConsentAction } from "@/lib/assessment/actions";
 import { getAssessmentByToken } from "@/lib/assessment/data";
@@ -37,7 +38,7 @@ export default async function AssessmentStartPage({
       <div className="space-y-6">
         <div>
           <p className="text-sm text-muted-foreground">Приглашение на оценку</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">{assessment.job.title}</h1>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{assessment.job.title}</h1>
           <p className="mt-2 text-muted-foreground">
             {assessment.companyName}
             {[assessment.job.department, assessment.job.location].filter(Boolean).length
@@ -66,9 +67,9 @@ export default async function AssessmentStartPage({
             </p>
             <div className="space-y-2">
               {assessment.tests.map((test) => (
-                <div className="flex justify-between rounded-md border px-3 py-2 text-sm" key={test.versionId}>
+                <div className="flex items-start justify-between gap-3 rounded-md border px-3 py-2 text-sm" key={test.versionId}>
                   <span>{test.title}</span>
-                  <span className="text-muted-foreground">
+                  <span className="shrink-0 text-muted-foreground">
                     {test.durationMinutes ? `${test.durationMinutes} мин.` : ""}
                   </span>
                 </div>
@@ -84,7 +85,7 @@ export default async function AssessmentStartPage({
               <CardDescription>Продолжите с места, на котором остановились.</CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <Link className={buttonVariants()} href={`/assessment/${token}/test/${activeSession.id}`}>
+              <Link className={`${buttonVariants()} w-full sm:w-auto`} href={`/assessment/${token}/test/${activeSession.id}`}>
                 Продолжить прохождение
               </Link>
             </CardContent>
@@ -96,7 +97,7 @@ export default async function AssessmentStartPage({
               <CardDescription>Заполните анкету кандидата, чтобы начать тестирование.</CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <Link className={buttonVariants()} href={`/assessment/${token}/profile`}>
+              <Link className={`${buttonVariants()} w-full sm:w-auto`} href={`/assessment/${token}/profile`}>
                 Перейти к анкете
               </Link>
             </CardContent>
@@ -114,13 +115,15 @@ export default async function AssessmentStartPage({
               <form action={acceptAssessmentConsentAction} className="space-y-5">
                 <input name="token" type="hidden" value={token} />
                 <label className="flex items-start gap-3 rounded-md border p-4 text-sm">
-                  <input className="mt-1" name="consent" required type="checkbox" value="accepted" />
+                  <input className="mt-0.5 size-5 shrink-0 accent-primary" name="consent" required type="checkbox" value="accepted" />
                   <span>
                     Я согласен(на) на обработку предоставленных персональных данных и результатов
                     оценки для рассмотрения моей кандидатуры по указанной вакансии.
                   </span>
                 </label>
-                <Button type="submit">Продолжить к анкете</Button>
+                <PendingSubmitButton className="w-full sm:w-auto" pendingText="Сохраняем согласие..." type="submit">
+                  Продолжить к анкете
+                </PendingSubmitButton>
               </form>
             </CardContent>
           </Card>

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { AssessmentShell, AssessmentUnavailable } from "@/components/assessment/assessment-shell";
 import { FeedbackMessage } from "@/components/feedback-message";
-import { Button } from "@/components/ui/button";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,7 +45,7 @@ export default async function CandidateProfilePage({
       <div className="space-y-6">
         <div>
           <p className="text-sm text-muted-foreground">{assessment.job.title}</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Анкета кандидата</h1>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Анкета кандидата</h1>
           <p className="mt-2 text-muted-foreground">
             Проверьте контактные данные перед началом оценки.
           </p>
@@ -68,6 +68,7 @@ export default async function CandidateProfilePage({
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="fullName">Имя и фамилия</Label>
                   <Input
+                    className="h-11"
                     defaultValue={assessment.candidate.fullName}
                     id="fullName"
                     name="fullName"
@@ -77,6 +78,7 @@ export default async function CandidateProfilePage({
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
+                    className="h-11"
                     defaultValue={assessment.candidate.email ?? ""}
                     id="email"
                     name="email"
@@ -87,6 +89,7 @@ export default async function CandidateProfilePage({
                 <div className="space-y-2">
                   <Label htmlFor="phone">Телефон</Label>
                   <Input
+                    className="h-11"
                     defaultValue={assessment.candidate.phone ?? ""}
                     id="phone"
                     name="phone"
@@ -95,10 +98,12 @@ export default async function CandidateProfilePage({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="city">Город</Label>
-                  <Input defaultValue={assessment.candidate.city ?? ""} id="city" name="city" />
+                  <Input className="h-11" defaultValue={assessment.candidate.city ?? ""} id="city" name="city" />
                 </div>
               </div>
-              <Button type="submit">Начать оценку</Button>
+              <PendingSubmitButton className="w-full sm:w-auto" pendingText="Готовим тесты..." type="submit">
+                Начать оценку
+              </PendingSubmitButton>
             </form>
           </CardContent>
         </Card>

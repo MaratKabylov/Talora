@@ -27,7 +27,7 @@ export default async function CandidateCompletePage({ params }: { params: Comple
       <Card>
         <CardHeader>
           <p className="text-sm text-muted-foreground">{assessment.job.title}</p>
-          <CardTitle className="text-2xl">Оценка завершена</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl">Оценка завершена</CardTitle>
           <CardDescription>
             Спасибо, {assessment.candidate.fullName || "кандидат"}. Ваши ответы сохранены и будут
             рассмотрены {assessment.companyName}.

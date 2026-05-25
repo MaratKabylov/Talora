@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { AssessmentShell, AssessmentUnavailable } from "@/components/assessment/assessment-shell";
 import { QuestionResponseFields } from "@/components/assessment/question-response-fields";
 import { FeedbackMessage } from "@/components/feedback-message";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   completeEmptySessionAction,
@@ -58,17 +59,30 @@ export default async function CandidateTestPage({
     : 0;
   const question = data.questions[questionIndex];
   const completedSessions = data.assessment.sessions.filter((session) => session.status === "completed").length;
+  const progress = question ? ((questionIndex + 1) / data.questions.length) * 100 : 0;
 
   return (
     <AssessmentShell companyName={data.assessment.companyName}>
       <div className="space-y-6">
         <div>
           <p className="text-sm text-muted-foreground">{data.assessment.job.title}</p>
-          <h1 className="mt-2 text-2xl font-semibold">{data.session.test.title}</h1>
+          <h1 className="mt-2 text-xl font-semibold sm:text-2xl">{data.session.test.title}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Тест {completedSessions + 1} из {data.assessment.sessions.length}
             {question ? ` / вопрос ${questionIndex + 1} из ${data.questions.length}` : ""}
           </p>
+          {question ? (
+            <div
+              aria-label={`Вопрос ${questionIndex + 1} из ${data.questions.length}`}
+              aria-valuemax={data.questions.length}
+              aria-valuemin={1}
+              aria-valuenow={questionIndex + 1}
+              className="mt-4 h-2 overflow-hidden rounded-full bg-muted"
+              role="progressbar"
+            >
+              <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          ) : null}
         </div>
 
         <FeedbackMessage error={feedback.error} />
@@ -83,7 +97,9 @@ export default async function CandidateTestPage({
               <form action={completeEmptySessionAction}>
                 <input name="token" type="hidden" value={token} />
                 <input name="sessionId" type="hidden" value={sessionId} />
-                <Button type="submit">Продолжить</Button>
+                <PendingSubmitButton className="w-full sm:w-auto" pendingText="Переходим..." type="submit">
+                  Продолжить
+                </PendingSubmitButton>
               </form>
             </CardContent>
           </Card>
@@ -100,20 +116,26 @@ export default async function CandidateTestPage({
                 <input name="sessionId" type="hidden" value={sessionId} />
                 <input name="questionId" type="hidden" value={question.id} />
                 <QuestionResponseFields answer={data.answers[question.id] ?? null} question={question} />
-                <div className="flex flex-wrap justify-between gap-3">
+                <div className="-mx-6 -mb-6 flex flex-col-reverse gap-3 border-t bg-background/95 px-6 py-4 sm:mx-0 sm:mb-0 sm:flex-row sm:justify-between sm:border-0 sm:p-0">
                   {questionIndex > 0 ? (
                     <Link
-                      className={buttonVariants({ variant: "outline" })}
+                      className={`${buttonVariants({ variant: "outline" })} w-full sm:w-auto`}
                       href={`/assessment/${token}/test/${sessionId}?question=${questionIndex - 1}`}
                     >
                       Назад
                     </Link>
                   ) : (
-                    <span />
+                    <span className="hidden sm:block" />
                   )}
-                  <Button name="direction" type="submit" value="next">
+                  <PendingSubmitButton
+                    className="w-full sm:w-auto"
+                    name="direction"
+                    pendingText="Сохраняем ответ..."
+                    type="submit"
+                    value="next"
+                  >
                     {questionIndex === data.questions.length - 1 ? "Завершить тест" : "Сохранить и далее"}
-                  </Button>
+                  </PendingSubmitButton>
                 </div>
               </form>
             </CardContent>

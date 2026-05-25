@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { EmptyState } from "@/components/empty-state";
 import { cancelInvitationAction } from "@/lib/candidates/actions";
 import {
   APPLICATION_STATUS_LABELS,
@@ -59,7 +60,12 @@ export function CandidateApplicationsTable({
   showJob?: boolean;
 }) {
   if (applications.length === 0) {
-    return <p className="text-sm text-muted-foreground">Кандидатов пока нет.</p>;
+    return (
+      <EmptyState
+        description="Добавьте кандидата из карточки вакансии, чтобы отправить приглашение на оценку."
+        title="Кандидатов пока нет"
+      />
+    );
   }
 
   return (

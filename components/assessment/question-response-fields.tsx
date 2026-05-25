@@ -20,8 +20,12 @@ export function QuestionResponseFields({
     return (
       <div className="space-y-3">
         {question.options.map((option) => (
-          <label className="flex cursor-pointer gap-3 rounded-lg border p-4" key={option.id}>
+          <label
+            className="flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors has-checked:border-primary has-checked:bg-primary/5"
+            key={option.id}
+          >
             <input
+              className="mt-0.5 size-5 shrink-0 accent-primary"
               defaultChecked={answer?.selectedOptionId === option.id}
               name="optionId"
               required
@@ -43,8 +47,12 @@ export function QuestionResponseFields({
     return (
       <div className="space-y-3">
         {question.options.map((option) => (
-          <label className="flex cursor-pointer gap-3 rounded-lg border p-4" key={option.id}>
+          <label
+            className="flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors has-checked:border-primary has-checked:bg-primary/5"
+            key={option.id}
+          >
             <input
+              className="mt-0.5 size-5 shrink-0 accent-primary"
               defaultChecked={selectedIds.includes(option.id)}
               name="optionIds"
               type="checkbox"
@@ -65,6 +73,7 @@ export function QuestionResponseFields({
       <div className="space-y-3">
         <Label htmlFor="scaleValue">Выберите значение от {question.scaleMin} до {question.scaleMax}</Label>
         <Input
+          className="h-12 accent-primary"
           defaultValue={storedValue}
           id="scaleValue"
           max={question.scaleMax}
@@ -92,6 +101,7 @@ export function QuestionResponseFields({
     <div className="space-y-2">
       <Label htmlFor="answerText">{guidance}</Label>
       <Textarea
+        className="min-h-32"
         defaultValue={answer?.answerText ?? ""}
         id="answerText"
         maxLength={4000}

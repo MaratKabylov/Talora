@@ -4,7 +4,24 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 function safeNextPath(value: string | null) {
-  return value?.startsWith("/") && !value.startsWith("//") ? value : "/onboarding";
+  if (!value || value.includes("\\") || value.includes("\r") || value.includes("\n")) {
+    return "/onboarding";
+  }
+
+  try {
+    const origin = "https://talora.local";
+    const destination = new URL(value, origin);
+    const isAllowedPath =
+      destination.pathname === "/onboarding" ||
+      destination.pathname === "/dashboard" ||
+      destination.pathname.startsWith("/dashboard/");
+
+    return destination.origin === origin && isAllowedPath
+      ? `${destination.pathname}${destination.search}${destination.hash}`
+      : "/onboarding";
+  } catch {
+    return "/onboarding";
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -25,4 +42,3 @@ export async function GET(request: NextRequest) {
     new URL("/login?error=Не удалось подтвердить email. Повторите вход.", request.url),
   );
 }
-

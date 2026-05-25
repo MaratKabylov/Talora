@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EmptyState } from "@/components/empty-state";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { TestTemplateFields } from "@/components/tests/test-template-fields";
 import { TestVersionFields } from "@/components/tests/test-version-fields";
@@ -108,7 +109,10 @@ export default async function TestPage({
         </CardHeader>
         <CardContent className="pt-6">
           {template.versions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Версии пока не созданы.</p>
+            <EmptyState
+              description="Создайте черновую версию, чтобы добавить содержание и затем опубликовать тест."
+              title="Версии пока не созданы"
+            />
           ) : (
             <div className="overflow-hidden rounded-lg border">
               <table className="w-full text-sm">
