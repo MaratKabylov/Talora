@@ -56,9 +56,17 @@ export default async function JobPage({
             </span>
           </div>
         </div>
-        <Link className={buttonVariants({ variant: "outline" })} href="/dashboard/jobs">
-          К списку
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            className={buttonVariants()}
+            href={`/dashboard/jobs/${data.job.id}/compare`}
+          >
+            Сравнить кандидатов
+          </Link>
+          <Link className={buttonVariants({ variant: "outline" })} href="/dashboard/jobs">
+            К списку
+          </Link>
+        </div>
       </div>
 
       <FeedbackMessage error={feedback.error} message={feedback.message} />

@@ -40,6 +40,15 @@ export const INVITATION_STATUS_LABELS: Record<(typeof INVITATION_STATUS_VALUES)[
   cancelled: "Отменена",
 };
 
+export const RECOMMENDATION_VALUES = [
+  "strong_candidate",
+  "invite",
+  "consider",
+  "backup",
+  "not_recommended",
+  "requires_review",
+] as const;
+
 export const RECOMMENDATION_LABELS: Record<string, string> = {
   backup: "Резерв",
   consider: "Рассмотреть",
@@ -49,6 +58,8 @@ export const RECOMMENDATION_LABELS: Record<string, string> = {
   strong_candidate: "Сильный кандидат",
 };
 
+export const RISK_LEVEL_VALUES = ["low", "medium", "high"] as const;
+
 export const RISK_LEVEL_LABELS: Record<string, string> = {
   high: "Высокий риск",
   low: "Низкий риск",
@@ -57,6 +68,8 @@ export const RISK_LEVEL_LABELS: Record<string, string> = {
 
 export type ApplicationStatus = (typeof APPLICATION_STATUS_VALUES)[number];
 export type InvitationStatus = (typeof INVITATION_STATUS_VALUES)[number];
+export type Recommendation = (typeof RECOMMENDATION_VALUES)[number];
+export type RiskLevel = (typeof RISK_LEVEL_VALUES)[number];
 
 export function canManageCandidates(role: CompanyRole) {
   return role === "owner" || role === "admin" || role === "recruiter" || role === "super_admin";
