@@ -232,7 +232,7 @@ export async function updateJobAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Выбранный пакет оценки недоступен для этой компании.");
   }
 
-  const { error } = await supabase
+  const { data: updatedJob, error } = await supabase
     .from("jobs")
     .update({
       assessment_package_id: job.data.assessmentPackageId,
@@ -245,10 +245,12 @@ export async function updateJobAction(formData: FormData) {
       title: job.data.title,
     })
     .eq("company_id", context.activeCompany.id)
-    .eq("id", jobId.data);
+    .eq("id", jobId.data)
+    .select("id")
+    .maybeSingle();
 
-  if (error) {
-    redirectWithFeedback(path, "error", "Не удалось обновить вакансию.");
+  if (error || !updatedJob) {
+    redirectWithFeedback("/dashboard/jobs", "error", "Вакансия не найдена или недоступна.");
   }
 
   revalidatePath("/dashboard/jobs");

@@ -10,7 +10,7 @@ const navigation = [
   { href: "/dashboard", label: "Обзор", ready: true },
   { href: "/dashboard/profile", label: "Профиль", ready: true },
   { href: "/dashboard/company/members", label: "Участники", ready: true },
-  { href: "#", label: "Вакансии", ready: false },
+  { href: "/dashboard/jobs", label: "Вакансии", ready: true },
   { href: "#", label: "Кандидаты", ready: false },
   { href: "#", label: "Тесты", ready: false },
 ];

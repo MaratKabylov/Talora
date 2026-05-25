@@ -5,7 +5,7 @@ import { requireCompanyContext } from "@/lib/auth/context";
 const areas = [
   {
     title: "Вакансии",
-    description: "Управление позициями и требованиями появится в Milestone 3.",
+    description: "Создавайте позиции, назначайте пакет оценки и настраивайте веса компетенций.",
   },
   {
     title: "Тесты",
