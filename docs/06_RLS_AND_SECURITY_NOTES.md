@@ -14,15 +14,16 @@ HR-пользователи должны видеть только данные 
 
 Не открывать прямой anon-доступ ко всем таблицам.
 
-## Service role
+## Server secret
 
-`SUPABASE_SERVICE_ROLE_KEY` можно использовать только на сервере, например для:
+Для нового server-side кода предпочитайте `SUPABASE_SECRET_KEY` (`sb_secret_...`).
+Legacy `SUPABASE_SERVICE_ROLE_KEY` также можно использовать только на сервере, например для:
 
 - генерации системных seed-тестов;
 - защищенного scoring;
 - обработки candidate token flow.
 
-Никогда не передавать service role key в browser.
+Никогда не передавать secret/service role key в browser.
 
 ## Published tests
 

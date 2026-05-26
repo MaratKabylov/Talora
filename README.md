@@ -25,6 +25,16 @@
 Backoffice владельца SaaS доступен по `/admin` после применения миграции
 `supabase/migrations/20260526100000_platform_admin_backoffice.sql`.
 
+Для серверных операций админки укажите в `.env` ключ из Supabase Dashboard:
+
+```dotenv
+SUPABASE_SECRET_KEY=sb_secret_...
+```
+
+Поддерживается и legacy-переменная `SUPABASE_SERVICE_ROLE_KEY`, но secret key
+рекомендуется Supabase для нового server-side кода. Этот ключ нельзя использовать
+в клиентских компонентах или переменных с префиксом `NEXT_PUBLIC_`.
+
 Первого владельца платформы нужно назначить вручную после его регистрации и появления
 записи в `public.profiles`:
 
