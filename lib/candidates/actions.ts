@@ -49,6 +49,38 @@ function redirectWithFeedback(path: string, type: "error" | "message", text: str
   redirect(`${path}${separator}${params.toString()}`);
 }
 
+function getInvitationErrorMessage(message: string) {
+  if (message.includes("Invitation expiration must be in the future")) {
+    return "Дата окончания ссылки должна быть в будущем.";
+  }
+
+  if (message.includes("Job is unavailable for invitations or has no assessment package")) {
+    return "Для приглашения назначьте вакансии пакет оценки и убедитесь, что вакансия не закрыта.";
+  }
+
+  if (message.includes("This application cannot receive a new invitation")) {
+    return "Этот кандидат уже завершил участие в вакансии, либо его отклик закрыт.";
+  }
+
+  if (message.includes("Candidate has already started the assessment")) {
+    return "Кандидат уже начал оценку. Создать новую ссылку для этого отклика нельзя.";
+  }
+
+  if (message.includes("User cannot invite candidates for this company")) {
+    return "У вашей роли нет права приглашать кандидатов.";
+  }
+
+  if (message.includes("Could not find the function") || message.includes("schema cache")) {
+    return "Функция приглашений не настроена в базе. Примените последние миграции Supabase.";
+  }
+
+  if (message.includes("gen_random_bytes")) {
+    return "Не удалось сгенерировать ссылку. Примените последние миграции Supabase.";
+  }
+
+  return "Не удалось создать приглашение. Проверьте настройку вакансии и миграции Supabase.";
+}
+
 function getReturnPath(formData: FormData) {
   const returnTo = formString(formData, "returnTo");
   const jobPath = /^\/dashboard\/jobs\/[0-9a-f-]{36}$/i;
@@ -96,11 +128,7 @@ export async function inviteCandidateAction(formData: FormData) {
   });
 
   if (error) {
-    redirectWithFeedback(
-      path,
-      "error",
-      "Не удалось создать приглашение. Проверьте пакет оценки, статус вакансии и данные кандидата.",
-    );
+    redirectWithFeedback(path, "error", getInvitationErrorMessage(error.message));
   }
 
   revalidatePath(path);
