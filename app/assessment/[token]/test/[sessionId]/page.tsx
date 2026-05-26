@@ -39,7 +39,7 @@ export default async function CandidateTestPage({
     redirect(`/assessment/${token}`);
   }
 
-  const data = await getAssessmentQuestionPageData(token, sessionId);
+  const data = await getAssessmentQuestionPageData(token, sessionId, overview);
   if (!data) {
     return <AssessmentUnavailable state="invalid" />;
   }

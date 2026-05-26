@@ -374,8 +374,9 @@ export async function getAssessmentByToken(token: string): Promise<AssessmentAva
 export async function getAssessmentQuestionPageData(
   token: string,
   sessionId: string,
+  currentAssessment?: ActiveAssessment,
 ): Promise<AssessmentQuestionPageData | null> {
-  const assessment = await getAssessmentByToken(token);
+  const assessment = currentAssessment ?? (await getAssessmentByToken(token));
 
   if (assessment.availability !== "active" && assessment.availability !== "completed") {
     return null;

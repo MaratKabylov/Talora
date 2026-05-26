@@ -30,14 +30,16 @@ export default async function JobPage({
   const context = await requireCompanyContext();
   const { id } = await params;
   const feedback = await searchParams;
-  const data = await getJobPageData(context.activeCompany.id, id);
+  const [data, applications] = await Promise.all([
+    getJobPageData(context.activeCompany.id, id),
+    listJobCandidateApplications(context.activeCompany.id, id),
+  ]);
 
   if (!data) {
     notFound();
   }
 
   const mayManage = canManageJobs(context.activeCompany.role);
-  const applications = await listJobCandidateApplications(context.activeCompany.id, data.job.id);
   const mayInvite =
     mayManage &&
     Boolean(data.job.assessmentPackageId) &&
