@@ -2,6 +2,7 @@ import {
   QUESTION_TYPE_LABELS,
   TEST_COMPETENCY_LABELS,
 } from "@/lib/tests/builder-constants";
+import { Button } from "@/components/ui/button";
 import type { BuilderQuestion, BuilderSection } from "@/lib/tests/builder-data";
 import type { TestVersion } from "@/lib/tests/data";
 
@@ -53,12 +54,20 @@ function QuestionInputPreview({ question }: { question: BuilderQuestion }) {
 }
 
 export function TestPreview({
+  currentSectionIndex,
+  onSectionChange,
   sections,
   version,
 }: {
+  currentSectionIndex?: number;
+  onSectionChange?: (index: number) => void;
   sections: BuilderSection[];
   version: TestVersion;
 }) {
+  const isPaged = typeof currentSectionIndex === "number";
+  const safeSectionIndex = Math.min(Math.max(currentSectionIndex ?? 0, 0), Math.max(sections.length - 1, 0));
+  const visibleSections = isPaged ? sections.slice(safeSectionIndex, safeSectionIndex + 1) : sections;
+
   return (
     <div className="space-y-6">
       <div className="rounded-lg border bg-background p-5">
@@ -76,9 +85,14 @@ export function TestPreview({
           В этой версии пока нет секций и вопросов.
         </p>
       ) : (
-        sections.map((section) => (
+        visibleSections.map((section) => (
           <section className="space-y-4 rounded-lg border bg-background p-5" key={section.id}>
             <div>
+              {isPaged ? (
+                <p className="mb-1 text-xs font-medium text-primary">
+                  Страница {safeSectionIndex + 1} из {sections.length}
+                </p>
+              ) : null}
               <h3 className="font-semibold">{section.title}</h3>
               {section.description ? (
                 <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
@@ -92,6 +106,7 @@ export function TestPreview({
                   <div className="flex flex-wrap justify-between gap-2">
                     <p className="text-sm font-medium">
                       {index + 1}. {question.text}
+                      {question.isRequired ? <span className="ml-1 text-destructive">*</span> : null}
                     </p>
                     <span className="text-xs text-muted-foreground">
                       {QUESTION_TYPE_LABELS[question.questionType]}
@@ -107,6 +122,27 @@ export function TestPreview({
                 </div>
               ))
             )}
+            {isPaged && onSectionChange ? (
+              <div className="flex justify-between border-t pt-4">
+                <Button
+                  disabled={safeSectionIndex === 0}
+                  onClick={() => onSectionChange(safeSectionIndex - 1)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  Назад
+                </Button>
+                <Button
+                  disabled={safeSectionIndex === sections.length - 1}
+                  onClick={() => onSectionChange(safeSectionIndex + 1)}
+                  size="sm"
+                  type="button"
+                >
+                  Далее
+                </Button>
+              </div>
+            ) : null}
           </section>
         ))
       )}

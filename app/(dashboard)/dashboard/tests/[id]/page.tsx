@@ -8,6 +8,7 @@ import { TestVersionFields } from "@/components/tests/test-version-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireCompanyContext } from "@/lib/auth/context";
+import { createDraftFromPublishedVersionAction } from "@/lib/tests/builder-actions";
 import {
   archiveTestDraftVersionAction,
   createTestVersionAction,
@@ -148,12 +149,23 @@ export default async function TestPage({
                           : "Нет"}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Link
-                          className={buttonVariants({ size: "sm", variant: "outline" })}
-                          href={`/dashboard/tests/${template.id}/builder?version=${version.id}`}
-                        >
-                          {isEditable && version.status === "draft" ? "Конструктор" : "Preview"}
-                        </Link>
+                        <div className="flex justify-end gap-2">
+                          <Link
+                            className={buttonVariants({ size: "sm", variant: "outline" })}
+                            href={`/dashboard/tests/${template.id}/builder?version=${version.id}`}
+                          >
+                            {isEditable && version.status === "draft" ? "Конструктор" : "Preview"}
+                          </Link>
+                          {isEditable && version.status === "published" && !draftVersion ? (
+                            <form action={createDraftFromPublishedVersionAction}>
+                              <input name="templateId" type="hidden" value={template.id} />
+                              <input name="versionId" type="hidden" value={version.id} />
+                              <Button size="sm" type="submit">
+                                Редактировать
+                              </Button>
+                            </form>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}

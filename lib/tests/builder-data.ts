@@ -23,7 +23,7 @@ type QuestionRecord = {
   order_index: number;
   points: number;
   question_type: QuestionType;
-  settings_json: { max?: number; min?: number } | null;
+  settings_json: { max?: number; min?: number; required?: boolean } | null;
   text: string;
 };
 
@@ -51,6 +51,7 @@ export type BuilderQuestion = {
   description: string | null;
   difficulty: QuestionDifficulty | null;
   id: string;
+  isRequired: boolean;
   options: BuilderOption[];
   orderIndex: number;
   points: number;
@@ -75,6 +76,13 @@ export type TestBuilderData = {
   version: TestVersion;
 };
 
+export type BuilderImportSource = {
+  id: string;
+  sections: BuilderSection[];
+  title: string;
+  versionNumber: number;
+};
+
 function normalizeOption(option: OptionRecord): BuilderOption {
   return {
     competencyEffects: option.competency_effect_json ?? {},
@@ -95,6 +103,7 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
     description: question.description,
     difficulty: question.difficulty,
     id: question.id,
+    isRequired: settings.required ?? true,
     options: (question.answer_options ?? [])
       .map(normalizeOption)
       .sort((left, right) => left.orderIndex - right.orderIndex),
@@ -159,4 +168,47 @@ export async function getTestBuilderData(
     template,
     version,
   };
+}
+
+export async function getBuilderImportSources(
+  companyId: string,
+  currentVersionId: string,
+): Promise<BuilderImportSource[]> {
+  const supabase = await createClient();
+  const { data: templates, error: templatesError } = await supabase
+    .from("test_templates")
+    .select(
+      "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))))",
+    )
+    .or(`company_id.eq.${companyId},is_system.eq.true`);
+
+  if (templatesError) {
+    return [];
+  }
+
+  type ImportTemplateRecord = {
+    test_versions?: Array<{
+      id: string;
+      status: string;
+      test_sections?: SectionRecord[] | null;
+      version_number: number;
+    }> | null;
+    title: string;
+  };
+
+  return ((templates ?? []) as unknown as ImportTemplateRecord[])
+    .flatMap((template) =>
+      (template.test_versions ?? [])
+        .filter((version) => version.id !== currentVersionId && version.status === "published")
+        .map((version) => ({
+          id: version.id,
+          sections: (version.test_sections ?? [])
+            .map(normalizeSection)
+            .sort((left, right) => left.orderIndex - right.orderIndex),
+          title: template.title,
+          versionNumber: version.version_number,
+        })),
+    )
+    .filter((source) => source.sections.length > 0)
+    .sort((left, right) => left.title.localeCompare(right.title, "ru"));
 }

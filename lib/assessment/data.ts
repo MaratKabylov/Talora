@@ -85,11 +85,12 @@ type QuestionRecord = {
   id: string;
   order_index: number;
   question_type: QuestionType;
-  settings_json: { max?: number; min?: number } | null;
+  settings_json: { max?: number; min?: number; required?: boolean } | null;
   text: string;
 };
 
 type SectionRecord = {
+  description: string | null;
   id: string;
   order_index: number;
   questions?: QuestionRecord[] | null;
@@ -159,12 +160,20 @@ export type FlowOption = {
 export type FlowQuestion = {
   description: string | null;
   id: string;
+  isRequired: boolean;
   options: FlowOption[];
   questionType: QuestionType;
   scaleMax: number;
   scaleMin: number;
   sectionTitle: string;
   text: string;
+};
+
+export type FlowSection = {
+  description: string | null;
+  id: string;
+  questions: FlowQuestion[];
+  title: string;
 };
 
 export type AssessmentQuestionPageData = {
@@ -175,6 +184,7 @@ export type AssessmentQuestionPageData = {
   }>;
   assessment: ActiveAssessment;
   questions: FlowQuestion[];
+  sections: FlowSection[];
   session: AssessmentSession;
 };
 
@@ -393,7 +403,7 @@ export async function getAssessmentQuestionPageData(
       admin
         .from("test_sections")
         .select(
-          "id, title, order_index, questions(id, question_type, text, description, order_index, settings_json, answer_options(id, text, order_index))",
+          "id, title, description, order_index, questions(id, question_type, text, description, order_index, settings_json, answer_options(id, text, order_index))",
         )
         .eq("test_version_id", session.test.versionId),
       admin
@@ -406,10 +416,12 @@ export async function getAssessmentQuestionPageData(
     throw new Error("Unable to load candidate assessment questions.");
   }
 
-  const questions = ((sectionsData ?? []) as unknown as SectionRecord[])
+  const sections = ((sectionsData ?? []) as unknown as SectionRecord[])
     .sort((left, right) => left.order_index - right.order_index)
-    .flatMap((section) =>
-      (section.questions ?? [])
+    .map((section) => ({
+      description: section.description,
+      id: section.id,
+      questions: (section.questions ?? [])
         .sort((left, right) => left.order_index - right.order_index)
         .map((question) => {
           const settings = question.settings_json ?? {};
@@ -417,6 +429,7 @@ export async function getAssessmentQuestionPageData(
           return {
             description: question.description,
             id: question.id,
+            isRequired: settings.required ?? true,
             options: (question.answer_options ?? [])
               .slice()
               .sort((left, right) => left.order_index - right.order_index)
@@ -428,7 +441,9 @@ export async function getAssessmentQuestionPageData(
             text: question.text,
           };
         }),
-    );
+      title: section.title,
+    }));
+  const questions = sections.flatMap((section) => section.questions);
 
   const answers = (answersData ?? []) as AnswerRecord[];
   return {
@@ -444,6 +459,7 @@ export async function getAssessmentQuestionPageData(
     ),
     assessment,
     questions,
+    sections,
     session,
   };
 }

@@ -13,7 +13,7 @@ import {
   TEST_COMPETENCIES,
   type TestCompetencyKey,
 } from "./builder-constants";
-import { canManageTests } from "./constants";
+import { canManageTests, SCORING_TYPE_VALUES } from "./constants";
 
 const competencyKeys = TEST_COMPETENCIES.map((competency) => competency.key) as [
   TestCompetencyKey,
@@ -117,6 +117,64 @@ const optionSchema = z
       });
     }
   });
+
+const documentOptionSchema = z.object({
+  competencyEffects: z.record(z.string(), z.number().min(-10000).max(10000)),
+  explanation: z.string().max(1000).nullable(),
+  id: z.string().uuid(),
+  isCorrect: z.boolean(),
+  points: z.number().min(0).max(10000),
+  text: z.string().trim().min(1).max(1000),
+});
+
+const documentQuestionSchema = z
+  .object({
+    competencyKey: z.enum(competencyKeys).nullable(),
+    description: z.string().max(2000).nullable(),
+    difficulty: z.enum(DIFFICULTY_VALUES).nullable(),
+    id: z.string().uuid(),
+    isRequired: z.boolean(),
+    options: z.array(documentOptionSchema).max(100),
+    points: z.number().min(0).max(10000),
+    questionType: z.enum(QUESTION_TYPE_VALUES),
+    scaleMax: z.number().int().min(2).max(100),
+    scaleMin: z.number().int().min(1).max(99),
+    text: z.string().trim().min(2).max(4000),
+  })
+  .refine(
+    (question) => question.questionType !== "scale" || question.scaleMin < question.scaleMax,
+    "Максимум шкалы должен быть больше минимума.",
+  );
+
+const builderDocumentSchema = z.object({
+  sections: z
+    .array(
+      z.object({
+        description: z.string().max(1000).nullable(),
+        id: z.string().uuid(),
+        questions: z.array(documentQuestionSchema).max(300),
+        timeLimitMinutes: z.number().int().min(1).max(1440).nullable(),
+        title: z.string().trim().min(2).max(180),
+      }),
+    )
+    .max(100),
+  templateId: z.string().uuid(),
+  version: z.object({
+    description: z.string().max(2000).nullable(),
+    durationMinutes: z.number().int().min(1).max(1440).nullable(),
+    instructions: z.string().max(4000).nullable(),
+    scoringType: z.enum(SCORING_TYPE_VALUES),
+    title: z.string().trim().min(2).max(180),
+  }),
+  versionId: z.string().uuid(),
+});
+
+export type BuilderDocumentInput = z.infer<typeof builderDocumentSchema>;
+export type BuilderSaveResult = {
+  error?: string;
+  ok: boolean;
+  savedAt?: string;
+};
 
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -280,6 +338,170 @@ function optionPayload(option: z.infer<typeof optionSchema>) {
     points: option.points,
     text: option.text,
   };
+}
+
+async function getDocumentContext(templateId: string, versionId: string) {
+  const context = await requireCompanyContext();
+  if (!canManageTests(context.activeCompany.role)) {
+    return null;
+  }
+
+  const supabase = await createClient();
+  const { data: version } = await supabase
+    .from("test_versions")
+    .select("id, test_templates!inner(id, company_id, is_system, status)")
+    .eq("id", versionId)
+    .eq("test_template_id", templateId)
+    .eq("status", "draft")
+    .eq("test_templates.company_id", context.activeCompany.id)
+    .eq("test_templates.is_system", false)
+    .eq("test_templates.status", "active")
+    .maybeSingle();
+
+  return version ? { supabase } : null;
+}
+
+export async function saveBuilderDocumentAction(input: unknown): Promise<BuilderSaveResult> {
+  const parsed = builderDocumentSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Проверьте заполнение конструктора.", ok: false };
+  }
+
+  const document = parsed.data;
+  const context = await getDocumentContext(document.templateId, document.versionId);
+  if (!context) {
+    return { error: "Редактировать можно только активную черновую версию.", ok: false };
+  }
+
+  const { supabase } = context;
+  const { data: currentSections, error: currentError } = await supabase
+    .from("test_sections")
+    .select("id, questions(id, answer_options(id))")
+    .eq("test_version_id", document.versionId);
+
+  if (currentError) {
+    return { error: "Не удалось проверить текущее содержимое.", ok: false };
+  }
+
+  const nextSectionIds = new Set(document.sections.map((section) => section.id));
+  const nextQuestionIds = new Set(
+    document.sections.flatMap((section) => section.questions.map((question) => question.id)),
+  );
+  const nextOptionIds = new Set(
+    document.sections.flatMap((section) =>
+      section.questions.flatMap((question) => question.options.map((option) => option.id)),
+    ),
+  );
+
+  type StoredSection = {
+    id: string;
+    questions?: Array<{ answer_options?: Array<{ id: string }> | null; id: string }> | null;
+  };
+  const storedSections = (currentSections ?? []) as unknown as StoredSection[];
+  const removedOptionIds = storedSections.flatMap((section) =>
+    (section.questions ?? []).flatMap((question) =>
+      (question.answer_options ?? [])
+        .filter((option) => !nextOptionIds.has(option.id))
+        .map((option) => option.id),
+    ),
+  );
+  const removedQuestionIds = storedSections.flatMap((section) =>
+    (section.questions ?? [])
+      .filter((question) => !nextQuestionIds.has(question.id))
+      .map((question) => question.id),
+  );
+  const removedSectionIds = storedSections
+    .filter((section) => !nextSectionIds.has(section.id))
+    .map((section) => section.id);
+
+  if (removedOptionIds.length > 0) {
+    const { error } = await supabase.from("answer_options").delete().in("id", removedOptionIds);
+    if (error) return { error: "Не удалось удалить варианты ответа.", ok: false };
+  }
+  if (removedQuestionIds.length > 0) {
+    const { error } = await supabase.from("questions").delete().in("id", removedQuestionIds);
+    if (error) return { error: "Не удалось удалить вопросы.", ok: false };
+  }
+  if (removedSectionIds.length > 0) {
+    const { error } = await supabase.from("test_sections").delete().in("id", removedSectionIds);
+    if (error) return { error: "Не удалось удалить секции.", ok: false };
+  }
+
+  const { error: versionError } = await supabase
+    .from("test_versions")
+    .update({
+      description: document.version.description,
+      duration_minutes: document.version.durationMinutes,
+      instructions: document.version.instructions,
+      scoring_type: document.version.scoringType,
+      title: document.version.title,
+    })
+    .eq("id", document.versionId)
+    .eq("status", "draft");
+  if (versionError) {
+    return { error: "Не удалось сохранить параметры версии.", ok: false };
+  }
+
+  if (document.sections.length > 0) {
+    const { error } = await supabase.from("test_sections").upsert(
+      document.sections.map((section, orderIndex) => ({
+        description: section.description,
+        id: section.id,
+        order_index: orderIndex + 1,
+        test_version_id: document.versionId,
+        time_limit_minutes: section.timeLimitMinutes,
+        title: section.title,
+      })),
+    );
+    if (error) return { error: "Не удалось сохранить секции.", ok: false };
+  }
+
+  const questions = document.sections.flatMap((section) =>
+    section.questions.map((question, orderIndex) => ({
+      competency_key: question.competencyKey,
+      description: question.description,
+      difficulty: question.difficulty,
+      id: question.id,
+      order_index: orderIndex + 1,
+      points: question.points,
+      question_type: question.questionType,
+      section_id: section.id,
+      settings_json: {
+        ...(question.questionType === "scale"
+          ? { max: question.scaleMax, min: question.scaleMin }
+          : {}),
+        required: question.isRequired,
+      },
+      text: question.text,
+    })),
+  );
+  if (questions.length > 0) {
+    const { error } = await supabase.from("questions").upsert(questions);
+    if (error) return { error: "Не удалось сохранить вопросы.", ok: false };
+  }
+
+  const options = document.sections.flatMap((section) =>
+    section.questions.flatMap((question) =>
+      question.options.map((option, orderIndex) => ({
+        competency_effect_json: option.competencyEffects,
+        explanation: option.explanation,
+        id: option.id,
+        is_correct: option.isCorrect,
+        order_index: orderIndex + 1,
+        points: option.points,
+        question_id: question.id,
+        text: option.text,
+      })),
+    ),
+  );
+  if (options.length > 0) {
+    const { error } = await supabase.from("answer_options").upsert(options);
+    if (error) return { error: "Не удалось сохранить варианты ответа.", ok: false };
+  }
+
+  revalidatePath(getBuilderPath(document.templateId, document.versionId).split("?")[0]);
+  revalidatePath(`/dashboard/tests/${document.templateId}`);
+  return { ok: true, savedAt: new Date().toISOString() };
 }
 
 export async function createSectionAction(formData: FormData) {
@@ -528,4 +750,177 @@ export async function deleteAnswerOptionAction(formData: FormData) {
 
   revalidatePath(action.path.split("?")[0]);
   redirectWithFeedback(action.path, "message", "Вариант ответа удален.");
+}
+
+export async function createDraftFromPublishedVersionAction(formData: FormData) {
+  const templateId = parseId(formData, "templateId");
+  const versionId = parseId(formData, "versionId");
+  if (!templateId.success || !versionId.success) {
+    redirect("/dashboard/tests");
+  }
+
+  const context = await requireCompanyContext();
+  const previewPath = getBuilderPath(templateId.data, versionId.data);
+  if (!canManageTests(context.activeCompany.role)) {
+    redirectWithFeedback(previewPath, "error", "У вашей роли нет права создавать новую версию.");
+  }
+
+  const supabase = await createClient();
+  const { data: template } = await supabase
+    .from("test_templates")
+    .select("id")
+    .eq("id", templateId.data)
+    .eq("company_id", context.activeCompany.id)
+    .eq("is_system", false)
+    .eq("status", "active")
+    .maybeSingle();
+  if (!template) {
+    redirectWithFeedback(previewPath, "error", "Новая версия доступна только для активного теста компании.");
+  }
+
+  const { data: existingDraft } = await supabase
+    .from("test_versions")
+    .select("id")
+    .eq("test_template_id", templateId.data)
+    .eq("status", "draft")
+    .limit(1)
+    .maybeSingle();
+  if (existingDraft) {
+    redirectWithFeedback(
+      getBuilderPath(templateId.data, existingDraft.id),
+      "message",
+      "Открыт уже существующий черновик.",
+    );
+  }
+
+  const [{ data: source }, { data: latest }] = await Promise.all([
+    supabase
+      .from("test_versions")
+      .select("title, description, instructions, duration_minutes, scoring_type, settings_json")
+      .eq("id", versionId.data)
+      .eq("test_template_id", templateId.data)
+      .eq("status", "published")
+      .maybeSingle(),
+    supabase
+      .from("test_versions")
+      .select("version_number")
+      .eq("test_template_id", templateId.data)
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  if (!source) {
+    redirectWithFeedback(previewPath, "error", "Копировать для редактирования можно только опубликованную версию.");
+  }
+
+  const { data: draft, error: draftError } = await supabase
+    .from("test_versions")
+    .insert({
+      description: source.description,
+      duration_minutes: source.duration_minutes,
+      instructions: source.instructions,
+      scoring_type: source.scoring_type,
+      settings_json: source.settings_json,
+      status: "draft",
+      test_template_id: templateId.data,
+      title: source.title,
+      version_number: (latest?.version_number ?? 0) + 1,
+    })
+    .select("id")
+    .single();
+  if (draftError || !draft) {
+    redirectWithFeedback(previewPath, "error", "Не удалось создать черновую версию.");
+  }
+
+  const { data: sourceSections, error: contentError } = await supabase
+    .from("test_sections")
+    .select(
+      "title, description, order_index, time_limit_minutes, settings_json, questions(question_type, text, description, media_url, order_index, points, competency_key, difficulty, settings_json, answer_options(text, order_index, is_correct, points, competency_effect_json, explanation))",
+    )
+    .eq("test_version_id", versionId.data)
+    .order("order_index");
+  if (contentError) {
+    redirectWithFeedback(getBuilderPath(templateId.data, draft.id), "error", "Черновик создан, но содержание не удалось скопировать.");
+  }
+
+  type CloneSection = {
+    description: string | null;
+    order_index: number;
+    questions?: Array<{
+      answer_options?: Array<{
+        competency_effect_json: Record<string, number>;
+        explanation: string | null;
+        is_correct: boolean | null;
+        order_index: number;
+        points: number;
+        text: string;
+      }> | null;
+      competency_key: string | null;
+      description: string | null;
+      difficulty: string | null;
+      media_url: string | null;
+      order_index: number;
+      points: number;
+      question_type: string;
+      settings_json: Record<string, unknown>;
+      text: string;
+    }> | null;
+    settings_json: Record<string, unknown>;
+    time_limit_minutes: number | null;
+    title: string;
+  };
+
+  for (const section of (sourceSections ?? []) as unknown as CloneSection[]) {
+    const { data: copiedSection } = await supabase
+      .from("test_sections")
+      .insert({
+        description: section.description,
+        order_index: section.order_index,
+        settings_json: section.settings_json,
+        test_version_id: draft.id,
+        time_limit_minutes: section.time_limit_minutes,
+        title: section.title,
+      })
+      .select("id")
+      .single();
+    if (!copiedSection) continue;
+
+    for (const question of section.questions ?? []) {
+      const { data: copiedQuestion } = await supabase
+        .from("questions")
+        .insert({
+          competency_key: question.competency_key,
+          description: question.description,
+          difficulty: question.difficulty,
+          media_url: question.media_url,
+          order_index: question.order_index,
+          points: question.points,
+          question_type: question.question_type,
+          section_id: copiedSection.id,
+          settings_json: question.settings_json,
+          text: question.text,
+        })
+        .select("id")
+        .single();
+      if (!copiedQuestion || !question.answer_options?.length) continue;
+      await supabase.from("answer_options").insert(
+        question.answer_options.map((option) => ({
+          competency_effect_json: option.competency_effect_json,
+          explanation: option.explanation,
+          is_correct: option.is_correct,
+          order_index: option.order_index,
+          points: option.points,
+          question_id: copiedQuestion.id,
+          text: option.text,
+        })),
+      );
+    }
+  }
+
+  revalidatePath(`/dashboard/tests/${templateId.data}`);
+  redirectWithFeedback(
+    getBuilderPath(templateId.data, draft.id),
+    "message",
+    "Создан новый черновик на основе опубликованной версии.",
+  );
 }

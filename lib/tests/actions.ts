@@ -504,7 +504,7 @@ export async function publishTestVersionAction(formData: FormData) {
 
   const { data: publishedVersion, error } = await supabase
     .from("test_versions")
-    .update({ status: "published" })
+    .update({ published_at: new Date().toISOString(), status: "published" })
     .eq("id", versionId.data)
     .eq("test_template_id", templateId.data)
     .eq("status", "draft")

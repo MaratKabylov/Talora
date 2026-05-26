@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { FlowQuestion } from "@/lib/assessment/data";
 
@@ -11,11 +12,15 @@ type SavedAnswer = {
 
 export function QuestionResponseFields({
   answer,
+  inputPrefix,
   question,
 }: {
   answer: SavedAnswer;
+  inputPrefix?: string;
   question: FlowQuestion;
 }) {
+  const prefix = inputPrefix ? `${inputPrefix}_` : "";
+
   if (question.questionType === "single_choice") {
     return (
       <div className="space-y-3">
@@ -27,8 +32,8 @@ export function QuestionResponseFields({
             <input
               className="mt-0.5 size-5 shrink-0 accent-primary"
               defaultChecked={answer?.selectedOptionId === option.id}
-              name="optionId"
-              required
+              name={`${prefix}optionId`}
+              required={question.isRequired}
               type="radio"
               value={option.id}
             />
@@ -54,7 +59,7 @@ export function QuestionResponseFields({
             <input
               className="mt-0.5 size-5 shrink-0 accent-primary"
               defaultChecked={selectedIds.includes(option.id)}
-              name="optionIds"
+              name={`${prefix}optionIds`}
               type="checkbox"
               value={option.id}
             />
@@ -69,17 +74,42 @@ export function QuestionResponseFields({
     const storedValue =
       typeof answer?.answerJson.value === "number" ? answer.answerJson.value : question.scaleMin;
 
+    if (!question.isRequired) {
+      return (
+        <div className="space-y-3">
+          <Label htmlFor={`${prefix}scaleValue`}>
+            Выберите значение от {question.scaleMin} до {question.scaleMax}
+          </Label>
+          <Select
+            defaultValue={typeof answer?.answerJson.value === "number" ? storedValue : ""}
+            id={`${prefix}scaleValue`}
+            name={`${prefix}scaleValue`}
+          >
+            <option value="">Пропустить вопрос</option>
+            {Array.from(
+              { length: question.scaleMax - question.scaleMin + 1 },
+              (_, index) => question.scaleMin + index,
+            ).map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </Select>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-3">
-        <Label htmlFor="scaleValue">Выберите значение от {question.scaleMin} до {question.scaleMax}</Label>
+        <Label htmlFor={`${prefix}scaleValue`}>Выберите значение от {question.scaleMin} до {question.scaleMax}</Label>
         <Input
           className="h-12 accent-primary"
           defaultValue={storedValue}
-          id="scaleValue"
+          id={`${prefix}scaleValue`}
           max={question.scaleMax}
           min={question.scaleMin}
-          name="scaleValue"
-          required
+          name={`${prefix}scaleValue`}
+          required={question.isRequired}
           type="range"
         />
         <div className="flex justify-between text-sm text-muted-foreground">
@@ -99,14 +129,14 @@ export function QuestionResponseFields({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="answerText">{guidance}</Label>
+      <Label htmlFor={`${prefix}answerText`}>{guidance}</Label>
       <Textarea
         className="min-h-32"
         defaultValue={answer?.answerText ?? ""}
-        id="answerText"
+        id={`${prefix}answerText`}
         maxLength={4000}
-        name="answerText"
-        required
+        name={`${prefix}answerText`}
+        required={question.isRequired}
       />
     </div>
   );

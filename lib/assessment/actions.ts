@@ -41,8 +41,8 @@ function profilePath(token: string) {
   return `/assessment/${token}/profile`;
 }
 
-function testPath(token: string, sessionId: string, question = 0) {
-  return `/assessment/${token}/test/${sessionId}?question=${question}`;
+function testPath(token: string, sessionId: string, section = 0) {
+  return `/assessment/${token}/test/${sessionId}?section=${section}`;
 }
 
 function redirectWithError(path: string, message: string): never {
@@ -253,9 +253,11 @@ export async function submitCandidateProfileAction(formData: FormData) {
   redirect(testPath(parsed.data.token, firstSession.id));
 }
 
-function buildAnswer(question: FlowQuestion, formData: FormData) {
+function buildAnswer(question: FlowQuestion, formData: FormData, inputPrefix = "") {
+  const field = (name: string) => `${inputPrefix}${name}`;
+
   if (question.questionType === "single_choice") {
-    const optionId = formString(formData, "optionId");
+    const optionId = formString(formData, field("optionId"));
     const option = question.options.find((entry) => entry.id === optionId);
 
     return option ? { answer_json: {}, answer_text: null, selected_option_id: option.id } : null;
@@ -263,7 +265,7 @@ function buildAnswer(question: FlowQuestion, formData: FormData) {
 
   if (question.questionType === "multiple_choice") {
     const optionIds = formData
-      .getAll("optionIds")
+      .getAll(field("optionIds"))
       .filter((value): value is string => typeof value === "string");
     const allowedIds = new Set(question.options.map((option) => option.id));
 
@@ -275,9 +277,11 @@ function buildAnswer(question: FlowQuestion, formData: FormData) {
   }
 
   if (question.questionType === "scale") {
-    const scaleValue = Number(formString(formData, "scaleValue"));
+    const scaleValueText = formString(formData, field("scaleValue"));
+    const scaleValue = Number(scaleValueText);
 
     if (
+      !scaleValueText ||
       !Number.isInteger(scaleValue) ||
       scaleValue < question.scaleMin ||
       scaleValue > question.scaleMax
@@ -288,7 +292,7 @@ function buildAnswer(question: FlowQuestion, formData: FormData) {
     return { answer_json: { value: scaleValue }, answer_text: String(scaleValue), selected_option_id: null };
   }
 
-  const answerText = formString(formData, "answerText").trim();
+  const answerText = formString(formData, field("answerText")).trim();
   if (!answerText || answerText.length > 4000) {
     return null;
   }
@@ -342,6 +346,80 @@ export async function saveCandidateAnswerAction(formData: FormData) {
 
   if (questionIndex < data.questions.length - 1) {
     redirect(testPath(token, sessionId.data, questionIndex + 1));
+  }
+
+  await finishSessionAndContinue(token, data.assessment, sessionId.data);
+}
+
+export async function saveCandidateSectionAction(formData: FormData) {
+  const token = getToken(formData);
+  const sessionId = z.string().uuid().safeParse(formString(formData, "sessionId"));
+  const requestedSection = Number(formString(formData, "sectionIndex"));
+  const direction = formString(formData, "direction") === "previous" ? "previous" : "next";
+  if (!token || !sessionId.success || !Number.isInteger(requestedSection)) {
+    redirect("/");
+  }
+
+  const data = await getAssessmentQuestionPageData(token, sessionId.data);
+  if (!data || data.assessment.availability !== "active" || data.session.status !== "in_progress") {
+    redirectWithError(startPath(token), "Тест недоступен для прохождения.");
+  }
+
+  const sectionIndex = Math.min(Math.max(requestedSection, 0), Math.max(data.sections.length - 1, 0));
+  const section = data.sections[sectionIndex];
+  if (!section) {
+    redirectWithError(testPath(token, sessionId.data), "Секция не найдена.");
+  }
+
+  const answers = section.questions.map((question) => ({
+    answer: buildAnswer(question, formData, `q_${question.id}_`),
+    question,
+  }));
+  const missingRequired = answers.find(({ answer, question }) => question.isRequired && !answer);
+  if (missingRequired) {
+    redirectWithError(
+      testPath(token, sessionId.data, sectionIndex),
+      "Ответьте на обязательные вопросы текущей секции.",
+    );
+  }
+
+  const admin = createAdminClient();
+  const upserts = answers
+    .filter((entry) => entry.answer)
+    .map(({ answer, question }) => ({
+      ...answer!,
+      question_id: question.id,
+      session_id: sessionId.data,
+    }));
+  if (upserts.length > 0) {
+    const { error } = await admin
+      .from("candidate_answers")
+      .upsert(upserts, { onConflict: "session_id,question_id" });
+    if (error) {
+      redirectWithError(testPath(token, sessionId.data, sectionIndex), "Не удалось сохранить ответы.");
+    }
+  }
+
+  const clearedOptionalIds = answers
+    .filter(({ answer, question }) => !question.isRequired && !answer)
+    .map(({ question }) => question.id);
+  if (clearedOptionalIds.length > 0) {
+    const { error } = await admin
+      .from("candidate_answers")
+      .delete()
+      .eq("session_id", sessionId.data)
+      .in("question_id", clearedOptionalIds);
+    if (error) {
+      redirectWithError(testPath(token, sessionId.data, sectionIndex), "Не удалось обновить ответы.");
+    }
+  }
+
+  if (direction === "previous") {
+    redirect(testPath(token, sessionId.data, Math.max(sectionIndex - 1, 0)));
+  }
+
+  if (sectionIndex < data.sections.length - 1) {
+    redirect(testPath(token, sessionId.data, sectionIndex + 1));
   }
 
   await finishSessionAndContinue(token, data.assessment, sessionId.data);

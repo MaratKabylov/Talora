@@ -4,11 +4,12 @@ import { notFound } from "next/navigation";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { TestBuilderEditor } from "@/components/tests/builder/test-builder-editor";
 import { TestPreview } from "@/components/tests/builder/test-preview";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireCompanyContext } from "@/lib/auth/context";
 import { canManageTests, TEST_VERSION_STATUS_LABELS } from "@/lib/tests/constants";
-import { getTestBuilderData } from "@/lib/tests/builder-data";
+import { createDraftFromPublishedVersionAction } from "@/lib/tests/builder-actions";
+import { getBuilderImportSources, getTestBuilderData } from "@/lib/tests/builder-data";
 import { cn } from "@/lib/utils";
 
 type BuilderParams = Promise<{ id: string }>;
@@ -40,6 +41,9 @@ export default async function TestBuilderPage({
     !data.template.isSystem &&
     data.template.status === "active" &&
     data.version.status === "draft";
+  const importSources = isEditable
+    ? await getBuilderImportSources(context.activeCompany.id, data.version.id)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -62,9 +66,11 @@ export default async function TestBuilderPage({
           >
             К тесту
           </Link>
-          <a className={buttonVariants()} href="#preview">
-            Preview
-          </a>
+          {!isEditable ? (
+            <a className={buttonVariants()} href="#preview">
+              Preview
+            </a>
+          ) : null}
         </div>
       </div>
 
@@ -104,22 +110,27 @@ export default async function TestBuilderPage({
                   ? "Системный тест управляется централизованно."
                   : "Для изменения содержания нужна активная черновая версия и роль редактора."}
             </CardDescription>
+            {mayManage &&
+            !data.template.isSystem &&
+            data.template.status === "active" &&
+            data.version.status === "published" ? (
+              <form action={createDraftFromPublishedVersionAction} className="pt-3">
+                <input name="templateId" type="hidden" value={data.template.id} />
+                <input name="versionId" type="hidden" value={data.version.id} />
+                <Button type="submit">Редактировать в новой версии</Button>
+              </form>
+            ) : null}
           </CardHeader>
         </Card>
       ) : null}
 
       {isEditable ? (
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(22rem,0.9fr)]">
-          <TestBuilderEditor
-            sections={data.sections}
-            templateId={data.template.id}
-            versionId={data.version.id}
-          />
-          <div className="space-y-4 xl:sticky xl:top-6" id="preview">
-            <h2 className="text-lg font-semibold">Preview кандидата</h2>
-            <TestPreview sections={data.sections} version={data.version} />
-          </div>
-        </div>
+        <TestBuilderEditor
+          imports={importSources}
+          initialSections={data.sections}
+          templateId={data.template.id}
+          version={data.version}
+        />
       ) : (
         <div className="max-w-3xl space-y-4" id="preview">
           <h2 className="text-lg font-semibold">Preview кандидата</h2>
