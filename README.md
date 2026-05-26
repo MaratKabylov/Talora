@@ -19,3 +19,20 @@
 4. Затем отдельно дай задачу применить SQL-модель.
 5. После каждого milestone проси Codex запускать lint/typecheck/build.
 6. Не проси сразу “сделай весь проект” — лучше идти этапами из backlog.
+
+## Внутренняя админ-панель
+
+Backoffice владельца SaaS доступен по `/admin` после применения миграции
+`supabase/migrations/20260526100000_platform_admin_backoffice.sql`.
+
+Первого владельца платформы нужно назначить вручную после его регистрации и появления
+записи в `public.profiles`:
+
+```sql
+insert into public.platform_users (user_id, role, status)
+values ('<auth-user-uuid>', 'platform_owner', 'active');
+```
+
+Остальным сотрудникам можно назначить роли `platform_admin`, `platform_support` или
+`platform_analyst`. Просмотры персональных данных кандидатов и операционные изменения
+записываются в `public.platform_audit_logs`.
