@@ -19,6 +19,10 @@ const activeCompanySchema = z.object({
   returnTo: z.string().optional(),
 });
 
+const COMPANY_LOGOS_BUCKET = "company-logos";
+const COMPANY_LOGO_MAX_SIZE = 2 * 1024 * 1024;
+const COMPANY_LOGO_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
 const optionalText = (maximum: number) =>
   z.preprocess(
     (value) => {
@@ -32,26 +36,17 @@ const companyProfileSchema = z.object({
   binOrIin: optionalText(32),
   city: optionalText(120),
   industry: optionalText(120),
-  logoUrl: z.preprocess(
-    (value) => {
-      const text = typeof value === "string" ? value.trim() : "";
-      return text || null;
-    },
-    z
-      .string()
-      .max(2048, "Ссылка на логотип слишком длинная.")
-      .url("Введите корректную ссылку на логотип.")
-      .refine((url) => ["http:", "https:"].includes(new URL(url).protocol), {
-        message: "Ссылка на логотип должна начинаться с http:// или https://.",
-      })
-      .nullable(),
-  ),
   name: z.string().trim().min(2, "Укажите название компании.").max(160, "Название слишком длинное."),
 });
 
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
+}
+
+function formFile(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return value instanceof File && value.size > 0 ? value : null;
 }
 
 function redirectWithFeedback(path: string, type: "error" | "message", text: string): never {
@@ -137,12 +132,20 @@ export async function updateCompanyProfileAction(formData: FormData) {
     binOrIin: formString(formData, "binOrIin"),
     city: formString(formData, "city"),
     industry: formString(formData, "industry"),
-    logoUrl: formString(formData, "logoUrl"),
     name: formString(formData, "name"),
   });
 
   if (!parsed.success) {
     redirectWithFeedback(path, "error", parsed.error.issues[0].message);
+  }
+
+  const logoFile = formFile(formData, "logoFile");
+  if (logoFile && !COMPANY_LOGO_MIME_TYPES.has(logoFile.type)) {
+    redirectWithFeedback(path, "error", "Загрузите логотип в формате PNG, JPEG или WebP.");
+  }
+
+  if (logoFile && logoFile.size > COMPANY_LOGO_MAX_SIZE) {
+    redirectWithFeedback(path, "error", "Размер логотипа не должен превышать 2 МБ.");
   }
 
   const context = await requireAuthContext();
@@ -162,15 +165,44 @@ export async function updateCompanyProfileAction(formData: FormData) {
     redirectWithFeedback(path, "error", "У вашей роли нет права изменять данные организации.");
   }
 
+  let logoUrl: string | undefined;
+  if (logoFile) {
+    const logoPath = `${context.activeCompany.id}/logo`;
+    const { error: uploadError } = await supabase.storage
+      .from(COMPANY_LOGOS_BUCKET)
+      .upload(logoPath, logoFile, {
+        cacheControl: "0",
+        contentType: logoFile.type,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      redirectWithFeedback(path, "error", "Не удалось загрузить логотип организации.");
+    }
+
+    logoUrl = supabase.storage.from(COMPANY_LOGOS_BUCKET).getPublicUrl(logoPath).data.publicUrl;
+  }
+
+  const organizationChanges: {
+    bin_or_iin: string | null;
+    city: string | null;
+    industry: string | null;
+    logo_url?: string;
+    name: string;
+  } = {
+    bin_or_iin: parsed.data.binOrIin,
+    city: parsed.data.city,
+    industry: parsed.data.industry,
+    name: parsed.data.name,
+  };
+
+  if (logoUrl) {
+    organizationChanges.logo_url = logoUrl;
+  }
+
   const { data: updatedCompany, error } = await supabase
     .from("companies")
-    .update({
-      bin_or_iin: parsed.data.binOrIin,
-      city: parsed.data.city,
-      industry: parsed.data.industry,
-      logo_url: parsed.data.logoUrl,
-      name: parsed.data.name,
-    })
+    .update(organizationChanges)
     .eq("id", context.activeCompany.id)
     .select("id")
     .maybeSingle();

@@ -116,7 +116,7 @@ export default async function ProfilePage({
         <CardHeader>
           <CardTitle>Организация</CardTitle>
           <CardDescription>
-            Данные компании используются в workspace и в приглашениях кандидатов.
+            Данные компании используются в workspace и будут показываться кандидатам в тестах.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -152,16 +152,31 @@ export default async function ProfilePage({
                   <Label htmlFor="city">Город</Label>
                   <Input defaultValue={company.city ?? ""} id="city" name="city" />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="logoUrl">Ссылка на логотип</Label>
-                  <Input
-                    defaultValue={company.logo_url ?? ""}
-                    id="logoUrl"
-                    name="logoUrl"
-                    placeholder="https://..."
-                    type="url"
-                  />
-                </div>
+              </div>
+              <div className="space-y-3">
+                <Label htmlFor="logoFile">Логотип</Label>
+                {company.logo_url ? (
+                  <div className="flex items-center gap-4 rounded-md border p-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- logo host is configured per Supabase project. */}
+                    <img
+                      alt={`Логотип ${company.name}`}
+                      className="h-14 max-w-36 rounded object-contain"
+                      src={company.logo_url}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Выберите новый файл, чтобы заменить текущий логотип.
+                    </p>
+                  </div>
+                ) : null}
+                <Input
+                  accept="image/png,image/jpeg,image/webp"
+                  id="logoFile"
+                  name="logoFile"
+                  type="file"
+                />
+                <p className="text-sm text-muted-foreground">
+                  PNG, JPEG или WebP, не более 2 МБ.
+                </p>
               </div>
               <Button type="submit">Сохранить организацию</Button>
             </form>
@@ -172,8 +187,20 @@ export default async function ProfilePage({
                 <OrganizationField label="БИН / ИИН" value={company.bin_or_iin} />
                 <OrganizationField label="Отрасль" value={company.industry} />
                 <OrganizationField label="Город" value={company.city} />
-                <OrganizationField label="Ссылка на логотип" value={company.logo_url} />
               </dl>
+              {company.logo_url ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Логотип</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- logo host is configured per Supabase project. */}
+                  <img
+                    alt={`Логотип ${company.name}`}
+                    className="h-16 max-w-40 rounded object-contain"
+                    src={company.logo_url}
+                  />
+                </div>
+              ) : (
+                <OrganizationField label="Логотип" value={null} />
+              )}
               <p className="text-sm text-muted-foreground">
                 Редактирование доступно владельцу и администраторам организации.
               </p>
