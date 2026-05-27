@@ -60,40 +60,69 @@ export default async function AdminCitiesPage({ searchParams }: { searchParams: 
           {cities.length === 0 ? (
             <EmptyState description="Добавьте первый город, чтобы организации могли выбрать его в профиле." title="Справочник пуст" />
           ) : (
-            <div className="space-y-3">
-              {cities.map((city) =>
-                mayOperate ? (
-                  <form
-                    action={updateSystemCityAction}
-                    className="grid items-end gap-3 rounded-lg border p-4 sm:grid-cols-[1fr_10rem_8rem_auto]"
-                    key={city.id}
-                  >
-                    <input name="cityId" type="hidden" value={city.id} />
-                    <div className="space-y-2">
-                      <Label htmlFor={`city-name-${city.id}`}>Название</Label>
-                      <Input defaultValue={city.name} id={`city-name-${city.id}`} name="name" required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor={`city-status-${city.id}`}>Статус</Label>
-                      <Select defaultValue={String(city.is_active)} id={`city-status-${city.id}`} name="isActive">
-                        <option value="true">Активен</option>
-                        <option value="false">Отключен</option>
-                      </Select>
-                    </div>
-                    <p className="pb-2 text-sm text-muted-foreground">
-                      Компаний: {relationCount(city.companies)}
-                    </p>
-                    <Button type="submit" variant="outline">Сохранить</Button>
-                  </form>
-                ) : (
-                  <div className="flex items-center justify-between rounded-lg border p-4 text-sm" key={city.id}>
-                    <span className="font-medium">{city.name}</span>
-                    <span className="text-muted-foreground">
-                      {city.is_active ? "Активен" : "Отключен"} / компаний: {relationCount(city.companies)}
-                    </span>
-                  </div>
-                ),
-              )}
+            <div className="overflow-hidden rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Город</th>
+                    <th className="w-44 px-4 py-3 font-medium">Статус</th>
+                    <th className="w-32 px-4 py-3 font-medium">Компании</th>
+                    {mayOperate ? (
+                      <th className="w-36 px-4 py-3 text-right font-medium">Действия</th>
+                    ) : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {cities.map((city) => (
+                    <tr className="border-t" key={city.id}>
+                      {mayOperate ? (
+                        <>
+                          <td className="px-4 py-2">
+                            <Input
+                              className="h-9"
+                              defaultValue={city.name}
+                              form={`city-form-${city.id}`}
+                              id={`city-name-${city.id}`}
+                              name="name"
+                              required
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <Select
+                              className="h-9"
+                              defaultValue={String(city.is_active)}
+                              form={`city-form-${city.id}`}
+                              id={`city-status-${city.id}`}
+                              name="isActive"
+                            >
+                              <option value="true">Активен</option>
+                              <option value="false">Отключен</option>
+                            </Select>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-4 py-3 font-medium">{city.name}</td>
+                          <td className="px-4 py-3">
+                            {city.is_active ? "Активен" : "Отключен"}
+                          </td>
+                        </>
+                      )}
+                      <td className="px-4 py-3">{relationCount(city.companies)}</td>
+                      {mayOperate ? (
+                        <td className="px-4 py-2 text-right">
+                          <form action={updateSystemCityAction} id={`city-form-${city.id}`}>
+                            <input name="cityId" type="hidden" value={city.id} />
+                            <Button size="sm" type="submit" variant="outline">
+                              Сохранить
+                            </Button>
+                          </form>
+                        </td>
+                      ) : null}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>
