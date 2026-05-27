@@ -19,6 +19,36 @@ const activeCompanySchema = z.object({
   returnTo: z.string().optional(),
 });
 
+const optionalText = (maximum: number) =>
+  z.preprocess(
+    (value) => {
+      const text = typeof value === "string" ? value.trim() : "";
+      return text || null;
+    },
+    z.string().max(maximum, "Значение слишком длинное.").nullable(),
+  );
+
+const companyProfileSchema = z.object({
+  binOrIin: optionalText(32),
+  city: optionalText(120),
+  industry: optionalText(120),
+  logoUrl: z.preprocess(
+    (value) => {
+      const text = typeof value === "string" ? value.trim() : "";
+      return text || null;
+    },
+    z
+      .string()
+      .max(2048, "Ссылка на логотип слишком длинная.")
+      .url("Введите корректную ссылку на логотип.")
+      .refine((url) => ["http:", "https:"].includes(new URL(url).protocol), {
+        message: "Ссылка на логотип должна начинаться с http:// или https://.",
+      })
+      .nullable(),
+  ),
+  name: z.string().trim().min(2, "Укажите название компании.").max(160, "Название слишком длинное."),
+});
+
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
@@ -99,4 +129,57 @@ export async function selectActiveCompanyAction(formData: FormData) {
 
   revalidatePath("/dashboard", "layout");
   redirect(safeReturnPath(parsed.data.returnTo));
+}
+
+export async function updateCompanyProfileAction(formData: FormData) {
+  const path = "/dashboard/profile";
+  const parsed = companyProfileSchema.safeParse({
+    binOrIin: formString(formData, "binOrIin"),
+    city: formString(formData, "city"),
+    industry: formString(formData, "industry"),
+    logoUrl: formString(formData, "logoUrl"),
+    name: formString(formData, "name"),
+  });
+
+  if (!parsed.success) {
+    redirectWithFeedback(path, "error", parsed.error.issues[0].message);
+  }
+
+  const context = await requireAuthContext();
+  if (!context.activeCompany) {
+    redirect("/onboarding");
+  }
+
+  const supabase = await createClient();
+  const { data: canEditOrganization, error: permissionError } = await supabase.rpc(
+    "is_company_admin",
+    {
+      target_company_id: context.activeCompany.id,
+    },
+  );
+
+  if (permissionError || canEditOrganization !== true) {
+    redirectWithFeedback(path, "error", "У вашей роли нет права изменять данные организации.");
+  }
+
+  const { data: updatedCompany, error } = await supabase
+    .from("companies")
+    .update({
+      bin_or_iin: parsed.data.binOrIin,
+      city: parsed.data.city,
+      industry: parsed.data.industry,
+      logo_url: parsed.data.logoUrl,
+      name: parsed.data.name,
+    })
+    .eq("id", context.activeCompany.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !updatedCompany) {
+    redirectWithFeedback(path, "error", "Не удалось сохранить данные организации.");
+  }
+
+  revalidatePath("/dashboard", "layout");
+  revalidatePath(path);
+  redirectWithFeedback(path, "message", "Данные организации обновлены.");
 }
