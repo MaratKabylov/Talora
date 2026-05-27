@@ -445,7 +445,7 @@ export async function listPlatformTeam() {
   const { admin, context } = await platformAccess();
   const { data, error } = await admin
     .from("platform_users")
-    .select("user_id, role, status, created_at, profiles(full_name, email)")
+    .select("user_id, role, status, created_at, profiles!platform_users_user_id_fkey(full_name, email)")
     .order("created_at");
   if (error) {
     throw new Error("Unable to load platform team.");
