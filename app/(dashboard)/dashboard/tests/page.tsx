@@ -90,7 +90,9 @@ export default async function TestsPage({
   const context = await requireCompanyContext();
   const params = await searchParams;
   const templates = await listTestTemplates(context.activeCompany.id);
-  const systemTemplates = templates.filter((template) => template.isSystem);
+  const systemTemplates = templates.filter(
+    (template) => template.isSystem && template.status === "active",
+  );
   const activeCompanyTemplates = templates.filter(
     (template) => !template.isSystem && template.status === "active",
   );

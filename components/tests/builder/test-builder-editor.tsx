@@ -9,11 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  publishTestVersionAction,
+  publishTestVersionAction as defaultPublishTestVersionAction,
 } from "@/lib/tests/actions";
 import {
-  saveBuilderDocumentAction,
+  saveBuilderDocumentAction as defaultSaveBuilderDocumentAction,
   type BuilderDocumentInput,
+  type BuilderSaveResult,
 } from "@/lib/tests/builder-actions";
 import {
   DIFFICULTY_LABELS,
@@ -128,11 +129,15 @@ function nullableText(text: string) {
 export function TestBuilderEditor({
   imports,
   initialSections,
+  publishAction = defaultPublishTestVersionAction,
+  saveAction = defaultSaveBuilderDocumentAction,
   templateId,
   version: initialVersion,
 }: {
   imports: BuilderImportSource[];
   initialSections: BuilderSection[];
+  publishAction?: (formData: FormData) => Promise<void>;
+  saveAction?: (input: unknown) => Promise<BuilderSaveResult>;
   templateId: string;
   version: TestVersion;
 }) {
@@ -215,7 +220,7 @@ export function TestBuilderEditor({
       versionId: initialVersion.id,
     };
 
-    const result = await saveBuilderDocumentAction(input);
+    const result = await saveAction(input);
     if (!result.ok) {
       setStatus("error");
       setFeedback(result.error ?? "Не удалось сохранить изменения.");
@@ -232,7 +237,7 @@ export function TestBuilderEditor({
     } else {
       setStatus("dirty");
     }
-  }, [initialVersion.id, sections, templateId, version]);
+  }, [initialVersion.id, saveAction, sections, templateId, version]);
 
   useEffect(() => {
     if (status !== "dirty") return;
@@ -314,7 +319,7 @@ export function TestBuilderEditor({
           <Button disabled={status === "saving"} onClick={() => void save()} type="button" variant="outline">
             <Save /> Сохранить
           </Button>
-          <form action={publishTestVersionAction}>
+          <form action={publishAction}>
             <input name="templateId" type="hidden" value={templateId} />
             <input name="versionId" type="hidden" value={initialVersion.id} />
             <Button

@@ -48,6 +48,10 @@ export function canOperateCompanies(role: PlatformRole) {
   return role === "platform_owner" || role === "platform_admin";
 }
 
+export function canManageSystemTests(role: PlatformRole) {
+  return role === "platform_owner" || role === "platform_admin";
+}
+
 export function canViewCandidatePii(role: PlatformRole) {
   return role !== "platform_analyst";
 }
