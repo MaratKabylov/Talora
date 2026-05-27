@@ -34,9 +34,11 @@ function redirectWithFeedback(path: string, type: "error" | "message", text: str
   redirect(`${path}${separator}${params.toString()}`);
 }
 
-function getEmailRedirectTo() {
+function getEmailRedirectTo(nextPath = "/onboarding") {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  return appUrl ? new URL("/auth/confirm?next=/onboarding", appUrl).toString() : undefined;
+  return appUrl
+    ? new URL(`/auth/confirm?next=${encodeURIComponent(nextPath)}`, appUrl).toString()
+    : undefined;
 }
 
 export async function signInAction(formData: FormData) {
@@ -97,6 +99,68 @@ export async function signUpAction(formData: FormData) {
   );
 }
 
+export async function platformSignInAction(formData: FormData) {
+  const parsed = credentialsSchema.safeParse({
+    email: formString(formData, "email"),
+    password: formString(formData, "password"),
+  });
+
+  if (!parsed.success) {
+    redirectWithFeedback("/admin/login", "error", parsed.error.issues[0].message);
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+
+  if (error) {
+    redirectWithFeedback("/admin/login", "error", "Не удалось войти. Проверьте email и пароль.");
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/admin");
+}
+
+export async function platformSignUpAction(formData: FormData) {
+  const parsed = signUpSchema.safeParse({
+    email: formString(formData, "email"),
+    fullName: formString(formData, "fullName"),
+    password: formString(formData, "password"),
+  });
+
+  if (!parsed.success) {
+    redirectWithFeedback("/admin/register", "error", parsed.error.issues[0].message);
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signUp({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    options: {
+      data: { full_name: parsed.data.fullName },
+      emailRedirectTo: getEmailRedirectTo("/admin/access-pending"),
+    },
+  });
+
+  if (error) {
+    redirectWithFeedback("/admin/register", "error", "Не удалось создать аккаунт.");
+  }
+
+  if (data.session) {
+    revalidatePath("/", "layout");
+    redirectWithFeedback(
+      "/admin/access-pending",
+      "message",
+      "Аккаунт создан. Для открытия панели назначьте ему платформенную роль.",
+    );
+  }
+
+  redirectWithFeedback(
+    "/admin/login",
+    "message",
+    "Аккаунт создан. Подтвердите email, затем войдите в панель.",
+  );
+}
+
 export async function signOutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();
@@ -106,6 +170,17 @@ export async function signOutAction() {
 
   revalidatePath("/", "layout");
   redirect("/login");
+}
+
+export async function platformSignOutAction() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+
+  const cookieStore = await cookies();
+  cookieStore.delete(ACTIVE_COMPANY_COOKIE);
+
+  revalidatePath("/", "layout");
+  redirect("/admin/login");
 }
 
 export async function updateProfileAction(formData: FormData) {

@@ -75,6 +75,12 @@ export default async function LoginPage({
             {isSignUp ? "Войти" : "Зарегистрироваться"}
           </Link>
         </p>
+        <p className="border-t pt-4 text-center text-sm text-muted-foreground">
+          Управляете платформой?{" "}
+          <Link className="font-medium text-primary hover:underline" href="/admin/login">
+            Войти в Talora Admin
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );

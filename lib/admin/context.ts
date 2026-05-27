@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 
-import { requireAuthContext } from "@/lib/auth/context";
+import { getAuthContext } from "@/lib/auth/context";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import type { PlatformRole } from "./constants";
@@ -23,7 +23,11 @@ type PlatformUserRecord = {
 };
 
 export const getPlatformContext = cache(async (): Promise<PlatformContext | null> => {
-  const auth = await requireAuthContext();
+  const auth = await getAuthContext();
+  if (!auth) {
+    return null;
+  }
+
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("platform_users")
@@ -51,10 +55,15 @@ export const getPlatformContext = cache(async (): Promise<PlatformContext | null
 });
 
 export async function requirePlatformContext() {
+  const auth = await getAuthContext();
+  if (!auth) {
+    redirect("/admin/login");
+  }
+
   const context = await getPlatformContext();
 
   if (!context) {
-    redirect("/dashboard");
+    redirect("/admin/access-pending");
   }
 
   return context;

@@ -14,7 +14,9 @@ function safeNextPath(value: string | null) {
     const isAllowedPath =
       destination.pathname === "/onboarding" ||
       destination.pathname === "/dashboard" ||
-      destination.pathname.startsWith("/dashboard/");
+      destination.pathname.startsWith("/dashboard/") ||
+      destination.pathname === "/admin" ||
+      destination.pathname === "/admin/access-pending";
 
     return destination.origin === origin && isAllowedPath
       ? `${destination.pathname}${destination.search}${destination.hash}`
@@ -38,7 +40,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(
-    new URL("/login?error=Не удалось подтвердить email. Повторите вход.", request.url),
-  );
+  const loginPath = next.startsWith("/admin") ? "/admin/login" : "/login";
+  const params = new URLSearchParams({ error: "Не удалось подтвердить email. Повторите вход." });
+  return NextResponse.redirect(new URL(`${loginPath}?${params.toString()}`, request.url));
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { signOutAction } from "@/lib/auth/actions";
+import { platformSignOutAction } from "@/lib/auth/actions";
 import { PLATFORM_ROLE_LABELS } from "@/lib/admin/constants";
 import type { PlatformContext } from "@/lib/admin/context";
 import { buttonVariants, Button } from "@/components/ui/button";
@@ -39,7 +39,7 @@ export function AdminShell({
             <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/dashboard">
               HR workspace
             </Link>
-            <form action={signOutAction}>
+            <form action={platformSignOutAction}>
               <Button size="sm" type="submit" variant="ghost">
                 Выйти
               </Button>

@@ -25,6 +25,11 @@
 Backoffice владельца SaaS доступен по `/admin` после применения миграции
 `supabase/migrations/20260526100000_platform_admin_backoffice.sql`.
 
+Для сотрудников платформы используется отдельный auth-flow, который не создает компанию:
+
+- `/admin/register` — регистрация аккаунта сотрудника платформы;
+- `/admin/login` — вход в backoffice.
+
 Для серверных операций админки укажите в `.env` ключ из Supabase Dashboard:
 
 ```dotenv
@@ -35,8 +40,8 @@ SUPABASE_SECRET_KEY=sb_secret_...
 рекомендуется Supabase для нового server-side кода. Этот ключ нельзя использовать
 в клиентских компонентах или переменных с префиксом `NEXT_PUBLIC_`.
 
-Первого владельца платформы нужно назначить вручную после его регистрации и появления
-записи в `public.profiles`:
+Первого владельца платформы зарегистрируйте через `/admin/register`. После появления
+записи в `public.profiles` назначьте роль вручную:
 
 ```sql
 insert into public.platform_users (user_id, role, status)
@@ -46,3 +51,7 @@ values ('<auth-user-uuid>', 'platform_owner', 'active');
 Остальным сотрудникам можно назначить роли `platform_admin`, `platform_support` или
 `platform_analyst`. Просмотры персональных данных кандидатов и операционные изменения
 записываются в `public.platform_audit_logs`.
+
+Регистрация через `/admin/register` сама по себе не выдает доступ к backoffice:
+до назначения роли пользователь остается на странице ожидания и не проходит onboarding
+организации.
