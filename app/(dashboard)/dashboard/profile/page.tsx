@@ -15,11 +15,22 @@ type ProfileSearchParams = Promise<{
 
 type OrganizationRecord = {
   bin_or_iin: string | null;
-  city: string | null;
+  city_id: string | null;
   industry: string | null;
   logo_url: string | null;
   name: string;
+  system_cities: { name: string } | { name: string }[] | null;
 };
+
+type SystemCityRecord = {
+  id: string;
+  is_active: boolean;
+  name: string;
+};
+
+function first<T>(relation: T | T[] | null) {
+  return Array.isArray(relation) ? relation[0] ?? null : relation;
+}
 
 function OrganizationField({
   label,
@@ -47,20 +58,26 @@ export default async function ProfilePage({
   const [
     { data: organization, error: organizationError },
     { data: canEditOrganization, error: organizationPermissionError },
+    { data: cities, error: citiesError },
   ] = await Promise.all([
     supabase
       .from("companies")
-      .select("name, bin_or_iin, industry, city, logo_url")
+      .select("name, bin_or_iin, industry, city_id, logo_url, system_cities(name)")
       .eq("id", context.activeCompany.id)
       .maybeSingle(),
     supabase.rpc("is_company_admin", { target_company_id: context.activeCompany.id }),
+    supabase.from("system_cities").select("id, name, is_active").order("name"),
   ]);
 
-  if (organizationError || organizationPermissionError || !organization) {
+  if (organizationError || organizationPermissionError || citiesError || !organization) {
     throw new Error("Unable to load organization profile.");
   }
 
   const company = organization as OrganizationRecord;
+  const cityName = first(company.system_cities)?.name ?? null;
+  const selectableCities = ((cities ?? []) as SystemCityRecord[]).filter(
+    (city) => city.is_active || city.id === company.city_id,
+  );
   const isOrganizationEditor = canEditOrganization === true;
 
   return (
@@ -149,8 +166,23 @@ export default async function ProfilePage({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="city">Город</Label>
-                  <Input defaultValue={company.city ?? ""} id="city" name="city" />
+                  <Label htmlFor="cityName">Город</Label>
+                  <Input
+                    autoComplete="off"
+                    defaultValue={cityName ?? ""}
+                    id="cityName"
+                    list="organization-city-options"
+                    name="cityName"
+                    placeholder="Начните вводить город"
+                  />
+                  <datalist id="organization-city-options">
+                    {selectableCities.map((city) => (
+                      <option key={city.id} value={city.name} />
+                    ))}
+                  </datalist>
+                  <p className="text-sm text-muted-foreground">
+                    Начните вводить название и выберите город из списка.
+                  </p>
                 </div>
               </div>
               <div className="space-y-3">
@@ -186,7 +218,7 @@ export default async function ProfilePage({
                 <OrganizationField label="Название организации" value={company.name} />
                 <OrganizationField label="БИН / ИИН" value={company.bin_or_iin} />
                 <OrganizationField label="Отрасль" value={company.industry} />
-                <OrganizationField label="Город" value={company.city} />
+                <OrganizationField label="Город" value={cityName} />
               </dl>
               {company.logo_url ? (
                 <div className="space-y-2">

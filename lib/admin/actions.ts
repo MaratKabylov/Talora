@@ -78,6 +78,87 @@ export async function updateCompanyStatusAction(formData: FormData) {
   redirectWithFeedback(path, "message", "Статус компании обновлен.");
 }
 
+const systemCitySchema = z.object({
+  name: z.string().trim().min(2, "Укажите название города.").max(120, "Название города слишком длинное."),
+});
+
+export async function createSystemCityAction(formData: FormData) {
+  const path = "/admin/cities";
+  const parsed = systemCitySchema.safeParse({
+    name: formString(formData, "name"),
+  });
+  if (!parsed.success) {
+    redirectWithFeedback(path, "error", parsed.error.issues[0].message);
+  }
+
+  const context = await requirePlatformContext();
+  if (!canOperateCompanies(context.role)) {
+    redirectWithFeedback(path, "error", "У вашей роли нет права изменять справочник городов.");
+  }
+
+  const admin = createAdminClient();
+  const { data: city, error } = await admin
+    .from("system_cities")
+    .insert({ name: parsed.data.name })
+    .select("id")
+    .single();
+
+  if (error || !city) {
+    redirectWithFeedback(path, "error", "Не удалось добавить город. Проверьте, что он еще не существует.");
+  }
+
+  await recordPlatformAudit(context, "create_system_city", "system_city", city.id);
+  revalidatePath(path);
+  revalidatePath("/dashboard/profile");
+  redirectWithFeedback(path, "message", "Город добавлен в справочник.");
+}
+
+const updateSystemCitySchema = systemCitySchema.extend({
+  cityId: z.string().uuid(),
+  isActive: z.enum(["true", "false"]).transform((value) => value === "true"),
+});
+
+export async function updateSystemCityAction(formData: FormData) {
+  const path = "/admin/cities";
+  const parsed = updateSystemCitySchema.safeParse({
+    cityId: formString(formData, "cityId"),
+    isActive: formString(formData, "isActive"),
+    name: formString(formData, "name"),
+  });
+  if (!parsed.success) {
+    redirectWithFeedback(path, "error", parsed.error.issues[0].message);
+  }
+
+  const context = await requirePlatformContext();
+  if (!canOperateCompanies(context.role)) {
+    redirectWithFeedback(path, "error", "У вашей роли нет права изменять справочник городов.");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("system_cities")
+    .update({
+      is_active: parsed.data.isActive,
+      name: parsed.data.name,
+    })
+    .eq("id", parsed.data.cityId);
+
+  if (error) {
+    redirectWithFeedback(path, "error", "Не удалось обновить город. Проверьте уникальность названия.");
+  }
+
+  await recordPlatformAudit(
+    context,
+    parsed.data.isActive ? "update_system_city" : "disable_system_city",
+    "system_city",
+    parsed.data.cityId,
+  );
+  revalidatePath(path);
+  revalidatePath("/admin/companies");
+  revalidatePath("/dashboard/profile");
+  redirectWithFeedback(path, "message", "Справочник городов обновлен.");
+}
+
 const noteSchema = z.object({
   companyId: z.string().uuid(),
   note: z.string().trim().min(2, "Введите заметку.").max(4000, "Заметка слишком длинная."),

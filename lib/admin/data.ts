@@ -80,6 +80,14 @@ export type AdminTenantUser = {
   status: string;
 };
 
+export type AdminSystemCity = {
+  companies: Array<{ count: number }>;
+  created_at: string;
+  id: string;
+  is_active: boolean;
+  name: string;
+};
+
 function related<T>(value: Relation<T>) {
   return Array.isArray(value) ? value[0] ?? null : value;
 }
@@ -188,7 +196,7 @@ export async function listAdminCompanies(search?: string, status?: CompanyStatus
   let query = admin
     .from("companies")
     .select(
-      "id, name, industry, city, bin_or_iin, status, created_at, company_users(count), jobs(count), candidate_applications(count)",
+      "id, name, industry, bin_or_iin, status, created_at, system_cities(name), company_users(count), jobs(count), candidate_applications(count)",
     )
     .order("created_at", { ascending: false });
 
@@ -204,10 +212,9 @@ export async function listAdminCompanies(search?: string, status?: CompanyStatus
     throw new Error("Unable to load platform companies.");
   }
 
-  return (data ?? []) as unknown as Array<{
+  const companies = (data ?? []) as unknown as Array<{
     bin_or_iin: string | null;
     candidate_applications: Array<{ count: number }>;
-    city: string | null;
     company_users: Array<{ count: number }>;
     created_at: string;
     id: string;
@@ -215,7 +222,13 @@ export async function listAdminCompanies(search?: string, status?: CompanyStatus
     jobs: Array<{ count: number }>;
     name: string;
     status: CompanyStatus;
+    system_cities: Relation<{ name: string }>;
   }>;
+
+  return companies.map(({ system_cities, ...company }) => ({
+    ...company,
+    city: related(system_cities)?.name ?? null,
+  }));
 }
 
 export async function getAdminCompanyDetail(companyId: string) {
@@ -226,7 +239,7 @@ export async function getAdminCompanyDetail(companyId: string) {
       admin
         .from("companies")
         .select(
-          "id, name, bin_or_iin, industry, city, status, suspension_reason, suspended_at, created_at",
+          "id, name, bin_or_iin, industry, status, suspension_reason, suspended_at, created_at, system_cities(name)",
         )
         .eq("id", companyId)
         .maybeSingle(),
@@ -275,23 +288,42 @@ export async function getAdminCompanyDetail(companyId: string) {
 
   await recordPlatformAudit(context, "view_company", "company", companyId, companyId);
 
+  const company = companyResult.data as unknown as {
+    bin_or_iin: string | null;
+    created_at: string;
+    id: string;
+    industry: string | null;
+    name: string;
+    status: CompanyStatus;
+    suspended_at: string | null;
+    suspension_reason: string | null;
+    system_cities: Relation<{ name: string }>;
+  };
+
   return {
     applications: (applicationsResult.data ?? []) as unknown as AdminCompanyApplicationPreview[],
-    company: companyResult.data as {
-      bin_or_iin: string | null;
-      city: string | null;
-      created_at: string;
-      id: string;
-      industry: string | null;
-      name: string;
-      status: CompanyStatus;
-      suspended_at: string | null;
-      suspension_reason: string | null;
+    company: {
+      ...company,
+      city: related(company.system_cities)?.name ?? null,
     },
     jobs: jobsResult.data ?? [],
     members: (membersResult.data ?? []) as unknown as AdminCompanyMember[],
     notes: (notesResult.data ?? []) as unknown as AdminCompanyNote[],
   };
+}
+
+export async function listSystemCities() {
+  const { admin } = await platformAccess();
+  const { data, error } = await admin
+    .from("system_cities")
+    .select("id, name, is_active, created_at, companies(count)")
+    .order("name");
+
+  if (error) {
+    throw new Error("Unable to load system cities.");
+  }
+
+  return (data ?? []) as unknown as AdminSystemCity[];
 }
 
 export async function listAdminApplications(filters: {

@@ -9,12 +9,20 @@ create extension if not exists "pgcrypto";
 -- ENUM-like check helpers are implemented as text checks for easier migration.
 -- =========================
 
+create table if not exists public.system_cities (
+  id uuid primary key default gen_random_uuid(),
+  name text not null check (char_length(btrim(name)) between 1 and 120),
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.companies (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   bin_or_iin text,
   industry text,
-  city text,
+  city_id uuid references public.system_cities(id) on delete restrict,
   logo_url text,
   settings jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
@@ -345,6 +353,8 @@ create table if not exists public.shortlist_candidates (
 -- Useful indexes
 -- =========================
 
+create unique index if not exists idx_system_cities_normalized_name on public.system_cities (lower(btrim(name)));
+create index if not exists idx_companies_city_id on public.companies(city_id);
 create index if not exists idx_company_users_user_id on public.company_users(user_id);
 create index if not exists idx_jobs_company_id on public.jobs(company_id);
 create index if not exists idx_candidates_email on public.candidates(email);
@@ -371,6 +381,10 @@ $$;
 
 drop trigger if exists set_companies_updated_at on public.companies;
 create trigger set_companies_updated_at before update on public.companies
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_system_cities_updated_at on public.system_cities;
+create trigger set_system_cities_updated_at before update on public.system_cities
 for each row execute function public.set_updated_at();
 
 drop trigger if exists set_profiles_updated_at on public.profiles;
@@ -436,6 +450,7 @@ $$;
 -- Enable RLS
 -- =========================
 
+alter table public.system_cities enable row level security;
 alter table public.companies enable row level security;
 alter table public.profiles enable row level security;
 alter table public.company_users enable row level security;
@@ -467,6 +482,11 @@ alter table public.shortlist_candidates enable row level security;
 -- Note: Public candidate token access should go through secure route handlers/server actions,
 -- not direct anon table access, except if you intentionally add limited token policies.
 -- =========================
+
+create policy "authenticated users can read system cities"
+on public.system_cities for select
+to authenticated
+using (true);
 
 create policy "members can read own companies"
 on public.companies for select

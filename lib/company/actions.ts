@@ -34,7 +34,7 @@ const optionalText = (maximum: number) =>
 
 const companyProfileSchema = z.object({
   binOrIin: optionalText(32),
-  city: optionalText(120),
+  cityName: optionalText(120),
   industry: optionalText(120),
   name: z.string().trim().min(2, "Укажите название компании.").max(160, "Название слишком длинное."),
 });
@@ -47,6 +47,10 @@ function formString(formData: FormData, key: string) {
 function formFile(formData: FormData, key: string) {
   const value = formData.get(key);
   return value instanceof File && value.size > 0 ? value : null;
+}
+
+function normalizeCityName(value: string) {
+  return value.trim().toLocaleLowerCase("ru-RU");
 }
 
 function redirectWithFeedback(path: string, type: "error" | "message", text: string): never {
@@ -130,7 +134,7 @@ export async function updateCompanyProfileAction(formData: FormData) {
   const path = "/dashboard/profile";
   const parsed = companyProfileSchema.safeParse({
     binOrIin: formString(formData, "binOrIin"),
-    city: formString(formData, "city"),
+    cityName: formString(formData, "cityName"),
     industry: formString(formData, "industry"),
     name: formString(formData, "name"),
   });
@@ -165,6 +169,35 @@ export async function updateCompanyProfileAction(formData: FormData) {
     redirectWithFeedback(path, "error", "У вашей роли нет права изменять данные организации.");
   }
 
+  let cityId: string | null = null;
+  if (parsed.data.cityName) {
+    const [{ data: cities, error: cityError }, { data: currentCompany, error: companyError }] =
+      await Promise.all([
+        supabase
+          .from("system_cities")
+          .select("id, name, is_active"),
+        supabase
+          .from("companies")
+          .select("city_id")
+          .eq("id", context.activeCompany.id)
+          .maybeSingle(),
+      ]);
+    const selectedCity = cities?.find(
+      (city) => normalizeCityName(city.name) === normalizeCityName(parsed.data.cityName!),
+    );
+
+    if (
+      cityError ||
+      companyError ||
+      !selectedCity ||
+      (!selectedCity.is_active && currentCompany?.city_id !== selectedCity.id)
+    ) {
+      redirectWithFeedback(path, "error", "Выберите доступный город из справочника.");
+    }
+
+    cityId = selectedCity.id;
+  }
+
   let logoUrl: string | undefined;
   if (logoFile) {
     const logoPath = `${context.activeCompany.id}/logo`;
@@ -185,13 +218,13 @@ export async function updateCompanyProfileAction(formData: FormData) {
 
   const organizationChanges: {
     bin_or_iin: string | null;
-    city: string | null;
+    city_id: string | null;
     industry: string | null;
     logo_url?: string;
     name: string;
   } = {
     bin_or_iin: parsed.data.binOrIin,
-    city: parsed.data.city,
+    city_id: cityId,
     industry: parsed.data.industry,
     name: parsed.data.name,
   };
