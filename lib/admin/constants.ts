@@ -15,6 +15,7 @@ export const PLATFORM_ROLE_LABELS: Record<PlatformRole, string> = {
 export const PLATFORM_STATUS_LABELS = {
   active: "Активен",
   disabled: "Отключен",
+  invited: "Приглашен",
 } as const;
 
 export const COMPANY_STATUS_VALUES = ["active", "suspended", "archived"] as const;

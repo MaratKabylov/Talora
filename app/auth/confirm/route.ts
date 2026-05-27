@@ -16,6 +16,7 @@ function safeNextPath(value: string | null) {
       destination.pathname === "/dashboard" ||
       destination.pathname.startsWith("/dashboard/") ||
       destination.pathname === "/admin" ||
+      destination.pathname === "/admin/accept-invitation" ||
       destination.pathname === "/admin/access-pending";
 
     return destination.origin === origin && isAllowedPath

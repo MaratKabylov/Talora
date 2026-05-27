@@ -1,13 +1,18 @@
 import { FeedbackMessage } from "@/components/feedback-message";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import {
   PLATFORM_ROLE_LABELS,
+  PLATFORM_ROLE_VALUES,
   PLATFORM_STATUS_LABELS,
   canManagePlatformTeam,
   type PlatformRole,
 } from "@/lib/admin/constants";
-import { updatePlatformUserStatusAction } from "@/lib/admin/actions";
+import { invitePlatformUserAction, updatePlatformUserStatusAction } from "@/lib/admin/actions";
 import { listPlatformTeam } from "@/lib/admin/data";
 
 type SearchParams = Promise<{ error?: string; message?: string }>;
@@ -30,11 +35,43 @@ export default async function AdminTeamPage({ searchParams }: { searchParams: Se
 
       <FeedbackMessage error={feedback.error} message={feedback.message} />
 
+      {mayManage ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Пригласить сотрудника</CardTitle>
+            <CardDescription>
+              Роль сохраняется при отправке приглашения. Доступ откроется после принятия email-ссылки.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form action={invitePlatformUserAction} className="grid gap-4 md:grid-cols-[1fr_240px_auto] md:items-end">
+              <div className="space-y-2">
+                <Label htmlFor="email">Рабочий email</Label>
+                <Input autoComplete="email" id="email" name="email" required type="email" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role">Роль</Label>
+                <Select defaultValue="platform_support" id="role" name="role">
+                  {PLATFORM_ROLE_VALUES.map((role) => (
+                    <option key={role} value={role}>
+                      {PLATFORM_ROLE_LABELS[role]}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <PendingSubmitButton pendingText="Отправляем..." type="submit">
+                Пригласить
+              </PendingSubmitButton>
+            </form>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>Platform users</CardTitle>
           <CardDescription>
-            Добавление новых сотрудников в первом релизе выполняется вручную через защищенную миграцию.
+            Внутренние роли команды платформы и состояние доступа к backoffice.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
@@ -70,10 +107,14 @@ export default async function AdminTeamPage({ searchParams }: { searchParams: Se
                             <input
                               name="status"
                               type="hidden"
-                              value={user.status === "active" ? "disabled" : "active"}
+                              value={user.status === "active" || user.status === "invited" ? "disabled" : "active"}
                             />
                             <Button size="sm" type="submit" variant="outline">
-                              {user.status === "active" ? "Отключить" : "Восстановить"}
+                              {user.status === "active"
+                                ? "Отключить"
+                                : user.status === "invited"
+                                  ? "Отозвать"
+                                  : "Восстановить"}
                             </Button>
                           </form>
                         </td>

@@ -23,7 +23,8 @@
 ## Внутренняя админ-панель
 
 Backoffice владельца SaaS доступен по `/admin` после применения миграции
-`supabase/migrations/20260526100000_platform_admin_backoffice.sql`.
+`supabase/migrations/20260526100000_platform_admin_backoffice.sql` и миграции
+`supabase/migrations/20260527120000_platform_team_invitations.sql`.
 
 Для сотрудников платформы используется отдельный auth-flow, который не создает компанию:
 
@@ -48,10 +49,20 @@ insert into public.platform_users (user_id, role, status)
 values ('<auth-user-uuid>', 'platform_owner', 'active');
 ```
 
-Остальным сотрудникам можно назначить роли `platform_admin`, `platform_support` или
-`platform_analyst`. Просмотры персональных данных кандидатов и операционные изменения
-записываются в `public.platform_audit_logs`.
+После создания владельца новых сотрудников можно приглашать из `/admin/team`:
+
+- владелец выбирает email и роль `platform_owner`, `platform_admin`,
+  `platform_support` или `platform_analyst`;
+- Supabase Auth отправляет email-приглашение;
+- приглашенный задает имя и пароль на `/admin/accept-invitation`;
+- роль сохраняется при отправке, а доступ становится активным только после принятия.
+
+Для доставки писем настройте email provider и redirect URLs проекта Supabase, включая
+`/auth/confirm?next=/admin/accept-invitation` на домене приложения. Просмотры
+персональных данных кандидатов и операционные изменения записываются в
+`public.platform_audit_logs`.
 
 Регистрация через `/admin/register` сама по себе не выдает доступ к backoffice:
 до назначения роли пользователь остается на странице ожидания и не проходит onboarding
-организации.
+организации. Если такой аккаунт уже создан, приглашение из `/admin/team` сразу назначит
+ему выбранную роль без повторного письма.

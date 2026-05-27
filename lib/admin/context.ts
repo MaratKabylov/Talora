@@ -19,7 +19,7 @@ export type PlatformContext = {
 
 type PlatformUserRecord = {
   role: PlatformRole;
-  status: "active" | "disabled";
+  status: "active" | "disabled" | "invited";
 };
 
 export const getPlatformContext = cache(async (): Promise<PlatformContext | null> => {
@@ -63,6 +63,17 @@ export async function requirePlatformContext() {
   const context = await getPlatformContext();
 
   if (!context) {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("platform_users")
+      .select("status")
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
+
+    if (data?.status === "invited") {
+      redirect("/admin/accept-invitation");
+    }
+
     redirect("/admin/access-pending");
   }
 

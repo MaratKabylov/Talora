@@ -4,12 +4,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { getAuthContext } from "@/lib/auth/context";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 import {
   COMPANY_STATUS_VALUES,
+  PLATFORM_ROLE_VALUES,
   canManagePlatformTeam,
   canOperateCompanies,
+  type PlatformRole,
 } from "./constants";
 import { requirePlatformContext } from "./context";
 import { recordPlatformAudit } from "./data";
@@ -22,6 +26,13 @@ function formString(formData: FormData, key: string) {
 function redirectWithFeedback(path: string, type: "error" | "message", text: string): never {
   const separator = path.includes("?") ? "&" : "?";
   redirect(`${path}${separator}${new URLSearchParams({ [type]: text }).toString()}`);
+}
+
+function getPlatformInviteRedirectTo() {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  return appUrl
+    ? new URL("/auth/confirm?next=/admin/accept-invitation", appUrl).toString()
+    : undefined;
 }
 
 const companyStatusSchema = z.object({
@@ -258,6 +269,179 @@ const platformUserSchema = z.object({
   status: z.enum(["active", "disabled"]),
   userId: z.string().uuid(),
 });
+
+const invitePlatformUserSchema = z.object({
+  email: z.string().trim().email("Введите корректный email.").transform((value) => value.toLowerCase()),
+  role: z.enum(PLATFORM_ROLE_VALUES),
+});
+
+export async function invitePlatformUserAction(formData: FormData) {
+  const path = "/admin/team";
+  const parsed = invitePlatformUserSchema.safeParse({
+    email: formString(formData, "email"),
+    role: formString(formData, "role"),
+  });
+  if (!parsed.success) {
+    redirectWithFeedback(path, "error", parsed.error.issues[0].message);
+  }
+
+  const context = await requirePlatformContext();
+  if (!canManagePlatformTeam(context.role)) {
+    redirectWithFeedback(path, "error", "Только владелец платформы приглашает сотрудников.");
+  }
+
+  const admin = createAdminClient();
+  const { data: existingProfile, error: profileError } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("email", parsed.data.email)
+    .maybeSingle();
+
+  if (profileError) {
+    redirectWithFeedback(path, "error", "Не удалось проверить аккаунт сотрудника.");
+  }
+
+  if (existingProfile) {
+    const { data: existingAccess, error: accessLookupError } = await admin
+      .from("platform_users")
+      .select("status")
+      .eq("user_id", existingProfile.id)
+      .maybeSingle();
+
+    if (accessLookupError) {
+      redirectWithFeedback(path, "error", "Не удалось проверить доступ сотрудника.");
+    }
+    if (existingAccess) {
+      redirectWithFeedback(path, "error", "Этот сотрудник уже добавлен в команду платформы.");
+    }
+
+    const { error } = await admin.from("platform_users").insert({
+      created_by: context.user.id,
+      role: parsed.data.role,
+      status: "active",
+      user_id: existingProfile.id,
+    });
+
+    if (error) {
+      redirectWithFeedback(path, "error", "Не удалось назначить роль зарегистрированному сотруднику.");
+    }
+
+    await recordPlatformAudit(context, "assign_platform_role", "platform_user", existingProfile.id, null, null, {
+      email: parsed.data.email,
+      role: parsed.data.role,
+    });
+    revalidatePath(path);
+    redirectWithFeedback(path, "message", "Сотрудник уже был зарегистрирован. Роль назначена, он может войти.");
+  }
+
+  const { data: invitedUser, error: invitationError } =
+    await admin.auth.admin.inviteUserByEmail(parsed.data.email, {
+      redirectTo: getPlatformInviteRedirectTo(),
+    });
+
+  if (invitationError || !invitedUser.user) {
+    redirectWithFeedback(path, "error", "Не удалось отправить приглашение. Проверьте настройки Auth email.");
+  }
+
+  const { error: accessError } = await admin.from("platform_users").insert({
+    created_by: context.user.id,
+    role: parsed.data.role,
+    status: "invited",
+    user_id: invitedUser.user.id,
+  });
+
+  if (accessError) {
+    redirectWithFeedback(
+      path,
+      "error",
+      "Письмо отправлено, но роль не сохранена. Повторите назначение после регистрации сотрудника.",
+    );
+  }
+
+  await recordPlatformAudit(context, "invite_platform_user", "platform_user", invitedUser.user.id, null, null, {
+    email: parsed.data.email,
+    role: parsed.data.role,
+  });
+  revalidatePath(path);
+  redirectWithFeedback(path, "message", "Приглашение отправлено, выбранная роль сохранена.");
+}
+
+const acceptPlatformInvitationSchema = z.object({
+  fullName: z.string().trim().min(2, "Укажите имя.").max(120, "Имя слишком длинное."),
+  password: z.string().min(8, "Пароль должен содержать минимум 8 символов."),
+});
+
+export async function acceptPlatformInvitationAction(formData: FormData) {
+  const path = "/admin/accept-invitation";
+  const parsed = acceptPlatformInvitationSchema.safeParse({
+    fullName: formString(formData, "fullName"),
+    password: formString(formData, "password"),
+  });
+  if (!parsed.success) {
+    redirectWithFeedback(path, "error", parsed.error.issues[0].message);
+  }
+
+  const auth = await getAuthContext();
+  if (!auth) {
+    redirectWithFeedback("/admin/login", "error", "Ссылка приглашения недействительна или устарела.");
+  }
+
+  const admin = createAdminClient();
+  const { data: platformUser, error: accessLookupError } = await admin
+    .from("platform_users")
+    .select("role, status")
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+
+  if (accessLookupError || !platformUser || platformUser.status !== "invited") {
+    redirectWithFeedback("/admin/access-pending", "message", "Для аккаунта нет активного приглашения.");
+  }
+
+  const supabase = await createClient();
+  const { error: passwordError } = await supabase.auth.updateUser({
+    data: { full_name: parsed.data.fullName },
+    password: parsed.data.password,
+  });
+  if (passwordError) {
+    redirectWithFeedback(path, "error", "Не удалось завершить регистрацию. Попробуйте снова.");
+  }
+
+  const { error: profileError } = await admin
+    .from("profiles")
+    .update({ full_name: parsed.data.fullName })
+    .eq("id", auth.user.id);
+  if (profileError) {
+    redirectWithFeedback(path, "error", "Не удалось сохранить профиль сотрудника.");
+  }
+
+  const { data: activatedUser, error: activationError } = await admin
+    .from("platform_users")
+    .update({ status: "active" })
+    .eq("user_id", auth.user.id)
+    .eq("status", "invited")
+    .select("user_id")
+    .maybeSingle();
+  if (activationError || !activatedUser) {
+    redirectWithFeedback(path, "error", "Не удалось активировать доступ сотрудника.");
+  }
+
+  await recordPlatformAudit(
+    {
+      role: platformUser.role as PlatformRole,
+      user: {
+        email: auth.profile?.email ?? auth.user.email,
+        id: auth.user.id,
+        name: parsed.data.fullName,
+      },
+    },
+    "accept_platform_invitation",
+    "platform_user",
+    auth.user.id,
+  );
+  revalidatePath("/", "layout");
+  revalidatePath("/admin/team");
+  redirectWithFeedback("/admin/team", "message", "Приглашение принято. Доступ к Talora Admin активирован.");
+}
 
 export async function updatePlatformUserStatusAction(formData: FormData) {
   const parsed = platformUserSchema.safeParse({
