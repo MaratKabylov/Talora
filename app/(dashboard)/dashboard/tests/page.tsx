@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { EmptyState } from "@/components/empty-state";
 import { FeedbackMessage } from "@/components/feedback-message";
+import { SystemTestGroups } from "@/components/tests/system-test-groups";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireCompanyContext } from "@/lib/auth/context";
@@ -126,8 +127,10 @@ export default async function TestsPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          <TemplatesTable
+          <SystemTestGroups
             emptyText="Системные тесты появятся после применения seed-миграции."
+            hrefBase="/dashboard/tests"
+            statusMode="system-badge"
             templates={systemTemplates}
           />
         </CardContent>
