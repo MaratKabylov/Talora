@@ -30,6 +30,7 @@ import type {
   BuilderSection,
 } from "@/lib/tests/builder-data";
 import type { TestVersion } from "@/lib/tests/data";
+import { formatTestVersionTitle } from "@/lib/tests/version-title";
 
 type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
 
@@ -141,13 +142,13 @@ export function TestBuilderEditor({
   templateId: string;
   version: TestVersion;
 }) {
+  const versionTitle = formatTestVersionTitle(initialVersion.versionNumber);
   const [sections, setSections] = useState<BuilderSection[]>(() => editableSections(initialSections));
   const [version, setVersion] = useState({
     description: initialVersion.description ?? "",
     durationMinutes: initialVersion.durationMinutes?.toString() ?? "",
     instructions: initialVersion.instructions ?? "",
     scoringType: initialVersion.scoringType,
-    title: initialVersion.title,
   });
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [feedback, setFeedback] = useState("");
@@ -172,7 +173,7 @@ export function TestBuilderEditor({
   );
 
   const updateVersion = (
-    field: "description" | "durationMinutes" | "instructions" | "title",
+    field: "description" | "durationMinutes" | "instructions",
     value: string,
   ) => {
     setVersion((current) => ({ ...current, [field]: value }));
@@ -215,7 +216,7 @@ export function TestBuilderEditor({
         durationMinutes: version.durationMinutes ? Number(version.durationMinutes) : null,
         instructions: nullableText(version.instructions),
         scoringType: version.scoringType,
-        title: version.title,
+        title: versionTitle,
       },
       versionId: initialVersion.id,
     };
@@ -237,7 +238,7 @@ export function TestBuilderEditor({
     } else {
       setStatus("dirty");
     }
-  }, [initialVersion.id, saveAction, sections, templateId, version]);
+  }, [initialVersion.id, saveAction, sections, templateId, version, versionTitle]);
 
   useEffect(() => {
     if (status !== "dirty") return;
@@ -336,9 +337,10 @@ export function TestBuilderEditor({
         <div className="space-y-5">
           <div className="rounded-xl border-t-8 border-t-primary bg-card p-6 shadow-sm">
             <Input
-              className="h-auto border-0 px-0 text-2xl font-semibold shadow-none focus-visible:ring-0"
-              onChange={(event) => updateVersion("title", event.target.value)}
-              value={version.title}
+              aria-readonly
+              className="h-auto border-0 bg-muted/40 px-0 text-2xl font-semibold shadow-none focus-visible:ring-0"
+              readOnly
+              value={versionTitle}
             />
             <Textarea
               className="mt-3 min-h-20 border-0 px-0 shadow-none focus-visible:ring-0"

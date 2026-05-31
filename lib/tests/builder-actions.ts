@@ -14,6 +14,7 @@ import {
   type TestCompetencyKey,
 } from "./builder-constants";
 import { canManageTests, SCORING_TYPE_VALUES } from "./constants";
+import { formatTestVersionTitle } from "./version-title";
 
 const competencyKeys = TEST_COMPETENCIES.map((competency) => competency.key) as [
   TestCompetencyKey,
@@ -349,7 +350,7 @@ async function getDocumentContext(templateId: string, versionId: string) {
   const supabase = await createClient();
   const { data: version } = await supabase
     .from("test_versions")
-    .select("id, test_templates!inner(id, company_id, is_system, status)")
+    .select("id, version_number, test_templates!inner(id, company_id, is_system, status)")
     .eq("id", versionId)
     .eq("test_template_id", templateId)
     .eq("status", "draft")
@@ -358,7 +359,7 @@ async function getDocumentContext(templateId: string, versionId: string) {
     .eq("test_templates.status", "active")
     .maybeSingle();
 
-  return version ? { supabase } : null;
+  return version ? { supabase, versionNumber: version.version_number } : null;
 }
 
 export async function saveBuilderDocumentAction(input: unknown): Promise<BuilderSaveResult> {
@@ -434,7 +435,7 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
       duration_minutes: document.version.durationMinutes,
       instructions: document.version.instructions,
       scoring_type: document.version.scoringType,
-      title: document.version.title,
+      title: formatTestVersionTitle(context.versionNumber),
     })
     .eq("id", document.versionId)
     .eq("status", "draft");
@@ -796,7 +797,7 @@ export async function createDraftFromPublishedVersionAction(formData: FormData) 
   const [{ data: source }, { data: latest }] = await Promise.all([
     supabase
       .from("test_versions")
-      .select("title, description, instructions, duration_minutes, scoring_type, settings_json")
+      .select("description, instructions, duration_minutes, scoring_type, settings_json")
       .eq("id", versionId.data)
       .eq("test_template_id", templateId.data)
       .eq("status", "published")
@@ -813,6 +814,7 @@ export async function createDraftFromPublishedVersionAction(formData: FormData) 
     redirectWithFeedback(previewPath, "error", "Копировать для редактирования можно только опубликованную версию.");
   }
 
+  const nextVersionNumber = (latest?.version_number ?? 0) + 1;
   const { data: draft, error: draftError } = await supabase
     .from("test_versions")
     .insert({
@@ -823,8 +825,8 @@ export async function createDraftFromPublishedVersionAction(formData: FormData) 
       settings_json: source.settings_json,
       status: "draft",
       test_template_id: templateId.data,
-      title: source.title,
-      version_number: (latest?.version_number ?? 0) + 1,
+      title: formatTestVersionTitle(nextVersionNumber),
+      version_number: nextVersionNumber,
     })
     .select("id")
     .single();

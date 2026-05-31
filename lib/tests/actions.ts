@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import { canManageTests, SCORING_TYPE_VALUES, TEST_TEMPLATE_STATUS_VALUES } from "./constants";
 import { canCreateCompanyTests } from "./permissions";
+import { formatTestVersionTitle } from "./version-title";
 
 const optionalText = (maximum: number) =>
   z.preprocess(
@@ -43,7 +44,6 @@ const versionSchema = z.object({
   durationMinutes: optionalDuration,
   instructions: optionalText(4000),
   scoringType: z.enum(SCORING_TYPE_VALUES),
-  title: z.string().trim().min(2, "Укажите название версии.").max(180, "Название слишком длинное."),
 });
 
 function formString(formData: FormData, key: string) {
@@ -75,7 +75,6 @@ function parseVersion(formData: FormData) {
     durationMinutes: formString(formData, "durationMinutes"),
     instructions: formString(formData, "instructions"),
     scoringType: formString(formData, "scoringType"),
-    title: formString(formData, "versionTitle"),
   });
 }
 
@@ -141,6 +140,7 @@ export async function createTestTemplateAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Не удалось создать тест.");
   }
 
+  const versionNumber = 1;
   const { error: versionError } = await supabase.from("test_versions").insert({
     description: version.data.description,
     duration_minutes: version.data.durationMinutes,
@@ -148,8 +148,8 @@ export async function createTestTemplateAction(formData: FormData) {
     scoring_type: version.data.scoringType,
     status: "draft",
     test_template_id: createdTemplate.id,
-    title: version.data.title,
-    version_number: 1,
+    title: formatTestVersionTitle(versionNumber),
+    version_number: versionNumber,
   });
 
   if (versionError) {
@@ -374,6 +374,7 @@ export async function createTestVersionAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Не удалось определить номер новой версии.");
   }
 
+  const nextVersionNumber = (latestVersion?.version_number ?? 0) + 1;
   const { error } = await supabase.from("test_versions").insert({
     description: version.data.description,
     duration_minutes: version.data.durationMinutes,
@@ -381,8 +382,8 @@ export async function createTestVersionAction(formData: FormData) {
     scoring_type: version.data.scoringType,
     status: "draft",
     test_template_id: templateId.data,
-    title: version.data.title,
-    version_number: (latestVersion?.version_number ?? 0) + 1,
+    title: formatTestVersionTitle(nextVersionNumber),
+    version_number: nextVersionNumber,
   });
 
   if (error) {
@@ -421,6 +422,18 @@ export async function updateTestVersionAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Черновики можно изменять только в активном тесте компании.");
   }
 
+  const { data: draftVersion, error: draftLookupError } = await supabase
+    .from("test_versions")
+    .select("id, version_number")
+    .eq("id", versionId.data)
+    .eq("test_template_id", templateId.data)
+    .eq("status", "draft")
+    .maybeSingle();
+
+  if (draftLookupError || !draftVersion) {
+    redirectWithFeedback(path, "error", "Изменять можно только черновую версию.");
+  }
+
   const { data: updatedVersion, error } = await supabase
     .from("test_versions")
     .update({
@@ -428,7 +441,7 @@ export async function updateTestVersionAction(formData: FormData) {
       duration_minutes: version.data.durationMinutes,
       instructions: version.data.instructions,
       scoring_type: version.data.scoringType,
-      title: version.data.title,
+      title: formatTestVersionTitle(draftVersion.version_number),
     })
     .eq("id", versionId.data)
     .eq("test_template_id", templateId.data)
@@ -507,9 +520,25 @@ export async function publishTestVersionAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Публиковать версии можно только в активном тесте компании.");
   }
 
+  const { data: draftVersion, error: draftLookupError } = await supabase
+    .from("test_versions")
+    .select("id, version_number")
+    .eq("id", versionId.data)
+    .eq("test_template_id", templateId.data)
+    .eq("status", "draft")
+    .maybeSingle();
+
+  if (draftLookupError || !draftVersion) {
+    redirectWithFeedback(path, "error", "Опубликовать можно только черновую версию.");
+  }
+
   const { data: publishedVersion, error } = await supabase
     .from("test_versions")
-    .update({ published_at: new Date().toISOString(), status: "published" })
+    .update({
+      published_at: new Date().toISOString(),
+      status: "published",
+      title: formatTestVersionTitle(draftVersion.version_number),
+    })
     .eq("id", versionId.data)
     .eq("test_template_id", templateId.data)
     .eq("status", "draft")

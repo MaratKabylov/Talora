@@ -52,6 +52,7 @@ export default async function TestPage({
   const isEditable = mayManage && !template.isSystem && template.status === "active";
   const draftVersion = template.versions.find((version) => version.status === "draft");
   const hasPublishedVersion = template.versions.some((version) => version.status === "published");
+  const nextVersionNumber = (template.latestVersion?.versionNumber ?? 0) + 1;
 
   return (
     <div className="space-y-6">
@@ -233,7 +234,7 @@ export default async function TestPage({
           <CardContent className="pt-6">
             <form action={createTestVersionAction} className="space-y-5">
               <input name="templateId" type="hidden" value={template.id} />
-              <TestVersionFields template={template} />
+              <TestVersionFields template={template} versionNumber={nextVersionNumber} />
               <Button type="submit">Создать черновую версию</Button>
             </form>
           </CardContent>

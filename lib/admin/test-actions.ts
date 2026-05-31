@@ -13,6 +13,7 @@ import {
 } from "@/lib/tests/builder-constants";
 import type { BuilderSaveResult } from "@/lib/tests/builder-actions";
 import { SCORING_TYPE_VALUES, TEST_TEMPLATE_STATUS_VALUES } from "@/lib/tests/constants";
+import { formatTestVersionTitle } from "@/lib/tests/version-title";
 
 import { canManageSystemTests } from "./constants";
 import { requirePlatformContext, type PlatformContext } from "./context";
@@ -56,7 +57,6 @@ const versionSchema = z.object({
   durationMinutes: optionalDuration,
   instructions: optionalText(4000),
   scoringType: z.enum(SCORING_TYPE_VALUES),
-  title: z.string().trim().min(2, "Укажите название версии.").max(180, "Название слишком длинное."),
 });
 
 const documentOptionSchema = z.object({
@@ -133,7 +133,6 @@ function parseVersion(formData: FormData) {
     durationMinutes: formString(formData, "durationMinutes"),
     instructions: formString(formData, "instructions"),
     scoringType: formString(formData, "scoringType"),
-    title: formString(formData, "versionTitle"),
   });
 }
 
@@ -222,6 +221,7 @@ export async function createSystemTestTemplateAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Не удалось создать системный тест.");
   }
 
+  const versionNumber = 1;
   const { data: createdVersion, error: versionError } = await admin
     .from("test_versions")
     .insert({
@@ -231,8 +231,8 @@ export async function createSystemTestTemplateAction(formData: FormData) {
       scoring_type: version.data.scoringType,
       status: "draft",
       test_template_id: createdTemplate.id,
-      title: version.data.title,
-      version_number: 1,
+      title: formatTestVersionTitle(versionNumber),
+      version_number: versionNumber,
     })
     .select("id")
     .single();
@@ -363,6 +363,7 @@ export async function createSystemTestVersionAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Не удалось определить номер новой версии.");
   }
 
+  const nextVersionNumber = (latestVersion?.version_number ?? 0) + 1;
   const { data: createdVersion, error } = await admin
     .from("test_versions")
     .insert({
@@ -372,8 +373,8 @@ export async function createSystemTestVersionAction(formData: FormData) {
       scoring_type: version.data.scoringType,
       status: "draft",
       test_template_id: templateId.data,
-      title: version.data.title,
-      version_number: (latestVersion?.version_number ?? 0) + 1,
+      title: formatTestVersionTitle(nextVersionNumber),
+      version_number: nextVersionNumber,
     })
     .select("id")
     .single();
@@ -406,6 +407,18 @@ export async function updateSystemTestVersionAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Черновики можно изменять только в активном системном тесте.");
   }
 
+  const { data: draftVersion, error: draftLookupError } = await admin
+    .from("test_versions")
+    .select("id, version_number")
+    .eq("id", versionId.data)
+    .eq("test_template_id", templateId.data)
+    .eq("status", "draft")
+    .maybeSingle();
+
+  if (draftLookupError || !draftVersion) {
+    redirectWithFeedback(path, "error", "Изменять можно только черновую версию.");
+  }
+
   const { data, error } = await admin
     .from("test_versions")
     .update({
@@ -413,7 +426,7 @@ export async function updateSystemTestVersionAction(formData: FormData) {
       duration_minutes: version.data.durationMinutes,
       instructions: version.data.instructions,
       scoring_type: version.data.scoringType,
-      title: version.data.title,
+      title: formatTestVersionTitle(draftVersion.version_number),
     })
     .eq("id", versionId.data)
     .eq("test_template_id", templateId.data)
@@ -476,9 +489,25 @@ export async function publishSystemTestVersionAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Публиковать версии можно только в активном системном тесте.");
   }
 
+  const { data: draftVersion, error: draftLookupError } = await admin
+    .from("test_versions")
+    .select("id, version_number")
+    .eq("id", versionId.data)
+    .eq("test_template_id", templateId.data)
+    .eq("status", "draft")
+    .maybeSingle();
+
+  if (draftLookupError || !draftVersion) {
+    redirectWithFeedback(path, "error", "Опубликовать можно только черновую версию.");
+  }
+
   const { data, error } = await admin
     .from("test_versions")
-    .update({ published_at: new Date().toISOString(), status: "published" })
+    .update({
+      published_at: new Date().toISOString(),
+      status: "published",
+      title: formatTestVersionTitle(draftVersion.version_number),
+    })
     .eq("id", versionId.data)
     .eq("test_template_id", templateId.data)
     .eq("status", "draft")
@@ -553,7 +582,7 @@ export async function createSystemDraftFromPublishedVersionAction(formData: Form
   const [{ data: source }, { data: latest }] = await Promise.all([
     admin
       .from("test_versions")
-      .select("title, description, instructions, duration_minutes, scoring_type, settings_json")
+      .select("description, instructions, duration_minutes, scoring_type, settings_json")
       .eq("id", versionId.data)
       .eq("test_template_id", templateId.data)
       .eq("status", "published")
@@ -571,6 +600,7 @@ export async function createSystemDraftFromPublishedVersionAction(formData: Form
     redirectWithFeedback(sourcePath, "error", "Копировать можно только опубликованную версию.");
   }
 
+  const nextVersionNumber = (latest?.version_number ?? 0) + 1;
   const { data: draft, error: draftError } = await admin
     .from("test_versions")
     .insert({
@@ -581,8 +611,8 @@ export async function createSystemDraftFromPublishedVersionAction(formData: Form
       settings_json: source.settings_json,
       status: "draft",
       test_template_id: templateId.data,
-      title: source.title,
-      version_number: (latest?.version_number ?? 0) + 1,
+      title: formatTestVersionTitle(nextVersionNumber),
+      version_number: nextVersionNumber,
     })
     .select("id")
     .single();
@@ -681,7 +711,7 @@ async function getSystemDocumentContext(templateId: string, versionId: string) {
   const admin = createAdminClient();
   const { data: version } = await admin
     .from("test_versions")
-    .select("id, test_templates!inner(id, company_id, is_system, status)")
+    .select("id, version_number, test_templates!inner(id, company_id, is_system, status)")
     .eq("id", versionId)
     .eq("test_template_id", templateId)
     .eq("status", "draft")
@@ -690,7 +720,7 @@ async function getSystemDocumentContext(templateId: string, versionId: string) {
     .eq("test_templates.status", "active")
     .maybeSingle();
 
-  return version ? { admin, context } : null;
+  return version ? { admin, context, versionNumber: version.version_number } : null;
 }
 
 export async function saveSystemTestBuilderDocumentAction(input: unknown): Promise<BuilderSaveResult> {
@@ -805,7 +835,7 @@ export async function saveSystemTestBuilderDocumentAction(input: unknown): Promi
       duration_minutes: document.version.durationMinutes,
       instructions: document.version.instructions,
       scoring_type: document.version.scoringType,
-      title: document.version.title,
+      title: formatTestVersionTitle(actionContext.versionNumber),
     })
     .eq("id", document.versionId)
     .eq("status", "draft");

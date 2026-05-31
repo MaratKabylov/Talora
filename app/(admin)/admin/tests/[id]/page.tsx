@@ -48,6 +48,7 @@ export default async function AdminSystemTestPage({
   const mayManage = canManageSystemTests(context.role);
   const isEditable = mayManage && template.status === "active";
   const draftVersion = template.versions.find((version) => version.status === "draft");
+  const nextVersionNumber = (template.latestVersion?.versionNumber ?? 0) + 1;
 
   return (
     <div className="space-y-6">
@@ -213,7 +214,7 @@ export default async function AdminSystemTestPage({
           <CardContent className="pt-6">
             <form action={createSystemTestVersionAction} className="space-y-5">
               <input name="templateId" type="hidden" value={template.id} />
-              <TestVersionFields template={template} />
+              <TestVersionFields template={template} versionNumber={nextVersionNumber} />
               <Button type="submit">Создать пустой черновик</Button>
             </form>
           </CardContent>
