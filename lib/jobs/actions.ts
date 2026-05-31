@@ -14,6 +14,7 @@ import {
   JOB_STATUS_VALUES,
   type CompetencyKey,
 } from "./constants";
+import { isAssessmentPackageAvailable } from "./package-access";
 
 const optionalText = (maximum: number) =>
   z.preprocess(
@@ -117,18 +118,7 @@ async function isAvailablePackage(
   companyId: string,
   packageId: string | null,
 ) {
-  if (!packageId) {
-    return true;
-  }
-
-  const { data, error } = await supabase
-    .from("assessment_packages")
-    .select("id")
-    .eq("id", packageId)
-    .or(`company_id.eq.${companyId},is_system.eq.true`)
-    .maybeSingle();
-
-  return !error && Boolean(data);
+  return isAssessmentPackageAvailable(supabase, companyId, packageId);
 }
 
 function weightsToRows(

@@ -5,7 +5,11 @@ import { FeedbackMessage } from "@/components/feedback-message";
 import { buttonVariants, Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { addCompanyNoteAction, updateCompanyStatusAction } from "@/lib/admin/actions";
+import {
+  addCompanyNoteAction,
+  updateCompanyStatusAction,
+  updateCompanyTestAccessAction,
+} from "@/lib/admin/actions";
 import { COMPANY_STATUS_LABELS, canOperateCompanies } from "@/lib/admin/constants";
 import { requirePlatformContext } from "@/lib/admin/context";
 import { getAdminCompanyDetail } from "@/lib/admin/data";
@@ -98,6 +102,73 @@ export default async function AdminCompanyPage({
           </Card>
         ) : null}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Доступы к тестам</CardTitle>
+          <CardDescription>
+            Системные тесты и создание собственных тестов выключены по умолчанию для каждой компании.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <form action={updateCompanyTestAccessAction} className="space-y-5">
+            <input name="companyId" type="hidden" value={data.company.id} />
+            <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
+              <input
+                className="mt-1"
+                defaultChecked={data.testAccess.canCreateCustomTests}
+                disabled={!mayOperate}
+                name="canCreateCustomTests"
+                type="checkbox"
+              />
+              <span>
+                <span className="block font-medium">Разрешить создание собственных тестов</span>
+                <span className="text-muted-foreground">
+                  Компания сможет создавать новые кастомные тесты в HR workspace.
+                </span>
+              </span>
+            </label>
+
+            <div className="overflow-hidden rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Доступ</th>
+                    <th className="px-4 py-3 font-medium">Системный тест</th>
+                    <th className="px-4 py-3 font-medium">Статус</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.testAccess.systemTests.map((test) => (
+                    <tr className="border-t" key={test.id}>
+                      <td className="px-4 py-3">
+                        <input
+                          defaultChecked={test.granted}
+                          disabled={!mayOperate || !test.hasPublishedVersion || test.status !== "active"}
+                          name="systemTestIds"
+                          type="checkbox"
+                          value={test.id}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium">{test.title}</p>
+                        <p className="text-muted-foreground">{test.category ?? "Без категории"}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        {test.status === "active" && test.hasPublishedVersion
+                          ? "Можно назначить"
+                          : "Нет опубликованной активной версии"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {mayOperate ? <Button type="submit">Сохранить доступы к тестам</Button> : null}
+          </form>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

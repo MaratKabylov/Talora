@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 
 import type { CompetencyKey, EmploymentType, JobStatus } from "./constants";
+import { listAccessibleAssessmentPackages } from "./package-access";
+
+export type { AssessmentPackageOption } from "./package-access";
 
 type PackageRecord = {
   id: string;
@@ -30,12 +33,6 @@ type WeightRecord = {
   is_required: boolean;
   minimum_score: number | null;
   weight: number;
-};
-
-export type AssessmentPackageOption = {
-  id: string;
-  isSystem: boolean;
-  title: string;
 };
 
 export type JobDetails = {
@@ -102,27 +99,12 @@ export async function listJobs(companyId: string) {
 
 export async function listAssessmentPackages(companyId: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("assessment_packages")
-    .select("id, title, is_system")
-    .or(`company_id.eq.${companyId},is_system.eq.true`)
-    .order("is_system", { ascending: false })
-    .order("title");
-
-  if (error) {
-    throw new Error("Unable to load assessment packages.");
-  }
-
-  return ((data ?? []) as PackageRecord[]).map((assessmentPackage) => ({
-    id: assessmentPackage.id,
-    isSystem: assessmentPackage.is_system,
-    title: assessmentPackage.title,
-  }));
+  return listAccessibleAssessmentPackages(supabase, companyId);
 }
 
 export async function getJobPageData(companyId: string, jobId: string) {
   const supabase = await createClient();
-  const [jobResult, weightsResult, packagesResult] = await Promise.all([
+  const [jobResult, weightsResult, packages] = await Promise.all([
     supabase
       .from("jobs")
       .select(
@@ -136,15 +118,10 @@ export async function getJobPageData(companyId: string, jobId: string) {
       .select("competency_key, weight, minimum_score, is_required")
       .eq("company_id", companyId)
       .eq("job_id", jobId),
-    supabase
-      .from("assessment_packages")
-      .select("id, title, is_system")
-      .or(`company_id.eq.${companyId},is_system.eq.true`)
-      .order("is_system", { ascending: false })
-      .order("title"),
+    listAccessibleAssessmentPackages(supabase, companyId),
   ]);
 
-  if (jobResult.error || weightsResult.error || packagesResult.error) {
+  if (jobResult.error || weightsResult.error) {
     throw new Error("Unable to load job details.");
   }
 
@@ -154,11 +131,7 @@ export async function getJobPageData(companyId: string, jobId: string) {
 
   return {
     job: normalizeJob(jobResult.data as unknown as JobRecord),
-    packages: ((packagesResult.data ?? []) as PackageRecord[]).map((assessmentPackage) => ({
-      id: assessmentPackage.id,
-      isSystem: assessmentPackage.is_system,
-      title: assessmentPackage.title,
-    })),
+    packages,
     weights: ((weightsResult.data ?? []) as WeightRecord[]).map((weight) => ({
       competencyKey: weight.competency_key,
       isRequired: weight.is_required,

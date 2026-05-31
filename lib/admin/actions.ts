@@ -41,6 +41,12 @@ const companyStatusSchema = z.object({
   status: z.enum(COMPANY_STATUS_VALUES),
 });
 
+const companyTestAccessSchema = z.object({
+  canCreateCustomTests: z.boolean(),
+  companyId: z.string().uuid(),
+  systemTestIds: z.array(z.string().uuid()),
+});
+
 export async function updateCompanyStatusAction(formData: FormData) {
   const parsed = companyStatusSchema.safeParse({
     companyId: formString(formData, "companyId"),
@@ -87,6 +93,94 @@ export async function updateCompanyStatusAction(formData: FormData) {
   revalidatePath("/admin/companies");
   revalidatePath(path);
   redirectWithFeedback(path, "message", "Статус компании обновлен.");
+}
+
+export async function updateCompanyTestAccessAction(formData: FormData) {
+  const parsed = companyTestAccessSchema.safeParse({
+    canCreateCustomTests: formData.get("canCreateCustomTests") === "on",
+    companyId: formString(formData, "companyId"),
+    systemTestIds: formData
+      .getAll("systemTestIds")
+      .filter((value): value is string => typeof value === "string"),
+  });
+  if (!parsed.success) {
+    redirect("/admin/companies");
+  }
+
+  const path = `/admin/companies/${parsed.data.companyId}`;
+  const context = await requirePlatformContext();
+  if (!canOperateCompanies(context.role)) {
+    redirectWithFeedback(path, "error", "У вашей роли нет права менять доступы компании.");
+  }
+
+  const uniqueSystemTestIds = [...new Set(parsed.data.systemTestIds)];
+  const admin = createAdminClient();
+  if (uniqueSystemTestIds.length > 0) {
+    const { data: templates, error: templatesError } = await admin
+      .from("test_templates")
+      .select("id")
+      .in("id", uniqueSystemTestIds)
+      .eq("is_system", true)
+      .is("company_id", null);
+
+    if (templatesError || (templates ?? []).length !== uniqueSystemTestIds.length) {
+      redirectWithFeedback(path, "error", "Один из выбранных системных тестов недоступен.");
+    }
+  }
+
+  const { error: permissionError } = await admin.from("company_test_permissions").upsert(
+    {
+      can_create_custom_tests: parsed.data.canCreateCustomTests,
+      company_id: parsed.data.companyId,
+      updated_by: context.user.id,
+    },
+    { onConflict: "company_id" },
+  );
+
+  if (permissionError) {
+    redirectWithFeedback(path, "error", "Не удалось обновить право на создание тестов.");
+  }
+
+  const { error: deleteAccessError } = await admin
+    .from("company_system_test_access")
+    .delete()
+    .eq("company_id", parsed.data.companyId);
+
+  if (deleteAccessError) {
+    redirectWithFeedback(path, "error", "Не удалось обновить доступы к системным тестам.");
+  }
+
+  if (uniqueSystemTestIds.length > 0) {
+    const { error: insertAccessError } = await admin.from("company_system_test_access").insert(
+      uniqueSystemTestIds.map((testTemplateId) => ({
+        company_id: parsed.data.companyId,
+        granted_by: context.user.id,
+        test_template_id: testTemplateId,
+      })),
+    );
+
+    if (insertAccessError) {
+      redirectWithFeedback(path, "error", "Не удалось назначить доступы к системным тестам.");
+    }
+  }
+
+  await recordPlatformAudit(
+    context,
+    "update_company_test_access",
+    "company",
+    parsed.data.companyId,
+    parsed.data.companyId,
+    null,
+    {
+      canCreateCustomTests: parsed.data.canCreateCustomTests,
+      systemTestIds: uniqueSystemTestIds,
+    },
+  );
+  revalidatePath("/admin/companies");
+  revalidatePath(path);
+  revalidatePath("/dashboard/tests");
+  revalidatePath("/dashboard/jobs");
+  redirectWithFeedback(path, "message", "Доступы к тестам обновлены.");
 }
 
 const systemCitySchema = z.object({

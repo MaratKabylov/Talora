@@ -36,6 +36,10 @@ type SectionRecord = {
   title: string;
 };
 
+type SystemTestAccessRecord = {
+  test_template_id: string;
+};
+
 export type BuilderOption = {
   competencyEffects: Record<string, number>;
   explanation: string | null;
@@ -129,6 +133,26 @@ function normalizeSection(section: SectionRecord): BuilderSection {
   };
 }
 
+async function listGrantedSystemTemplateIds(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+) {
+  const { data, error } = await supabase
+    .from("company_system_test_access")
+    .select("test_template_id")
+    .eq("company_id", companyId);
+
+  if (error) {
+    return [];
+  }
+
+  return ((data ?? []) as SystemTestAccessRecord[]).map((row) => row.test_template_id);
+}
+
+function importSourceSelect() {
+  return "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))))";
+}
+
 export async function getTestBuilderData(
   companyId: string,
   templateId: string,
@@ -175,14 +199,25 @@ export async function getBuilderImportSources(
   currentVersionId: string,
 ): Promise<BuilderImportSource[]> {
   const supabase = await createClient();
-  const { data: templates, error: templatesError } = await supabase
-    .from("test_templates")
-    .select(
-      "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))))",
-    )
-    .or(`company_id.eq.${companyId},is_system.eq.true`);
+  const systemTemplateIds = await listGrantedSystemTemplateIds(supabase, companyId);
+  const [companyTemplatesResult, systemTemplatesResult] = await Promise.all([
+    supabase
+      .from("test_templates")
+      .select(importSourceSelect())
+      .eq("company_id", companyId)
+      .eq("is_system", false),
+    systemTemplateIds.length > 0
+      ? supabase
+          .from("test_templates")
+          .select(importSourceSelect())
+          .in("id", systemTemplateIds)
+          .eq("is_system", true)
+          .is("company_id", null)
+          .eq("status", "active")
+      : Promise.resolve({ data: [], error: null }),
+  ]);
 
-  if (templatesError) {
+  if (companyTemplatesResult.error || systemTemplatesResult.error) {
     return [];
   }
 
@@ -196,7 +231,12 @@ export async function getBuilderImportSources(
     title: string;
   };
 
-  return ((templates ?? []) as unknown as ImportTemplateRecord[])
+  const templates = [
+    ...((systemTemplatesResult.data ?? []) as unknown as ImportTemplateRecord[]),
+    ...((companyTemplatesResult.data ?? []) as unknown as ImportTemplateRecord[]),
+  ];
+
+  return templates
     .flatMap((template) =>
       (template.test_versions ?? [])
         .filter((version) => version.id !== currentVersionId && version.status === "published")

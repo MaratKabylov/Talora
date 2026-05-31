@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireCompanyContext } from "@/lib/auth/context";
 import { createTestTemplateAction } from "@/lib/tests/actions";
 import { canManageTests } from "@/lib/tests/constants";
+import { getCompanyTestPermissions } from "@/lib/tests/permissions";
 
 type NewTestSearchParams = Promise<{
   error?: string;
@@ -20,7 +21,8 @@ export default async function NewTestPage({
 }) {
   const context = await requireCompanyContext();
   const params = await searchParams;
-  const mayManage = canManageTests(context.activeCompany.role);
+  const permissions = await getCompanyTestPermissions(context.activeCompany.id);
+  const mayCreate = canManageTests(context.activeCompany.role) && permissions.canCreateCustomTests;
 
   return (
     <div className="space-y-6">
@@ -36,11 +38,11 @@ export default async function NewTestPage({
 
       <FeedbackMessage error={params.error} />
 
-      {!mayManage ? (
+      {!mayCreate ? (
         <Card className="border-dashed">
           <CardHeader>
-            <CardTitle>Только просмотр</CardTitle>
-            <CardDescription>Ваша роль не позволяет создавать тесты компании.</CardDescription>
+            <CardTitle>Создание тестов недоступно</CardTitle>
+            <CardDescription>Доступ на создание собственных тестов назначается в админ-панели.</CardDescription>
           </CardHeader>
         </Card>
       ) : (

@@ -8,6 +8,7 @@ import { requireCompanyContext } from "@/lib/auth/context";
 import { createClient } from "@/lib/supabase/server";
 
 import { canManageTests, SCORING_TYPE_VALUES, TEST_TEMPLATE_STATUS_VALUES } from "./constants";
+import { canCreateCompanyTests } from "./permissions";
 
 const optionalText = (maximum: number) =>
   z.preprocess(
@@ -104,6 +105,10 @@ export async function createTestTemplateAction(formData: FormData) {
 
   if (!canManageTests(context.activeCompany.role)) {
     redirectWithFeedback(path, "error", "У вашей роли нет права создавать тесты.");
+  }
+
+  if (!(await canCreateCompanyTests(context.activeCompany.id))) {
+    redirectWithFeedback(path, "error", "Создание тестов для компании не включено. Доступ назначается в админ-панели.");
   }
 
   const template = parseTemplate(formData);

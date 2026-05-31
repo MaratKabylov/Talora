@@ -42,6 +42,20 @@ export type AdminCompanyNote = {
   profiles?: Relation<PersonSummary>;
 };
 
+export type AdminCompanySystemTestAccess = {
+  category: string | null;
+  granted: boolean;
+  hasPublishedVersion: boolean;
+  id: string;
+  status: string;
+  title: string;
+};
+
+export type AdminCompanyTestAccess = {
+  canCreateCustomTests: boolean;
+  systemTests: AdminCompanySystemTestAccess[];
+};
+
 export type AdminApplicationListItem = {
   candidates?: Relation<PersonSummary>;
   companies: Relation<{ id: string; name: string }>;
@@ -234,7 +248,16 @@ export async function listAdminCompanies(search?: string, status?: CompanyStatus
 export async function getAdminCompanyDetail(companyId: string) {
   const { admin, context } = await platformAccess();
   const includePii = canViewCandidatePii(context.role);
-  const [companyResult, membersResult, jobsResult, applicationsResult, notesResult] =
+  const [
+    companyResult,
+    membersResult,
+    jobsResult,
+    applicationsResult,
+    notesResult,
+    testPermissionsResult,
+    systemTestsResult,
+    systemTestAccessResult,
+  ] =
     await Promise.all([
       admin
         .from("companies")
@@ -271,6 +294,21 @@ export async function getAdminCompanyDetail(companyId: string) {
             .eq("company_id", companyId)
             .order("created_at", { ascending: false })
         : Promise.resolve({ data: [], error: null }),
+      admin
+        .from("company_test_permissions")
+        .select("can_create_custom_tests")
+        .eq("company_id", companyId)
+        .maybeSingle(),
+      admin
+        .from("test_templates")
+        .select("id, title, category, status, test_versions(status)")
+        .eq("is_system", true)
+        .is("company_id", null)
+        .order("title"),
+      admin
+        .from("company_system_test_access")
+        .select("test_template_id")
+        .eq("company_id", companyId),
     ]);
 
   if (
@@ -278,7 +316,10 @@ export async function getAdminCompanyDetail(companyId: string) {
     membersResult.error ||
     jobsResult.error ||
     applicationsResult.error ||
-    notesResult.error
+    notesResult.error ||
+    testPermissionsResult.error ||
+    systemTestsResult.error ||
+    systemTestAccessResult.error
   ) {
     throw new Error("Unable to load company admin view.");
   }
@@ -299,6 +340,27 @@ export async function getAdminCompanyDetail(companyId: string) {
     suspension_reason: string | null;
     system_cities: Relation<{ name: string }>;
   };
+  const grantedSystemTestIds = new Set(
+    ((systemTestAccessResult.data ?? []) as Array<{ test_template_id: string }>).map(
+      (access) => access.test_template_id,
+    ),
+  );
+  const systemTests = ((systemTestsResult.data ?? []) as Array<{
+    category: string | null;
+    id: string;
+    status: string;
+    test_versions?: Array<{ status: string }> | null;
+    title: string;
+  }>).map((template) => ({
+    category: template.category,
+    granted: grantedSystemTestIds.has(template.id),
+    hasPublishedVersion: (template.test_versions ?? []).some(
+      (version) => version.status === "published",
+    ),
+    id: template.id,
+    status: template.status,
+    title: template.title,
+  }));
 
   return {
     applications: (applicationsResult.data ?? []) as unknown as AdminCompanyApplicationPreview[],
@@ -309,6 +371,12 @@ export async function getAdminCompanyDetail(companyId: string) {
     jobs: jobsResult.data ?? [],
     members: (membersResult.data ?? []) as unknown as AdminCompanyMember[],
     notes: (notesResult.data ?? []) as unknown as AdminCompanyNote[],
+    testAccess: {
+      canCreateCustomTests:
+        (testPermissionsResult.data as { can_create_custom_tests?: boolean } | null)
+          ?.can_create_custom_tests ?? false,
+      systemTests,
+    } satisfies AdminCompanyTestAccess,
   };
 }
 

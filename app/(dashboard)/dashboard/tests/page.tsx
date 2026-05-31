@@ -12,6 +12,7 @@ import {
   TEST_VERSION_STATUS_LABELS,
 } from "@/lib/tests/constants";
 import { listTestTemplates, type TestTemplate } from "@/lib/tests/data";
+import { getCompanyTestPermissions } from "@/lib/tests/permissions";
 
 type TestsSearchParams = Promise<{
   error?: string;
@@ -90,7 +91,10 @@ export default async function TestsPage({
 }) {
   const context = await requireCompanyContext();
   const params = await searchParams;
-  const templates = await listTestTemplates(context.activeCompany.id);
+  const [templates, permissions] = await Promise.all([
+    listTestTemplates(context.activeCompany.id),
+    getCompanyTestPermissions(context.activeCompany.id),
+  ]);
   const systemTemplates = templates.filter(
     (template) => template.isSystem && template.status === "active",
   );
@@ -101,6 +105,7 @@ export default async function TestsPage({
     (template) => !template.isSystem && template.status === "archived",
   );
   const mayManage = canManageTests(context.activeCompany.role);
+  const mayCreate = mayManage && permissions.canCreateCustomTests;
 
   return (
     <div className="space-y-6">
@@ -109,7 +114,7 @@ export default async function TestsPage({
           <p className="text-sm text-muted-foreground">{context.activeCompany.name}</p>
           <h1 className="text-3xl font-semibold tracking-tight">Библиотека тестов</h1>
         </div>
-        {mayManage ? (
+        {mayCreate ? (
           <Link className={buttonVariants()} href="/dashboard/tests/new">
             Создать тест
           </Link>
@@ -128,7 +133,7 @@ export default async function TestsPage({
         </CardHeader>
         <CardContent className="pt-6">
           <SystemTestGroups
-            emptyText="Системные тесты появятся после применения seed-миграции."
+            emptyText="Системные тесты появятся после назначения доступа в админ-панели."
             hrefBase="/dashboard/tests"
             statusMode="system-badge"
             templates={systemTemplates}

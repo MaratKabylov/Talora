@@ -27,6 +27,10 @@ type TemplateRecord = {
   updated_at: string;
 };
 
+type SystemTestAccessRecord = {
+  test_template_id: string;
+};
+
 export type TestVersion = {
   createdAt: string;
   description: string | null;
@@ -87,38 +91,111 @@ function normalizeTemplate(record: TemplateRecord): TestTemplate {
   };
 }
 
-export async function listTestTemplates(companyId: string) {
-  const supabase = await createClient();
+function sortTemplates(left: TestTemplate, right: TestTemplate) {
+  if (left.isSystem !== right.isSystem) {
+    return left.isSystem ? -1 : 1;
+  }
+
+  return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+}
+
+async function listGrantedSystemTemplateIds(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+) {
   const { data, error } = await supabase
-    .from("test_templates")
-    .select(
-      "id, title, description, category, is_system, status, created_at, updated_at, test_versions(id, version_number, title, description, instructions, duration_minutes, scoring_type, status, published_at, created_at)",
-    )
-    .or(`company_id.eq.${companyId},is_system.eq.true`)
-    .order("is_system", { ascending: false })
-    .order("updated_at", { ascending: false });
+    .from("company_system_test_access")
+    .select("test_template_id")
+    .eq("company_id", companyId);
 
   if (error) {
+    throw new Error("Unable to load system test access.");
+  }
+
+  return ((data ?? []) as SystemTestAccessRecord[]).map((row) => row.test_template_id);
+}
+
+function testTemplateSelect() {
+  return "id, title, description, category, is_system, status, created_at, updated_at, test_versions(id, version_number, title, description, instructions, duration_minutes, scoring_type, status, published_at, created_at)";
+}
+
+export async function listTestTemplates(companyId: string) {
+  const supabase = await createClient();
+  const systemTemplateIds = await listGrantedSystemTemplateIds(supabase, companyId);
+  const [companyTemplatesResult, systemTemplatesResult] = await Promise.all([
+    supabase
+      .from("test_templates")
+      .select(testTemplateSelect())
+      .eq("company_id", companyId)
+      .eq("is_system", false),
+    systemTemplateIds.length > 0
+      ? supabase
+          .from("test_templates")
+          .select(testTemplateSelect())
+          .in("id", systemTemplateIds)
+          .eq("is_system", true)
+          .is("company_id", null)
+          .eq("status", "active")
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (companyTemplatesResult.error || systemTemplatesResult.error) {
     throw new Error("Unable to load test templates.");
   }
 
-  return ((data ?? []) as unknown as TemplateRecord[]).map(normalizeTemplate);
+  return [
+    ...((systemTemplatesResult.data ?? []) as unknown as TemplateRecord[]),
+    ...((companyTemplatesResult.data ?? []) as unknown as TemplateRecord[]),
+  ]
+    .map(normalizeTemplate)
+    .sort(sortTemplates);
 }
 
 export async function getTestTemplatePageData(companyId: string, templateId: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: companyTemplate, error: companyTemplateError } = await supabase
     .from("test_templates")
-    .select(
-      "id, title, description, category, is_system, status, created_at, updated_at, test_versions(id, version_number, title, description, instructions, duration_minutes, scoring_type, status, published_at, created_at)",
-    )
+    .select(testTemplateSelect())
     .eq("id", templateId)
-    .or(`company_id.eq.${companyId},is_system.eq.true`)
+    .eq("company_id", companyId)
+    .eq("is_system", false)
     .maybeSingle();
 
-  if (error) {
+  if (companyTemplateError) {
     throw new Error("Unable to load test template.");
   }
 
-  return data ? normalizeTemplate(data as unknown as TemplateRecord) : null;
+  if (companyTemplate) {
+    return normalizeTemplate(companyTemplate as unknown as TemplateRecord);
+  }
+
+  const { data: access, error: accessError } = await supabase
+    .from("company_system_test_access")
+    .select("test_template_id")
+    .eq("company_id", companyId)
+    .eq("test_template_id", templateId)
+    .maybeSingle();
+
+  if (accessError) {
+    throw new Error("Unable to load system test access.");
+  }
+
+  if (!access) {
+    return null;
+  }
+
+  const { data: systemTemplate, error: systemTemplateError } = await supabase
+    .from("test_templates")
+    .select(testTemplateSelect())
+    .eq("id", templateId)
+    .eq("is_system", true)
+    .is("company_id", null)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (systemTemplateError) {
+    throw new Error("Unable to load test template.");
+  }
+
+  return systemTemplate ? normalizeTemplate(systemTemplate as unknown as TemplateRecord) : null;
 }
