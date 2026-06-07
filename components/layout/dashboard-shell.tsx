@@ -13,6 +13,7 @@ const navigation = [
   { href: "/dashboard/jobs", label: "Вакансии", ready: true },
   { href: "/dashboard/employee-assessments", label: "Оценки сотрудников", ready: true },
   { href: "/dashboard/candidates", label: "Кандидаты", ready: true },
+  { href: "/dashboard/packages", label: "Пакеты оценки", ready: true },
   { href: "/dashboard/tests", label: "Тесты", ready: true },
 ];
 
