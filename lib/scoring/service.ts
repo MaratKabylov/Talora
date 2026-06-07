@@ -21,6 +21,19 @@ type ApplicationRecord = {
   jobs: Relation<JobRecord>;
 };
 
+type EmployeeAssessmentScoringRecord = {
+  assessment_package_id: string;
+  id: string;
+  passing_score: number | null;
+};
+
+type EmployeeParticipantScoringRecord = {
+  employee_assessment_id: string;
+  employee_assessments: Relation<EmployeeAssessmentScoringRecord>;
+  employee_id: string;
+  id: string;
+};
+
 type VersionRecord = {
   scoring_type: ScoringType;
   title: string;
@@ -764,6 +777,406 @@ export async function scoreCompletedApplication(applicationId: string) {
   );
   if (reportError) {
     throw new Error("Unable to save candidate report.");
+  }
+
+  return {
+    fitScore,
+    overallScore,
+    recommendation,
+    requiresReview,
+    riskLevel,
+  };
+}
+
+export async function scoreCompletedEmployeeAssessmentParticipant(participantId: string) {
+  const admin = createAdminClient();
+  const { data: participantData, error: participantError } = await admin
+    .from("employee_assessment_participants")
+    .select("id, employee_id, employee_assessment_id, employee_assessments(id, assessment_package_id, passing_score)")
+    .eq("id", participantId)
+    .maybeSingle();
+
+  if (participantError || !participantData) {
+    throw new Error("Unable to load employee assessment participant for scoring.");
+  }
+
+  const participant = participantData as unknown as EmployeeParticipantScoringRecord;
+  const assessment = related(participant.employee_assessments);
+  if (!assessment?.assessment_package_id) {
+    throw new Error("Employee assessment has no assessment package.");
+  }
+
+  const [sessionsResult, packageTestsResult, weightsResult] = await Promise.all([
+    admin
+      .from("employee_assessment_sessions")
+      .select("id, status, test_version_id, test_versions(title, scoring_type)")
+      .eq("participant_id", participantId),
+    admin
+      .from("assessment_package_tests")
+      .select("test_version_id, weight, is_required, passing_score")
+      .eq("package_id", assessment.assessment_package_id),
+    admin
+      .from("employee_assessment_competency_weights")
+      .select("competency_key, weight, minimum_score, is_required")
+      .eq("employee_assessment_id", participant.employee_assessment_id),
+  ]);
+
+  if (sessionsResult.error || packageTestsResult.error || weightsResult.error) {
+    throw new Error("Unable to load employee scoring configuration.");
+  }
+
+  const packageTests = (packageTestsResult.data ?? []) as PackageTestRecord[];
+  const packageTestsByVersion = new Map(packageTests.map((test) => [test.test_version_id, test]));
+  const sessions = ((sessionsResult.data ?? []) as unknown as SessionRecord[]).filter((session) =>
+    packageTestsByVersion.has(session.test_version_id),
+  );
+
+  if (
+    sessions.length !== packageTests.length ||
+    sessions.some((session) => session.status !== "completed")
+  ) {
+    throw new Error("All employee assessment package test sessions must be completed before scoring.");
+  }
+
+  const testVersionIds = sessions.map((session) => session.test_version_id);
+  const sessionIds = sessions.map((session) => session.id);
+  const [contentResult, answersResult] = await Promise.all([
+    admin
+      .from("test_sections")
+      .select(
+        "test_version_id, questions(id, question_type, points, competency_key, settings_json, answer_options(id, is_correct, points, competency_effect_json))",
+      )
+      .in("test_version_id", testVersionIds),
+    admin
+      .from("employee_assessment_answers")
+      .select("id, session_id, question_id, selected_option_id, answer_text, answer_json")
+      .in("session_id", sessionIds),
+  ]);
+
+  if (contentResult.error || answersResult.error) {
+    throw new Error("Unable to load submitted employee answers for scoring.");
+  }
+
+  const sections = (contentResult.data ?? []) as unknown as SectionRecord[];
+  const answers = (answersResult.data ?? []) as unknown as AnswerRecord[];
+  const questionsByVersion = new Map<string, QuestionRecord[]>();
+  const answersBySession = new Map<string, AnswerRecord[]>();
+
+  for (const section of sections) {
+    const existing = questionsByVersion.get(section.test_version_id) ?? [];
+    existing.push(...(section.questions ?? []));
+    questionsByVersion.set(section.test_version_id, existing);
+  }
+
+  for (const answer of answers) {
+    const existing = answersBySession.get(answer.session_id) ?? [];
+    existing.push(answer);
+    answersBySession.set(answer.session_id, existing);
+  }
+
+  const calculations = sessions.map((session) =>
+    scoreSession(
+      session,
+      packageTestsByVersion.get(session.test_version_id)!,
+      questionsByVersion.get(session.test_version_id) ?? [],
+      answersBySession.get(session.id) ?? [],
+    ),
+  );
+
+  const answerUpdates = calculations.flatMap((calculation) =>
+    [...calculation.answerScores.entries()].map(([answerId, scoredAnswer]) =>
+      admin
+        .from("employee_assessment_answers")
+        .update({
+          is_correct: scoredAnswer.isCorrect,
+          points_awarded: scoredAnswer.pointsAwarded,
+        })
+        .eq("id", answerId),
+    ),
+  );
+  const answerUpdateResults = await Promise.all(answerUpdates);
+  if (answerUpdateResults.some((result) => result.error)) {
+    throw new Error("Unable to save scored employee answers.");
+  }
+
+  const sessionScores = calculations.map((calculation) => calculation.score);
+  const sessionUpdateResults = await Promise.all(
+    sessionScores.map((score) =>
+      admin
+        .from("employee_assessment_sessions")
+        .update({
+          max_score: score.maxScore,
+          percentage: score.percentage,
+          score: score.rawScore,
+        })
+        .eq("id", score.session.id),
+    ),
+  );
+  if (sessionUpdateResults.some((result) => result.error)) {
+    throw new Error("Unable to save employee test session scoring.");
+  }
+
+  const { data: storedResults, error: resultsError } = await admin
+    .from("employee_assessment_test_results")
+    .upsert(
+      sessionScores.map((score) => ({
+        employee_id: participant.employee_id,
+        max_score: score.maxScore,
+        participant_id: participant.id,
+        percentage: score.percentage,
+        raw_score: score.rawScore,
+        requires_review: score.requiresReview,
+        session_id: score.session.id,
+        summary: score.requiresReview
+          ? "Содержит ответы, требующие ручной проверки."
+          : score.scoringType === "competency_profile"
+            ? "Профильная шкала без оценки правильности."
+            : null,
+        test_version_id: score.session.test_version_id,
+        level: getResultLevel(score.percentage, score.requiresReview, score.scoringType),
+      })),
+      { onConflict: "session_id" },
+    )
+    .select("id, session_id");
+
+  if (resultsError || !storedResults) {
+    throw new Error("Unable to save employee test results.");
+  }
+
+  const resultIdBySession = new Map(
+    storedResults.map((result) => [result.session_id as string, result.id as string]),
+  );
+  const resultIds = [...resultIdBySession.values()];
+  if (resultIds.length > 0) {
+    const { error } = await admin
+      .from("employee_assessment_competency_scores")
+      .delete()
+      .in("result_id", resultIds);
+    if (error) {
+      throw new Error("Unable to replace employee competency scores.");
+    }
+  }
+
+  const competencyRows = sessionScores.flatMap((score) => {
+    const resultId = resultIdBySession.get(score.session.id);
+    if (!resultId) {
+      return [];
+    }
+
+    return [...score.competencies.entries()].map(([key, total]) => ({
+      competency_key: key,
+      max_score: round(total.maxScore),
+      participant_id: participant.id,
+      percentage: percentage(total.score, total.maxScore),
+      result_id: resultId,
+      score: round(total.score),
+    }));
+  });
+
+  if (competencyRows.length > 0) {
+    const { error } = await admin.from("employee_assessment_competency_scores").insert(competencyRows);
+    if (error) {
+      throw new Error("Unable to save employee competency scores.");
+    }
+  }
+
+  const weights = (weightsResult.data ?? []) as unknown as WeightRecord[];
+  const weightsByCompetency = new Map(weights.map((weight) => [weight.competency_key, weight]));
+  const competencyTotals = combineCompetencies(sessionScores);
+  const summaryRows = [...competencyTotals.entries()].map(([key, total]) => {
+    const value = percentage(total.score, total.maxScore);
+    const weight = weightsByCompetency.get(key);
+    const isBelowMinimum =
+      !isMotivationCompetency(key) &&
+      Boolean(weight?.is_required && weight.minimum_score !== null && value !== null && value < weight.minimum_score);
+
+    return {
+      competency_key: key,
+      is_below_minimum: isBelowMinimum,
+      max_score: round(total.maxScore),
+      participant_id: participant.id,
+      percentage: value,
+      score: round(total.score),
+      weighted_score: value !== null && weight ? round(value * Number(weight.weight)) : null,
+    };
+  });
+
+  const { error: removeSummaryError } = await admin
+    .from("employee_assessment_competency_summary")
+    .delete()
+    .eq("participant_id", participant.id);
+  if (removeSummaryError) {
+    throw new Error("Unable to replace employee competency summary.");
+  }
+
+  if (summaryRows.length > 0) {
+    const { error } = await admin.from("employee_assessment_competency_summary").insert(summaryRows);
+    if (error) {
+      throw new Error("Unable to save employee competency summary.");
+    }
+  }
+
+  const autoScoredTests = sessionScores.filter(
+    (score) =>
+      !score.requiresReview &&
+      score.scoringType !== "competency_profile" &&
+      score.percentage !== null,
+  );
+  const overallWeight = autoScoredTests.reduce((sum, score) => sum + Number(score.packageTest.weight), 0);
+  const overallScore =
+    overallWeight > 0
+      ? round(
+          autoScoredTests.reduce(
+            (sum, score) => sum + (score.percentage ?? 0) * Number(score.packageTest.weight),
+            0,
+          ) / overallWeight,
+        )
+      : null;
+
+  const fitComponents = summaryRows.filter((row) => {
+    const weight = weightsByCompetency.get(row.competency_key);
+    return !isMotivationCompetency(row.competency_key) && row.percentage !== null && weight && Number(weight.weight) > 0;
+  });
+  const fitWeight = fitComponents.reduce(
+    (sum, row) => sum + Number(weightsByCompetency.get(row.competency_key)!.weight),
+    0,
+  );
+  const fitScore =
+    fitWeight > 0
+      ? round(
+          fitComponents.reduce(
+            (sum, row) =>
+              sum + (row.percentage ?? 0) * Number(weightsByCompetency.get(row.competency_key)!.weight),
+            0,
+          ) / fitWeight,
+        )
+      : overallScore;
+
+  const riskFlags: Array<{
+    description: string;
+    participant_id: string;
+    risk_key: string;
+    risk_level: "low" | "medium" | "high";
+    source: string;
+    title: string;
+  }> = [];
+
+  for (const row of summaryRows) {
+    const weight = weightsByCompetency.get(row.competency_key);
+    const minimumScore = weight?.minimum_score;
+    if (row.is_below_minimum && minimumScore !== null && minimumScore !== undefined) {
+      riskFlags.push({
+        description: `Результат ${row.percentage}% ниже обязательного минимума ${minimumScore}%.`,
+        participant_id: participant.id,
+        risk_key: `minimum_${row.competency_key}`,
+        risk_level: "high",
+        source: "scoring",
+        title: `Минимальный уровень не достигнут: ${COMPETENCY_LABELS.get(row.competency_key) ?? row.competency_key}`,
+      });
+    }
+  }
+
+  for (const score of autoScoredTests) {
+    if (
+      score.packageTest.passing_score !== null &&
+      score.percentage !== null &&
+      score.percentage < score.packageTest.passing_score
+    ) {
+      riskFlags.push({
+        description: `Результат теста ${score.percentage}% ниже проходного балла ${score.packageTest.passing_score}%.`,
+        participant_id: participant.id,
+        risk_key: `test_threshold_${score.session.test_version_id}`,
+        risk_level: "medium",
+        source: "scoring",
+        title: "Не достигнут проходной балл теста",
+      });
+    }
+  }
+
+  if (assessment.passing_score !== null && overallScore !== null && overallScore < assessment.passing_score) {
+    riskFlags.push({
+      description: `Общий результат ${overallScore}% ниже проходного балла оценки ${assessment.passing_score}%.`,
+      participant_id: participant.id,
+      risk_key: "employee_assessment_passing_score",
+      risk_level: "medium",
+      source: "scoring",
+      title: "Не достигнут проходной балл оценки",
+    });
+  }
+
+  const { error: removeRiskError } = await admin
+    .from("employee_assessment_risk_flags")
+    .delete()
+    .eq("participant_id", participant.id)
+    .eq("source", "scoring");
+  if (removeRiskError) {
+    throw new Error("Unable to replace employee scoring risk flags.");
+  }
+
+  if (riskFlags.length > 0) {
+    const { error } = await admin.from("employee_assessment_risk_flags").insert(riskFlags);
+    if (error) {
+      throw new Error("Unable to save employee risk flags.");
+    }
+  }
+
+  const requiresReview = sessionScores.some((score) => score.requiresReview);
+  const riskLevel = riskLevelForFlags(riskFlags);
+  const baseRecommendation = requiresReview
+    ? "requires_review"
+    : recommendationFromScore(fitScore ?? overallScore);
+  const recommendation =
+    riskLevel === "high" && (baseRecommendation === "strong_candidate" || baseRecommendation === "invite")
+      ? "consider"
+      : baseRecommendation;
+  const strengths = summaryRows
+    .filter(
+      (row) =>
+        !isMotivationCompetency(row.competency_key) &&
+        row.percentage !== null &&
+        row.percentage >= 75,
+    )
+    .sort((left, right) => (right.percentage ?? 0) - (left.percentage ?? 0))
+    .map((row) => ({
+      competencyKey: row.competency_key,
+      label: COMPETENCY_LABELS.get(row.competency_key) ?? row.competency_key,
+      percentage: row.percentage,
+    }));
+  const interviewQuestions = createInterviewQuestions(summaryRows, requiresReview);
+
+  const { error: participantUpdateError } = await admin
+    .from("employee_assessment_participants")
+    .update({
+      fit_score: fitScore,
+      overall_score: overallScore,
+      recommendation,
+      requires_review: requiresReview,
+      risk_level: riskLevel,
+    })
+    .eq("id", participant.id);
+  if (participantUpdateError) {
+    throw new Error("Unable to save employee participant scoring.");
+  }
+
+  const { error: reportError } = await admin.from("employee_assessment_reports").upsert(
+    {
+      employee_id: participant.employee_id,
+      fit_score: fitScore,
+      interview_questions_json: interviewQuestions,
+      overall_score: overallScore,
+      participant_id: participant.id,
+      recommendation,
+      report_text: requiresReview
+        ? "Оценка завершена. Перед выводом по сотруднику требуется ручная проверка текстовых ответов."
+        : "Оценка завершена. Результаты отражают предварительный профиль по выбранным компетенциям.",
+      risks_json: riskFlags,
+      strengths_json: strengths,
+      suggested_roles_json: [],
+    },
+    { onConflict: "participant_id" },
+  );
+  if (reportError) {
+    throw new Error("Unable to save employee assessment report.");
   }
 
   return {

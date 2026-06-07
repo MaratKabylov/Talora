@@ -11,6 +11,7 @@ const navigation = [
   { href: "/dashboard/profile", label: "Профиль", ready: true },
   { href: "/dashboard/company/members", label: "Участники", ready: true },
   { href: "/dashboard/jobs", label: "Вакансии", ready: true },
+  { href: "/dashboard/employee-assessments", label: "Оценки сотрудников", ready: true },
   { href: "/dashboard/candidates", label: "Кандидаты", ready: true },
   { href: "/dashboard/tests", label: "Тесты", ready: true },
 ];
