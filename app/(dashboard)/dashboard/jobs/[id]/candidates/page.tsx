@@ -56,6 +56,14 @@ export default async function JobCandidatesPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {mayManage ? (
+            <Link
+              className={buttonVariants({ variant: "outline" })}
+              href={`/dashboard/jobs/${data.job.id}/candidates/import`}
+            >
+              Загрузить Excel
+            </Link>
+          ) : null}
           <Link
             className={buttonVariants({ variant: "outline" })}
             href={`/dashboard/jobs/${data.job.id}/compare`}
