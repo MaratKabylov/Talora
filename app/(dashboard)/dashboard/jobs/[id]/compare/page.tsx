@@ -113,9 +113,17 @@ export default async function JobComparePage({
             {data.job.title} / {JOB_STATUS_LABELS[data.job.status]}
           </p>
         </div>
-        <Link className={buttonVariants({ variant: "outline" })} href={`/dashboard/jobs/${data.job.id}`}>
-          К вакансии
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            className={buttonVariants({ variant: "outline" })}
+            href={`/dashboard/jobs/${data.job.id}/candidates`}
+          >
+            К кандидатам
+          </Link>
+          <Link className={buttonVariants({ variant: "outline" })} href={`/dashboard/jobs/${data.job.id}`}>
+            К вакансии
+          </Link>
+        </div>
       </div>
 
       <FeedbackMessage error={query.error} message={query.message} />

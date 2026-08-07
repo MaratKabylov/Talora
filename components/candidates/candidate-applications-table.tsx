@@ -62,7 +62,7 @@ export function CandidateApplicationsTable({
   if (applications.length === 0) {
     return (
       <EmptyState
-        description="Добавьте кандидата из карточки вакансии, чтобы отправить приглашение на оценку."
+        description="Добавьте кандидата, чтобы отправить приглашение на оценку."
         title="Кандидатов пока нет"
       />
     );
@@ -177,7 +177,7 @@ export function CandidateApplicationsTable({
                       ) : application.job && !hasReport(application) ? (
                         <Link
                           className={buttonVariants({ size: "sm", variant: "outline" })}
-                          href={`/dashboard/jobs/${application.job.id}`}
+                          href={`/dashboard/jobs/${application.job.id}/candidates`}
                         >
                           Открыть вакансию
                         </Link>

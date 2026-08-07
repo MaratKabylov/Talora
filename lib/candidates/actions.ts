@@ -40,7 +40,7 @@ function formString(formData: FormData, key: string) {
 }
 
 function getJobPath(jobId: string) {
-  return `/dashboard/jobs/${jobId}`;
+  return `/dashboard/jobs/${jobId}/candidates`;
 }
 
 function redirectWithFeedback(path: string, type: "error" | "message", text: string): never {
@@ -83,7 +83,7 @@ function getInvitationErrorMessage(message: string) {
 
 function getReturnPath(formData: FormData) {
   const returnTo = formString(formData, "returnTo");
-  const jobPath = /^\/dashboard\/jobs\/[0-9a-f-]{36}$/i;
+  const jobPath = /^\/dashboard\/jobs\/[0-9a-f-]{36}(?:\/candidates)?$/i;
 
   return jobPath.test(returnTo) ? returnTo : "/dashboard/candidates";
 }
