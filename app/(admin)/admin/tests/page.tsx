@@ -36,7 +36,7 @@ export default async function AdminTestsPage({ searchParams }: { searchParams: S
 
       <Card>
         <CardHeader>
-          <CardTitle>Предустановленные тесты Talora</CardTitle>
+          <CardTitle>Предустановленные тесты Talvia</CardTitle>
           <CardDescription>
             Опубликованные версии доступны компаниям только для использования и просмотра.
             Изменения выпускаются новой версией.

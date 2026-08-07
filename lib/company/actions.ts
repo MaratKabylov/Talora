@@ -65,7 +65,7 @@ function safeReturnPath(value: string | undefined) {
   }
 
   try {
-    const origin = "https://talora.local";
+    const origin = "https://talvia.local";
     const destination = new URL(value, origin);
     const isDashboardPath =
       destination.pathname === "/dashboard" || destination.pathname.startsWith("/dashboard/");

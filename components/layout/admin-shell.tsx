@@ -31,7 +31,7 @@ export function AdminShell({
         <div className="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-3">
           <div className="flex items-center gap-4">
             <Link className="text-xl font-semibold tracking-tight" href="/admin">
-              Talora Admin
+              Talvia Admin
             </Link>
             <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
               {PLATFORM_ROLE_LABELS[context.role]}

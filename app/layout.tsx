@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Talora | HR Assessment",
+  title: "Talvia | HR Assessment",
   description: "Platform for candidate assessment and comparison.",
 };
 

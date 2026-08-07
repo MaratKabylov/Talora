@@ -32,7 +32,7 @@ export default async function AdminAccessPendingPage({
   return (
     <Card className="w-full max-w-lg">
       <CardHeader>
-        <CardTitle className="text-2xl">Доступ к Talora Admin ожидает активации</CardTitle>
+        <CardTitle className="text-2xl">Доступ к Talvia Admin ожидает активации</CardTitle>
         <CardDescription>
           Аккаунт создан без организации. Для доступа к backoffice ему нужна платформенная роль.
         </CardDescription>

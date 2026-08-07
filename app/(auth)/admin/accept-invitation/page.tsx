@@ -45,7 +45,7 @@ export default async function AcceptAdminInvitationPage({
       <CardHeader>
         <CardTitle className="text-2xl">Принять приглашение</CardTitle>
         <CardDescription>
-          Завершите настройку аккаунта сотрудника Talora Admin.
+          Завершите настройку аккаунта сотрудника Talvia Admin.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">

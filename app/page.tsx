@@ -9,7 +9,7 @@ export default function HomePage() {
     <main className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center gap-12 px-6 py-16">
       <div className="max-w-3xl space-y-6">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
-          Talora
+          Talvia
         </p>
         <h1 className="text-4xl font-semibold tracking-tight sm:text-6xl">
           Оценка кандидатов для понятных решений о найме

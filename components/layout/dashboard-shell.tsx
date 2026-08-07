@@ -33,7 +33,7 @@ export function DashboardShell({
       <header className="border-b bg-background">
         <div className="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-3">
           <Link className="text-xl font-semibold tracking-tight" href="/">
-            Talora
+            Talvia
           </Link>
           <div className="flex flex-wrap items-center gap-3">
             {context.companies.length > 1 ? (

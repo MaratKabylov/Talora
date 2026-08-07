@@ -25,7 +25,7 @@ export default async function LoginPage({
     <Card className="w-full max-w-md">
       <CardHeader>
         <CardTitle className="text-2xl">
-          {isSignUp ? "Создать HR-аккаунт" : "Войти в Talora"}
+          {isSignUp ? "Создать HR-аккаунт" : "Войти в Talvia"}
         </CardTitle>
         <CardDescription>
           {isSignUp
@@ -78,7 +78,7 @@ export default async function LoginPage({
         <p className="border-t pt-4 text-center text-sm text-muted-foreground">
           Управляете платформой?{" "}
           <Link className="font-medium text-primary hover:underline" href="/admin/login">
-            Войти в Talora Admin
+            Войти в Talvia Admin
           </Link>
         </p>
       </CardContent>

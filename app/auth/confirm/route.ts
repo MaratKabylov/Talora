@@ -9,7 +9,7 @@ function safeNextPath(value: string | null) {
   }
 
   try {
-    const origin = "https://talora.local";
+    const origin = "https://talvia.local";
     const destination = new URL(value, origin);
     const isAllowedPath =
       destination.pathname === "/onboarding" ||

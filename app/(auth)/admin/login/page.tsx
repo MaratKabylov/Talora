@@ -22,7 +22,7 @@ export default async function AdminLoginPage({
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-2xl">Войти в Talora Admin</CardTitle>
+        <CardTitle className="text-2xl">Войти в Talvia Admin</CardTitle>
         <CardDescription>
           Внутренняя панель владельца и команды платформы.
         </CardDescription>

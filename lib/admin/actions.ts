@@ -534,7 +534,7 @@ export async function acceptPlatformInvitationAction(formData: FormData) {
   );
   revalidatePath("/", "layout");
   revalidatePath("/admin/team");
-  redirectWithFeedback("/admin/team", "message", "Приглашение принято. Доступ к Talora Admin активирован.");
+  redirectWithFeedback("/admin/team", "message", "Приглашение принято. Доступ к Talvia Admin активирован.");
 }
 
 export async function updatePlatformUserStatusAction(formData: FormData) {

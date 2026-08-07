@@ -10,7 +10,7 @@ export default function AuthLayout({
       <header className="border-b bg-background">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center px-6">
           <Link className="text-xl font-semibold tracking-tight" href="/">
-            Talora
+            Talvia
           </Link>
         </div>
       </header>

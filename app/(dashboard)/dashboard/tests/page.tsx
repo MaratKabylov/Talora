@@ -127,7 +127,7 @@ export default async function TestsPage({
         <CardHeader>
           <CardTitle>Системные тесты</CardTitle>
           <CardDescription>
-            Предустановленные методики Talora доступны компании только для просмотра и
+            Предустановленные методики Talvia доступны компании только для просмотра и
             использования в пакетах оценки.
           </CardDescription>
         </CardHeader>

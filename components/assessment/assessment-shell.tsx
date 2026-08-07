@@ -12,7 +12,7 @@ export function AssessmentShell({
       <header className="border-b bg-background">
         <div className="mx-auto flex min-h-16 max-w-3xl flex-col items-start justify-center gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6">
           <Link className="text-xl font-semibold tracking-tight" href="/">
-            Talora
+            Talvia
           </Link>
           {companyName ? (
             <p className="max-w-full truncate text-sm text-muted-foreground sm:max-w-xs">

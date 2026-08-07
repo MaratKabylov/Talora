@@ -59,7 +59,7 @@ export default async function AcceptCompanyInvitationPage({
       <CardHeader>
         <CardTitle className="text-2xl">Принять приглашение</CardTitle>
         <CardDescription>
-          Завершите настройку аккаунта для доступа к организации {company?.name ?? "Talora"}.
+          Завершите настройку аккаунта для доступа к организации {company?.name ?? "Talvia"}.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">

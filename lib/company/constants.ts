@@ -1,4 +1,4 @@
-export const ACTIVE_COMPANY_COOKIE = "talora_active_company_id";
+export const ACTIVE_COMPANY_COOKIE = "talvia_active_company_id";
 
 export const activeCompanyCookieOptions = {
   httpOnly: true,

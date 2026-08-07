@@ -21,7 +21,7 @@ export default async function AdminRegisterPage({
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-2xl">Регистрация в Talora Admin</CardTitle>
+        <CardTitle className="text-2xl">Регистрация в Talvia Admin</CardTitle>
         <CardDescription>
           Создайте аккаунт сотрудника платформы. Организация для этого не требуется.
         </CardDescription>
