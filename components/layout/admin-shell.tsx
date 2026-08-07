@@ -37,16 +37,11 @@ export function AdminShell({
               {PLATFORM_ROLE_LABELS[context.role]}
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <Link className={buttonVariants({ size: "sm", variant: "outline" })} href="/dashboard">
-              HR workspace
-            </Link>
-            <form action={platformSignOutAction}>
-              <Button size="sm" type="submit" variant="ghost">
-                Выйти
-              </Button>
-            </form>
-          </div>
+          <form action={platformSignOutAction}>
+            <Button size="sm" type="submit" variant="ghost">
+              Выйти
+            </Button>
+          </form>
         </div>
       </header>
       <div className="mx-auto flex max-w-7xl gap-8 px-6 py-8">
