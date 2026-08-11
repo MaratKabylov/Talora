@@ -491,7 +491,7 @@ export async function publishSystemTestVersionAction(formData: FormData) {
 
   const { data: draftVersion, error: draftLookupError } = await admin
     .from("test_versions")
-    .select("id, version_number")
+    .select("id, version_number, duration_minutes")
     .eq("id", versionId.data)
     .eq("test_template_id", templateId.data)
     .eq("status", "draft")
@@ -499,6 +499,10 @@ export async function publishSystemTestVersionAction(formData: FormData) {
 
   if (draftLookupError || !draftVersion) {
     redirectWithFeedback(path, "error", "Опубликовать можно только черновую версию.");
+  }
+
+  if (!draftVersion.duration_minutes) {
+    redirectWithFeedback(path, "error", "Перед публикацией укажите длительность теста.");
   }
 
   const { data, error } = await admin

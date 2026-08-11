@@ -145,6 +145,7 @@ create table if not exists public.test_versions (
   published_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  check (status <> 'published' or duration_minutes is not null),
   unique(test_template_id, version_number)
 );
 
@@ -219,7 +220,13 @@ create table if not exists public.test_sessions (
   test_version_id uuid not null references public.test_versions(id) on delete restrict,
   status text not null default 'not_started' check (status in ('not_started','in_progress','completed','expired','cancelled')),
   started_at timestamptz,
+  deadline_at timestamptz,
   completed_at timestamptz,
+  active_client_id_hash text check (active_client_id_hash is null or active_client_id_hash ~ '^[a-f0-9]{64}$'),
+  active_device_id_hash text check (active_device_id_hash is null or active_device_id_hash ~ '^[a-f0-9]{64}$'),
+  lease_expires_at timestamptz,
+  last_heartbeat_at timestamptz,
+  submission_reason text check (submission_reason is null or submission_reason in ('candidate','time_expired')),
   time_spent_seconds integer,
   score numeric(8,2),
   max_score numeric(8,2),
@@ -242,6 +249,23 @@ create table if not exists public.candidate_answers (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique(session_id, question_id)
+);
+
+create table if not exists public.assessment_session_events (
+  id bigint generated always as identity primary key,
+  company_id uuid not null references public.companies(id) on delete cascade,
+  application_id uuid not null references public.candidate_applications(id) on delete cascade,
+  session_id uuid not null references public.test_sessions(id) on delete cascade,
+  question_id uuid references public.questions(id) on delete set null,
+  client_event_id uuid not null,
+  event_type text not null check (event_type in (
+    'focus_lost','focus_returned','clipboard_copy','clipboard_cut','clipboard_paste',
+    'concurrent_session_blocked','session_recovered','timer_expired'
+  )),
+  client_occurred_at timestamptz,
+  metadata jsonb not null default '{}'::jsonb check (jsonb_typeof(metadata) = 'object'),
+  occurred_at timestamptz not null default now(),
+  unique(session_id, client_event_id)
 );
 
 create table if not exists public.test_results (
@@ -362,6 +386,8 @@ create index if not exists idx_applications_company_job on public.candidate_appl
 create index if not exists idx_invitations_token on public.invitations(token);
 create index if not exists idx_test_sessions_application on public.test_sessions(application_id);
 create index if not exists idx_answers_session on public.candidate_answers(session_id);
+create index if not exists idx_assessment_session_events_application_time on public.assessment_session_events(application_id, occurred_at);
+create index if not exists idx_assessment_session_events_session_time on public.assessment_session_events(session_id, occurred_at);
 create index if not exists idx_competency_scores_application on public.competency_scores(application_id);
 create index if not exists idx_comparison_job_fit on public.application_comparison_scores(job_id, fit_score desc);
 
@@ -468,6 +494,7 @@ alter table public.assessment_package_tests enable row level security;
 alter table public.invitations enable row level security;
 alter table public.test_sessions enable row level security;
 alter table public.candidate_answers enable row level security;
+alter table public.assessment_session_events enable row level security;
 alter table public.test_results enable row level security;
 alter table public.competency_scores enable row level security;
 alter table public.application_competency_summary enable row level security;
@@ -541,6 +568,10 @@ create policy "members can manage applications"
 on public.candidate_applications for all
 using (public.is_company_member(company_id))
 with check (public.is_company_member(company_id));
+
+create policy "members can read assessment session events"
+on public.assessment_session_events for select
+using (public.is_company_member(company_id));
 
 create policy "members can read invitations"
 on public.invitations for select

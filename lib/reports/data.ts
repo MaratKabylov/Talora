@@ -52,10 +52,26 @@ type VersionRecord = {
 
 type SessionRecord = {
   completed_at: string | null;
+  deadline_at: string | null;
   id: string;
   percentage: number | null;
+  started_at: string | null;
   status: string;
+  submission_reason: "candidate" | "time_expired" | null;
   test_versions: Relation<VersionRecord>;
+};
+
+type IntegrityQuestionRecord = {
+  text: string;
+};
+
+type IntegrityEventRecord = {
+  client_occurred_at: string | null;
+  event_type: ReportIntegrityEventType;
+  id: number;
+  occurred_at: string;
+  questions: Relation<IntegrityQuestionRecord>;
+  session_id: string;
 };
 
 type ResultRecord = {
@@ -144,6 +160,36 @@ export type ReportTest = {
   title: string;
 };
 
+export type ReportIntegrityEventType =
+  | "focus_lost"
+  | "focus_returned"
+  | "clipboard_copy"
+  | "clipboard_cut"
+  | "clipboard_paste"
+  | "concurrent_session_blocked"
+  | "session_recovered"
+  | "timer_expired";
+
+export type ReportIntegrityEvent = {
+  clientOccurredAt: string | null;
+  eventType: ReportIntegrityEventType;
+  id: number;
+  occurredAt: string;
+  question: string | null;
+  testTitle: string;
+};
+
+export type ReportIntegritySummary = {
+  clipboardAttemptCount: number;
+  concurrentSessionAttemptCount: number;
+  events: ReportIntegrityEvent[];
+  focusLossCount: number;
+  focusLossDurationSeconds: number;
+  recoveredSessionCount: number;
+  status: "clear" | "attention" | "critical";
+  timerExpiredCount: number;
+};
+
 export type CandidateReportData = {
   candidate: {
     city: string | null;
@@ -155,6 +201,7 @@ export type CandidateReportData = {
   competencies: ReportCompetency[];
   fitScore: number | null;
   id: string;
+  integrity: ReportIntegritySummary;
   interviewQuestions: string[];
   job: { id: string; title: string };
   overallScore: number | null;
@@ -254,7 +301,14 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     return null;
   }
 
-  const [summaryResult, risksResult, sessionsResult, resultsResult, generatedReportResult] =
+  const [
+    summaryResult,
+    risksResult,
+    sessionsResult,
+    resultsResult,
+    generatedReportResult,
+    integrityEventsResult,
+  ] =
     await Promise.all([
       supabase
         .from("application_competency_summary")
@@ -267,7 +321,9 @@ export async function getCandidateReportData(companyId: string, applicationId: s
         .order("created_at"),
       supabase
         .from("test_sessions")
-        .select("id, status, percentage, completed_at, test_versions(title, scoring_type)")
+        .select(
+          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, test_versions(title, scoring_type)",
+        )
         .eq("application_id", applicationId)
         .order("created_at"),
       supabase
@@ -279,6 +335,13 @@ export async function getCandidateReportData(companyId: string, applicationId: s
         .select("strengths_json, interview_questions_json, report_text")
         .eq("application_id", applicationId)
         .maybeSingle(),
+      supabase
+        .from("assessment_session_events")
+        .select(
+          "id, session_id, event_type, occurred_at, client_occurred_at, questions(text)",
+        )
+        .eq("application_id", applicationId)
+        .order("occurred_at"),
     ]);
 
   if (
@@ -286,12 +349,16 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     risksResult.error ||
     sessionsResult.error ||
     resultsResult.error ||
-    generatedReportResult.error
+    generatedReportResult.error ||
+    integrityEventsResult.error
   ) {
     throw new Error("Unable to load candidate report results.");
   }
 
   const sessions = (sessionsResult.data ?? []) as unknown as SessionRecord[];
+  const testTitleBySession = new Map(
+    sessions.map((session) => [session.id, related(session.test_versions)?.title ?? "Тест"]),
+  );
   const sessionIds = sessions.map((session) => session.id);
   const { data: answersData, error: answersError } =
     sessionIds.length === 0
@@ -392,6 +459,50 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       competency.percentage >= 75,
   );
   const storedQuestions = stringArray(storedReport?.interview_questions_json);
+  const integrityRecords = (integrityEventsResult.data ?? []) as unknown as IntegrityEventRecord[];
+  const focusLossCount = integrityRecords.filter((event) => event.event_type === "focus_lost").length;
+  const clipboardAttemptCount = integrityRecords.filter((event) =>
+    ["clipboard_copy", "clipboard_cut", "clipboard_paste"].includes(event.event_type),
+  ).length;
+  const concurrentSessionAttemptCount = integrityRecords.filter(
+    (event) => event.event_type === "concurrent_session_blocked",
+  ).length;
+  const recoveredSessionCount = integrityRecords.filter(
+    (event) => event.event_type === "session_recovered",
+  ).length;
+  const timerExpiredCount = integrityRecords.filter(
+    (event) => event.event_type === "timer_expired",
+  ).length;
+  const focusLostAtBySession = new Map<string, number>();
+  let focusLossDurationMs = 0;
+  for (const event of integrityRecords) {
+    const occurredAt = new Date(event.occurred_at).getTime();
+    if (event.event_type === "focus_lost" && !focusLostAtBySession.has(event.session_id)) {
+      focusLostAtBySession.set(event.session_id, occurredAt);
+    }
+    if (event.event_type === "focus_returned") {
+      const lostAt = focusLostAtBySession.get(event.session_id);
+      if (lostAt !== undefined) {
+        focusLossDurationMs += Math.max(occurredAt - lostAt, 0);
+        focusLostAtBySession.delete(event.session_id);
+      }
+    }
+  }
+  for (const [sessionId, lostAt] of focusLostAtBySession) {
+    const session = sessions.find((entry) => entry.id === sessionId);
+    const endedAt = session?.completed_at ? new Date(session.completed_at).getTime() : Date.now();
+    focusLossDurationMs += Math.max(endedAt - lostAt, 0);
+  }
+  const focusLossDurationSeconds = Math.round(focusLossDurationMs / 1000);
+  const integrityStatus =
+    concurrentSessionAttemptCount > 0
+      ? "critical"
+      : focusLossCount > 0 ||
+          clipboardAttemptCount > 0 ||
+          recoveredSessionCount > 0 ||
+          timerExpiredCount > 0
+        ? "attention"
+        : "clear";
 
   return {
     candidate: {
@@ -404,6 +515,23 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     competencies,
     fitScore: application.fit_score,
     id: application.id,
+    integrity: {
+      clipboardAttemptCount,
+      concurrentSessionAttemptCount,
+      events: integrityRecords.map((event) => ({
+        clientOccurredAt: event.client_occurred_at,
+        eventType: event.event_type,
+        id: event.id,
+        occurredAt: event.occurred_at,
+        question: related(event.questions)?.text ?? null,
+        testTitle: testTitleBySession.get(event.session_id) ?? "Тест",
+      })),
+      focusLossCount,
+      focusLossDurationSeconds,
+      recoveredSessionCount,
+      status: integrityStatus,
+      timerExpiredCount,
+    },
     interviewQuestions:
       storedQuestions.length > 0
         ? storedQuestions

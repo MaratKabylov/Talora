@@ -47,6 +47,7 @@ export function TestVersionFields({
             min="1"
             name="durationMinutes"
             placeholder="Например, 20"
+            required
             step="1"
             type="number"
           />

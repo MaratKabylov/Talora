@@ -67,6 +67,7 @@ type JobRecord = {
 
 type SessionRecord = {
   completed_at: string | null;
+  deadline_at: string | null;
   id: string;
   started_at: string | null;
   status: "not_started" | "in_progress" | "completed" | "expired" | "cancelled";
@@ -113,6 +114,7 @@ export type AssessmentTest = {
 
 export type AssessmentSession = {
   completedAt: string | null;
+  deadlineAt: string | null;
   id: string;
   startedAt: string | null;
   status: SessionRecord["status"];
@@ -288,7 +290,7 @@ export async function getAssessmentByToken(token: string): Promise<AssessmentAva
       .maybeSingle(),
     admin
       .from("test_sessions")
-      .select("id, test_version_id, status, started_at, completed_at")
+      .select("id, test_version_id, status, started_at, completed_at, deadline_at")
       .eq("application_id", invitation.application_id),
   ]);
 
@@ -315,6 +317,7 @@ export async function getAssessmentByToken(token: string): Promise<AssessmentAva
     })
     .map((session) => ({
       completedAt: session.completed_at,
+      deadlineAt: session.deadline_at,
       id: session.id,
       startedAt: session.started_at,
       status: session.status,
