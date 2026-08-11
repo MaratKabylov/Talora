@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 
 import type { ScoringType, TestTemplateStatus, TestVersionStatus } from "./constants";
 
@@ -60,10 +61,10 @@ export type TestTemplate = {
 function normalizeVersion(record: VersionRecord): TestVersion {
   return {
     createdAt: record.created_at,
-    description: record.description,
+    description: sanitizeRichTextValue(record.description),
     durationMinutes: record.duration_minutes,
     id: record.id,
-    instructions: record.instructions,
+    instructions: sanitizeRichTextValue(record.instructions),
     publishedAt: record.published_at,
     scoringType: record.scoring_type,
     status: record.status,

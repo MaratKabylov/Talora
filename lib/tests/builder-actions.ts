@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireCompanyContext } from "@/lib/auth/context";
+import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { createClient } from "@/lib/supabase/server";
 
 import {
@@ -65,7 +66,7 @@ const optionalCompetency = z.preprocess(
 );
 
 const sectionSchema = z.object({
-  description: optionalText(1000),
+  description: optionalText(10000),
   orderIndex: nonnegativeOrder,
   timeLimitMinutes: optionalPositiveInteger,
   title: z.string().trim().min(2, "Укажите название секции.").max(180, "Название слишком длинное."),
@@ -74,7 +75,7 @@ const sectionSchema = z.object({
 const questionSchema = z
   .object({
     competencyKey: optionalCompetency,
-    description: optionalText(2000),
+    description: optionalText(20000),
     difficulty: z.preprocess(
       (value) => (typeof value === "string" && value ? value : null),
       z.enum(DIFFICULTY_VALUES).nullable(),
@@ -131,7 +132,7 @@ const documentOptionSchema = z.object({
 const documentQuestionSchema = z
   .object({
     competencyKey: z.enum(competencyKeys).nullable(),
-    description: z.string().max(2000).nullable(),
+    description: z.string().max(20000).nullable(),
     difficulty: z.enum(DIFFICULTY_VALUES).nullable(),
     id: z.string().uuid(),
     isRequired: z.boolean(),
@@ -151,7 +152,7 @@ const builderDocumentSchema = z.object({
   sections: z
     .array(
       z.object({
-        description: z.string().max(1000).nullable(),
+        description: z.string().max(10000).nullable(),
         id: z.string().uuid(),
         questions: z.array(documentQuestionSchema).max(300),
         timeLimitMinutes: z.number().int().min(1).max(1440).nullable(),
@@ -161,9 +162,9 @@ const builderDocumentSchema = z.object({
     .max(100),
   templateId: z.string().uuid(),
   version: z.object({
-    description: z.string().max(2000).nullable(),
+    description: z.string().max(20000).nullable(),
     durationMinutes: z.number().int().min(1).max(1440).nullable(),
-    instructions: z.string().max(4000).nullable(),
+    instructions: z.string().max(40000).nullable(),
     scoringType: z.enum(SCORING_TYPE_VALUES),
     title: z.string().trim().min(2).max(180),
   }),
@@ -314,7 +315,7 @@ async function requireQuestion(
 function questionPayload(question: z.infer<typeof questionSchema>) {
   return {
     competency_key: question.competencyKey,
-    description: question.description,
+    description: sanitizeRichTextValue(question.description),
     difficulty: question.difficulty,
     order_index: question.orderIndex,
     points: question.points,
@@ -368,7 +369,22 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
     return { error: parsed.error.issues[0]?.message ?? "Проверьте заполнение конструктора.", ok: false };
   }
 
-  const document = parsed.data;
+  const document = {
+    ...parsed.data,
+    sections: parsed.data.sections.map((section) => ({
+      ...section,
+      description: sanitizeRichTextValue(section.description),
+      questions: section.questions.map((question) => ({
+        ...question,
+        description: sanitizeRichTextValue(question.description),
+      })),
+    })),
+    version: {
+      ...parsed.data.version,
+      description: sanitizeRichTextValue(parsed.data.version.description),
+      instructions: sanitizeRichTextValue(parsed.data.version.instructions),
+    },
+  };
   const context = await getDocumentContext(document.templateId, document.versionId);
   if (!context) {
     return { error: "Редактировать можно только активную черновую версию.", ok: false };
@@ -514,7 +530,7 @@ export async function createSectionAction(formData: FormData) {
   }
 
   const { error } = await action.supabase.from("test_sections").insert({
-    description: section.data.description,
+    description: sanitizeRichTextValue(section.data.description),
     order_index: section.data.orderIndex,
     test_version_id: action.versionId,
     time_limit_minutes: section.data.timeLimitMinutes,
@@ -546,7 +562,7 @@ export async function updateSectionAction(formData: FormData) {
   const { error } = await action.supabase
     .from("test_sections")
     .update({
-      description: section.data.description,
+      description: sanitizeRichTextValue(section.data.description),
       order_index: section.data.orderIndex,
       time_limit_minutes: section.data.timeLimitMinutes,
       title: section.data.title,

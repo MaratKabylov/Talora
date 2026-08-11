@@ -37,7 +37,7 @@ export function QuestionResponseFields({
               type="radio"
               value={option.id}
             />
-            <span>{option.text}</span>
+            <span className="whitespace-pre-wrap">{option.text}</span>
           </label>
         ))}
       </div>
@@ -63,7 +63,7 @@ export function QuestionResponseFields({
               type="checkbox"
               value={option.id}
             />
-            <span>{option.text}</span>
+            <span className="whitespace-pre-wrap">{option.text}</span>
           </label>
         ))}
       </div>

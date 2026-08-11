@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 
 import type { TestTemplate, TestVersion } from "./data";
 import { getTestTemplatePageData } from "./data";
@@ -104,7 +105,7 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
 
   return {
     competencyKey: question.competency_key,
-    description: question.description,
+    description: sanitizeRichTextValue(question.description),
     difficulty: question.difficulty,
     id: question.id,
     isRequired: settings.required ?? true,
@@ -122,7 +123,7 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
 
 function normalizeSection(section: SectionRecord): BuilderSection {
   return {
-    description: section.description,
+    description: sanitizeRichTextValue(section.description),
     id: section.id,
     orderIndex: section.order_index,
     questions: (section.questions ?? [])

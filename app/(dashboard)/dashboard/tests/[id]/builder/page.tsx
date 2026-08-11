@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 
 import { FeedbackMessage } from "@/components/feedback-message";
 import { TestBuilderEditor } from "@/components/tests/builder/test-builder-editor";
-import { TestPreview } from "@/components/tests/builder/test-preview";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireCompanyContext } from "@/lib/auth/context";
@@ -67,9 +66,13 @@ export default async function TestBuilderPage({
             К тесту
           </Link>
           {!isEditable ? (
-            <a className={buttonVariants()} href="#preview">
-              Preview
-            </a>
+            <Link
+              className={buttonVariants()}
+              href={`/dashboard/tests/${data.template.id}/preview?version=${data.version.id}`}
+              target="_blank"
+            >
+              Предпросмотр
+            </Link>
           ) : null}
         </div>
       </div>
@@ -128,14 +131,19 @@ export default async function TestBuilderPage({
         <TestBuilderEditor
           imports={importSources}
           initialSections={data.sections}
+          previewPath={`/dashboard/tests/${data.template.id}/preview?version=${data.version.id}`}
           templateId={data.template.id}
           version={data.version}
         />
       ) : (
-        <div className="max-w-3xl space-y-4" id="preview">
-          <h2 className="text-lg font-semibold">Preview кандидата</h2>
-          <TestPreview sections={data.sections} version={data.version} />
-        </div>
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle>Предпросмотр вынесен на отдельную страницу</CardTitle>
+            <CardDescription>
+              Откройте его в новой вкладке, чтобы увидеть тест в формате кандидата.
+            </CardDescription>
+          </CardHeader>
+        </Card>
       )}
     </div>
   );

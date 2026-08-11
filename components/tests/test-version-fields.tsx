@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { SCORING_TYPE_LABELS, SCORING_TYPE_VALUES } from "@/lib/tests/constants";
 import type { TestTemplate, TestVersion } from "@/lib/tests/data";
 import { formatTestVersionTitle } from "@/lib/tests/version-title";
@@ -70,7 +70,7 @@ export function TestVersionFields({
       </div>
       <div className="space-y-2">
         <Label htmlFor="versionDescription">Описание версии</Label>
-        <Textarea
+        <RichTextEditor
           defaultValue={version?.description ?? template?.description ?? ""}
           disabled={disabled}
           id="versionDescription"
@@ -80,7 +80,7 @@ export function TestVersionFields({
       </div>
       <div className="space-y-2">
         <Label htmlFor="instructions">Инструкция кандидату</Label>
-        <Textarea
+        <RichTextEditor
           defaultValue={version?.instructions ?? ""}
           disabled={disabled}
           id="instructions"

@@ -3,9 +3,9 @@
 import { Copy, Eye, FileInput, GripVertical, Plus, Save, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { TestPreview } from "@/components/tests/builder/test-preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -123,8 +123,7 @@ function editableSections(sections: BuilderSection[]) {
 }
 
 function nullableText(text: string) {
-  const value = text.trim();
-  return value ? value : null;
+  return text.trim() ? text : null;
 }
 
 export function TestBuilderEditor({
@@ -133,6 +132,7 @@ export function TestBuilderEditor({
   publishAction = defaultPublishTestVersionAction,
   saveAction = defaultSaveBuilderDocumentAction,
   templateId,
+  previewPath,
   version: initialVersion,
 }: {
   imports: BuilderImportSource[];
@@ -140,6 +140,7 @@ export function TestBuilderEditor({
   publishAction?: (formData: FormData) => Promise<void>;
   saveAction?: (input: unknown) => Promise<BuilderSaveResult>;
   templateId: string;
+  previewPath: string;
   version: TestVersion;
 }) {
   const versionTitle = formatTestVersionTitle(initialVersion.versionNumber);
@@ -152,8 +153,6 @@ export function TestBuilderEditor({
   });
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [feedback, setFeedback] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewSection, setPreviewSection] = useState(0);
   const [importId, setImportId] = useState(imports[0]?.id ?? "");
   const revision = useRef(0);
   const dragQuestion = useRef<{ index: number; sectionId: string } | null>(null);
@@ -225,7 +224,7 @@ export function TestBuilderEditor({
     if (!result.ok) {
       setStatus("error");
       setFeedback(result.error ?? "Не удалось сохранить изменения.");
-      return;
+      return false;
     }
 
     if (revision.current === requestedRevision) {
@@ -238,6 +237,7 @@ export function TestBuilderEditor({
     } else {
       setStatus("dirty");
     }
+    return true;
   }, [initialVersion.id, saveAction, sections, templateId, version, versionTitle]);
 
   useEffect(() => {
@@ -300,6 +300,26 @@ export function TestBuilderEditor({
     updateSections((current) => [...current, ...source.sections.map(copySection)]);
   }
 
+  async function openPreview() {
+    const previewWindow = window.open("", "_blank");
+    if (!previewWindow) {
+      setStatus("error");
+      setFeedback("Браузер заблокировал новую вкладку. Разрешите всплывающие окна и повторите.");
+      return;
+    }
+
+    previewWindow.document.title = "Подготавливаем предпросмотр";
+    previewWindow.document.body.textContent = "Сохраняем изменения и открываем предпросмотр…";
+    const saved = await save();
+    if (!saved) {
+      previewWindow.close();
+      return;
+    }
+
+    previewWindow.opener = null;
+    previewWindow.location.href = previewPath;
+  }
+
   return (
     <div className="space-y-5">
       <div className="sticky top-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 shadow-sm backdrop-blur">
@@ -314,8 +334,8 @@ export function TestBuilderEditor({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setShowPreview((current) => !current)} type="button" variant="outline">
-            <Eye /> {showPreview ? "Закрыть preview" : "Предпросмотр"}
+          <Button disabled={status === "saving"} onClick={() => void openPreview()} type="button" variant="outline">
+            <Eye /> Предпросмотр
           </Button>
           <Button disabled={status === "saving"} onClick={() => void save()} type="button" variant="outline">
             <Save /> Сохранить
@@ -333,7 +353,7 @@ export function TestBuilderEditor({
         </div>
       </div>
 
-      <div className={showPreview ? "grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.82fr)]" : ""}>
+      <div>
         <div className="space-y-5">
           <div className="rounded-xl border-t-8 border-t-primary bg-card p-6 shadow-sm">
             <Input
@@ -342,9 +362,10 @@ export function TestBuilderEditor({
               readOnly
               value={versionTitle}
             />
-            <Textarea
-              className="mt-3 min-h-20 border-0 px-0 shadow-none focus-visible:ring-0"
-              onChange={(event) => updateVersion("description", event.target.value)}
+            <RichTextEditor
+              className="mt-3"
+              id="builder-version-description"
+              onChange={(value) => updateVersion("description", value)}
               placeholder="Описание теста"
               value={version.description}
             />
@@ -372,9 +393,10 @@ export function TestBuilderEditor({
                 <option value="mixed">Смешанная</option>
               </Select>
             </div>
-            <Textarea
+            <RichTextEditor
               className="mt-3"
-              onChange={(event) => updateVersion("instructions", event.target.value)}
+              id="builder-version-instructions"
+              onChange={(value) => updateVersion("instructions", value)}
               placeholder="Инструкция кандидату"
               value={version.instructions}
             />
@@ -392,9 +414,9 @@ export function TestBuilderEditor({
                     onChange={(event) => patchSection(currentSection.id, { title: event.target.value })}
                     value={currentSection.title}
                   />
-                  <Textarea
-                    className="min-h-14 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-                    onChange={(event) => patchSection(currentSection.id, { description: event.target.value })}
+                  <RichTextEditor
+                    id={`builder-section-${currentSection.id}-description`}
+                    onChange={(value) => patchSection(currentSection.id, { description: value })}
                     placeholder="Описание или инструкция для секции"
                     value={currentSection.description ?? ""}
                   />
@@ -550,10 +572,11 @@ export function TestBuilderEditor({
                       ))}
                     </Select>
                   </div>
-                  <Input
+                  <RichTextEditor
                     className="mt-3"
-                    onChange={(event) =>
-                      patchQuestion(currentSection.id, currentQuestion.id, { description: event.target.value })
+                    id={`builder-question-${currentQuestion.id}-description`}
+                    onChange={(value) =>
+                      patchQuestion(currentSection.id, currentQuestion.id, { description: value })
                     }
                     placeholder="Пояснение к вопросу (необязательно)"
                     value={currentQuestion.description ?? ""}
@@ -820,22 +843,6 @@ export function TestBuilderEditor({
           </div>
         </div>
 
-        {showPreview ? (
-          <aside className="space-y-3 xl:sticky xl:top-24">
-            <TestPreview
-              currentSectionIndex={previewSection}
-              onSectionChange={setPreviewSection}
-              sections={sections}
-              version={{
-                ...initialVersion,
-                ...version,
-                description: nullableText(version.description),
-                durationMinutes: version.durationMinutes ? Number(version.durationMinutes) : null,
-                instructions: nullableText(version.instructions),
-              }}
-            />
-          </aside>
-        ) : null}
       </div>
     </div>
   );

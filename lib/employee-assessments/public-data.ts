@@ -1,4 +1,5 @@
 import { scoreCompletedEmployeeAssessmentParticipant } from "@/lib/scoring/service";
+import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 import type { InvitationStatus } from "@/lib/candidates/constants";
@@ -30,8 +31,10 @@ type PackageTestRecord = {
   order_index: number;
   test_version_id: string;
   test_versions: Relation<{
+    description: string | null;
     duration_minutes: number | null;
     id: string;
+    instructions: string | null;
     status: string;
     title: string;
   }>;
@@ -91,7 +94,9 @@ type AnswerRecord = {
 };
 
 export type EmployeeAssessmentTest = {
+  description: string | null;
   durationMinutes: number | null;
+  instructions: string | null;
   orderIndex: number;
   title: string;
   versionId: string;
@@ -197,7 +202,9 @@ function normalizeTests(assessment: EmployeeAssessmentRecord) {
 
       return [
         {
+          description: sanitizeRichTextValue(version.description),
           durationMinutes: version.duration_minutes,
+          instructions: sanitizeRichTextValue(version.instructions),
           orderIndex: packageTest.order_index,
           title: version.title,
           versionId: version.id,
@@ -269,7 +276,7 @@ export async function getEmployeeAssessmentByToken(
     admin
       .from("employee_assessments")
       .select(
-        "id, title, description, assessment_packages(id, title, description, assessment_package_tests(order_index, test_version_id, test_versions(id, title, duration_minutes, status)))",
+        "id, title, description, assessment_packages(id, title, description, assessment_package_tests(order_index, test_version_id, test_versions(id, title, description, instructions, duration_minutes, status)))",
       )
       .eq("id", invitation.employee_assessment_id)
       .eq("company_id", invitation.company_id)
@@ -416,7 +423,7 @@ export async function getEmployeeAssessmentQuestionPageData(
   const sections = ((sectionsData ?? []) as unknown as SectionRecord[])
     .sort((left, right) => left.order_index - right.order_index)
     .map((section) => ({
-      description: section.description,
+      description: sanitizeRichTextValue(section.description),
       id: section.id,
       questions: (section.questions ?? [])
         .sort((left, right) => left.order_index - right.order_index)
@@ -424,7 +431,7 @@ export async function getEmployeeAssessmentQuestionPageData(
           const settings = question.settings_json ?? {};
 
           return {
-            description: question.description,
+            description: sanitizeRichTextValue(question.description),
             id: question.id,
             isRequired: settings.required ?? true,
             options: (question.answer_options ?? [])

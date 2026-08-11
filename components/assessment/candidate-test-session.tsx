@@ -16,6 +16,7 @@ import { QuestionResponseFields } from "@/components/assessment/question-respons
 import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { RichTextContent } from "@/components/ui/rich-text-content";
 import {
   completeEmptySessionAction,
   saveCandidateSectionAction,
@@ -689,7 +690,9 @@ export function CandidateTestSession({
             <CardHeader>
               <CardDescription>Секция {sectionIndex + 1}</CardDescription>
               <CardTitle className="text-lg leading-snug">{section.title}</CardTitle>
-              {section.description ? <p className="text-sm text-muted-foreground">{section.description}</p> : null}
+              {section.description ? (
+                <RichTextContent className="text-sm text-muted-foreground" value={section.description} />
+              ) : null}
             </CardHeader>
             <CardContent className="pt-6">
               <form
@@ -716,12 +719,15 @@ export function CandidateTestSession({
                       key={question.id}
                     >
                       <div>
-                        <p className="font-medium">
+                        <p className="whitespace-pre-wrap font-medium">
                           {index + 1}. {question.text}
                           {question.isRequired ? <span className="ml-1 text-destructive">*</span> : null}
                         </p>
                         {question.description ? (
-                          <p className="mt-1 text-sm text-muted-foreground">{question.description}</p>
+                          <RichTextContent
+                            className="mt-1 text-sm text-muted-foreground"
+                            value={question.description}
+                          />
                         ) : null}
                       </div>
                       <QuestionResponseFields

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import {
   DIFFICULTY_VALUES,
   QUESTION_TYPE_VALUES,
@@ -53,9 +54,9 @@ const templateSchema = z.object({
 });
 
 const versionSchema = z.object({
-  description: optionalText(2000),
+  description: optionalText(20000),
   durationMinutes: optionalDuration,
-  instructions: optionalText(4000),
+  instructions: optionalText(40000),
   scoringType: z.enum(SCORING_TYPE_VALUES),
 });
 
@@ -71,7 +72,7 @@ const documentOptionSchema = z.object({
 const documentQuestionSchema = z
   .object({
     competencyKey: z.enum(competencyKeys).nullable(),
-    description: z.string().max(2000).nullable(),
+    description: z.string().max(20000).nullable(),
     difficulty: z.enum(DIFFICULTY_VALUES).nullable(),
     id: z.string().uuid(),
     isRequired: z.boolean(),
@@ -91,7 +92,7 @@ const builderDocumentSchema = z.object({
   sections: z
     .array(
       z.object({
-        description: z.string().max(1000).nullable(),
+        description: z.string().max(10000).nullable(),
         id: z.string().uuid(),
         questions: z.array(documentQuestionSchema).max(300),
         timeLimitMinutes: z.number().int().min(1).max(1440).nullable(),
@@ -101,9 +102,9 @@ const builderDocumentSchema = z.object({
     .max(100),
   templateId: z.string().uuid(),
   version: z.object({
-    description: z.string().max(2000).nullable(),
+    description: z.string().max(20000).nullable(),
     durationMinutes: z.number().int().min(1).max(1440).nullable(),
-    instructions: z.string().max(4000).nullable(),
+    instructions: z.string().max(40000).nullable(),
     scoringType: z.enum(SCORING_TYPE_VALUES),
     title: z.string().trim().min(2).max(180),
   }),
@@ -225,9 +226,9 @@ export async function createSystemTestTemplateAction(formData: FormData) {
   const { data: createdVersion, error: versionError } = await admin
     .from("test_versions")
     .insert({
-      description: version.data.description,
+      description: sanitizeRichTextValue(version.data.description),
       duration_minutes: version.data.durationMinutes,
-      instructions: version.data.instructions,
+      instructions: sanitizeRichTextValue(version.data.instructions),
       scoring_type: version.data.scoringType,
       status: "draft",
       test_template_id: createdTemplate.id,
@@ -367,9 +368,9 @@ export async function createSystemTestVersionAction(formData: FormData) {
   const { data: createdVersion, error } = await admin
     .from("test_versions")
     .insert({
-      description: version.data.description,
+      description: sanitizeRichTextValue(version.data.description),
       duration_minutes: version.data.durationMinutes,
-      instructions: version.data.instructions,
+      instructions: sanitizeRichTextValue(version.data.instructions),
       scoring_type: version.data.scoringType,
       status: "draft",
       test_template_id: templateId.data,
@@ -422,9 +423,9 @@ export async function updateSystemTestVersionAction(formData: FormData) {
   const { data, error } = await admin
     .from("test_versions")
     .update({
-      description: version.data.description,
+      description: sanitizeRichTextValue(version.data.description),
       duration_minutes: version.data.durationMinutes,
-      instructions: version.data.instructions,
+      instructions: sanitizeRichTextValue(version.data.instructions),
       scoring_type: version.data.scoringType,
       title: formatTestVersionTitle(draftVersion.version_number),
     })
@@ -733,7 +734,22 @@ export async function saveSystemTestBuilderDocumentAction(input: unknown): Promi
     return { error: parsed.error.issues[0]?.message ?? "Проверьте заполнение конструктора.", ok: false };
   }
 
-  const document = parsed.data;
+  const document = {
+    ...parsed.data,
+    sections: parsed.data.sections.map((section) => ({
+      ...section,
+      description: sanitizeRichTextValue(section.description),
+      questions: section.questions.map((question) => ({
+        ...question,
+        description: sanitizeRichTextValue(question.description),
+      })),
+    })),
+    version: {
+      ...parsed.data.version,
+      description: sanitizeRichTextValue(parsed.data.version.description),
+      instructions: sanitizeRichTextValue(parsed.data.version.instructions),
+    },
+  };
   const actionContext = await getSystemDocumentContext(document.templateId, document.versionId);
   if (!actionContext) {
     return { error: "Редактировать можно только активную черновую системную версию.", ok: false };

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireCompanyContext } from "@/lib/auth/context";
+import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { createClient } from "@/lib/supabase/server";
 
 import { canManageTests, SCORING_TYPE_VALUES, TEST_TEMPLATE_STATUS_VALUES } from "./constants";
@@ -40,9 +41,9 @@ const templateSchema = z.object({
 });
 
 const versionSchema = z.object({
-  description: optionalText(2000),
+  description: optionalText(20000),
   durationMinutes: optionalDuration,
-  instructions: optionalText(4000),
+  instructions: optionalText(40000),
   scoringType: z.enum(SCORING_TYPE_VALUES),
 });
 
@@ -142,9 +143,9 @@ export async function createTestTemplateAction(formData: FormData) {
 
   const versionNumber = 1;
   const { error: versionError } = await supabase.from("test_versions").insert({
-    description: version.data.description,
+    description: sanitizeRichTextValue(version.data.description),
     duration_minutes: version.data.durationMinutes,
-    instructions: version.data.instructions,
+    instructions: sanitizeRichTextValue(version.data.instructions),
     scoring_type: version.data.scoringType,
     status: "draft",
     test_template_id: createdTemplate.id,
@@ -376,9 +377,9 @@ export async function createTestVersionAction(formData: FormData) {
 
   const nextVersionNumber = (latestVersion?.version_number ?? 0) + 1;
   const { error } = await supabase.from("test_versions").insert({
-    description: version.data.description,
+    description: sanitizeRichTextValue(version.data.description),
     duration_minutes: version.data.durationMinutes,
-    instructions: version.data.instructions,
+    instructions: sanitizeRichTextValue(version.data.instructions),
     scoring_type: version.data.scoringType,
     status: "draft",
     test_template_id: templateId.data,
@@ -437,9 +438,9 @@ export async function updateTestVersionAction(formData: FormData) {
   const { data: updatedVersion, error } = await supabase
     .from("test_versions")
     .update({
-      description: version.data.description,
+      description: sanitizeRichTextValue(version.data.description),
       duration_minutes: version.data.durationMinutes,
-      instructions: version.data.instructions,
+      instructions: sanitizeRichTextValue(version.data.instructions),
       scoring_type: version.data.scoringType,
       title: formatTestVersionTitle(draftVersion.version_number),
     })

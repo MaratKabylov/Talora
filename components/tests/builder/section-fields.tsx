@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import type { BuilderSection } from "@/lib/tests/builder-data";
 
 export function SectionFields({
@@ -50,7 +50,7 @@ export function SectionFields({
       </div>
       <div className="space-y-2 sm:col-span-2">
         <Label htmlFor={`${prefix}-description`}>Описание</Label>
-        <Textarea
+        <RichTextEditor
           defaultValue={section?.description ?? ""}
           id={`${prefix}-description`}
           name="sectionDescription"

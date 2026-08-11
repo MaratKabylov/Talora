@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { scoreCompletedApplication } from "@/lib/scoring/service";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 
@@ -36,14 +37,18 @@ type PackageTestRecord = {
   test_version_id: string;
   test_versions:
     | {
+        description: string | null;
         duration_minutes: number | null;
         id: string;
+        instructions: string | null;
         status: string;
         title: string;
       }
     | {
+        description: string | null;
         duration_minutes: number | null;
         id: string;
+        instructions: string | null;
         status: string;
         title: string;
       }[]
@@ -106,7 +111,9 @@ type AnswerRecord = {
 };
 
 export type AssessmentTest = {
+  description: string | null;
   durationMinutes: number | null;
+  instructions: string | null;
   orderIndex: number;
   title: string;
   versionId: string;
@@ -210,7 +217,9 @@ function normalizeTests(job: JobRecord) {
 
       return [
         {
+          description: sanitizeRichTextValue(version.description),
           durationMinutes: version.duration_minutes,
+          instructions: sanitizeRichTextValue(version.instructions),
           orderIndex: packageTest.order_index,
           title: version.title,
           versionId: version.id,
@@ -277,7 +286,7 @@ export async function getAssessmentByToken(token: string): Promise<AssessmentAva
     admin
       .from("jobs")
       .select(
-        "id, title, department, location, assessment_packages(id, title, description, assessment_package_tests(order_index, test_version_id, test_versions(id, title, duration_minutes, status)))",
+        "id, title, department, location, assessment_packages(id, title, description, assessment_package_tests(order_index, test_version_id, test_versions(id, title, description, instructions, duration_minutes, status)))",
       )
       .eq("id", invitation.job_id)
       .eq("company_id", invitation.company_id)
@@ -422,7 +431,7 @@ export async function getAssessmentQuestionPageData(
   const sections = ((sectionsData ?? []) as unknown as SectionRecord[])
     .sort((left, right) => left.order_index - right.order_index)
     .map((section) => ({
-      description: section.description,
+      description: sanitizeRichTextValue(section.description),
       id: section.id,
       questions: (section.questions ?? [])
         .sort((left, right) => left.order_index - right.order_index)
@@ -430,7 +439,7 @@ export async function getAssessmentQuestionPageData(
           const settings = question.settings_json ?? {};
 
           return {
-            description: question.description,
+            description: sanitizeRichTextValue(question.description),
             id: question.id,
             isRequired: settings.required ?? true,
             options: (question.answer_options ?? [])

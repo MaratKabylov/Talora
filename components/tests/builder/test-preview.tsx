@@ -1,8 +1,5 @@
-import {
-  QUESTION_TYPE_LABELS,
-  TEST_COMPETENCY_LABELS,
-} from "@/lib/tests/builder-constants";
 import { Button } from "@/components/ui/button";
+import { RichTextContent } from "@/components/ui/rich-text-content";
 import type { BuilderQuestion, BuilderSection } from "@/lib/tests/builder-data";
 import type { TestVersion } from "@/lib/tests/data";
 
@@ -46,7 +43,7 @@ function QuestionInputPreview({ question }: { question: BuilderQuestion }) {
               type={question.questionType === "multiple_choice" ? "checkbox" : "radio"}
             />
           )}
-          <span>{option.text}</span>
+          <span className="whitespace-pre-wrap">{option.text}</span>
         </label>
       ))}
     </div>
@@ -73,10 +70,10 @@ export function TestPreview({
       <div className="rounded-lg border bg-background p-5">
         <h2 className="text-xl font-semibold">{version.title}</h2>
         {version.description ? (
-          <p className="mt-2 text-sm text-muted-foreground">{version.description}</p>
+          <RichTextContent className="mt-2 text-sm text-muted-foreground" value={version.description} />
         ) : null}
         {version.instructions ? (
-          <div className="mt-4 rounded-md bg-muted/50 p-4 text-sm">{version.instructions}</div>
+          <RichTextContent className="mt-4 rounded-md bg-muted/50 p-4 text-sm" value={version.instructions} />
         ) : null}
       </div>
 
@@ -95,7 +92,7 @@ export function TestPreview({
               ) : null}
               <h3 className="font-semibold">{section.title}</h3>
               {section.description ? (
-                <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
+                <RichTextContent className="mt-1 text-sm text-muted-foreground" value={section.description} />
               ) : null}
             </div>
             {section.questions.length === 0 ? (
@@ -103,20 +100,14 @@ export function TestPreview({
             ) : (
               section.questions.map((question, index) => (
                 <div className="space-y-3 border-t pt-4 first:border-0 first:pt-0" key={question.id}>
-                  <div className="flex flex-wrap justify-between gap-2">
-                    <p className="text-sm font-medium">
+                  <div>
+                    <p className="whitespace-pre-wrap text-sm font-medium">
                       {index + 1}. {question.text}
                       {question.isRequired ? <span className="ml-1 text-destructive">*</span> : null}
                     </p>
-                    <span className="text-xs text-muted-foreground">
-                      {QUESTION_TYPE_LABELS[question.questionType]}
-                      {question.competencyKey
-                        ? ` / ${TEST_COMPETENCY_LABELS[question.competencyKey]}`
-                        : ""}
-                    </span>
                   </div>
                   {question.description ? (
-                    <p className="text-sm text-muted-foreground">{question.description}</p>
+                    <RichTextContent className="text-sm text-muted-foreground" value={question.description} />
                   ) : null}
                   <QuestionInputPreview question={question} />
                 </div>

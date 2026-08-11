@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -125,7 +126,7 @@ export function QuestionFields({
       </div>
       <div className="space-y-2">
         <Label htmlFor={`${prefix}-description`}>Пояснение</Label>
-        <Textarea
+        <RichTextEditor
           defaultValue={question?.description ?? ""}
           id={`${prefix}-description`}
           name="questionDescription"

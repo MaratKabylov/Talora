@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AssessmentShell, AssessmentUnavailable } from "@/components/assessment/assessment-shell";
 import { CandidateTestSession } from "@/components/assessment/candidate-test-session";
 import { FeedbackMessage } from "@/components/feedback-message";
+import { RichTextContent } from "@/components/ui/rich-text-content";
 import { getAssessmentByToken, getAssessmentQuestionPageData } from "@/lib/assessment/data";
 
 type TestParams = Promise<{ sessionId: string; token: string }>;
@@ -63,6 +64,12 @@ export default async function CandidateTestPage({
             Тест {completedSessions + 1} из {data.assessment.sessions.length}
             {section ? ` / секция ${sectionIndex + 1} из ${data.sections.length}` : ""}
           </p>
+          {sectionIndex === 0 && data.session.test.description ? (
+            <RichTextContent
+              className="mt-3 text-sm text-muted-foreground"
+              value={data.session.test.description}
+            />
+          ) : null}
           {section ? (
             <div
               aria-label={`Секция ${sectionIndex + 1} из ${data.sections.length}`}
@@ -78,6 +85,13 @@ export default async function CandidateTestPage({
         </div>
 
         <FeedbackMessage error={feedback.error} />
+
+        {sectionIndex === 0 && data.session.test.instructions ? (
+          <RichTextContent
+            className="rounded-lg border bg-muted/40 p-4 text-sm"
+            value={data.session.test.instructions}
+          />
+        ) : null}
 
         <CandidateTestSession
           answers={data.answers}

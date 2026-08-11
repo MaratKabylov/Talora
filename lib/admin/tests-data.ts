@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import type {
   BuilderImportSource,
   BuilderQuestion,
@@ -77,10 +78,10 @@ type SectionRecord = {
 function normalizeVersion(record: VersionRecord): TestVersion {
   return {
     createdAt: record.created_at,
-    description: record.description,
+    description: sanitizeRichTextValue(record.description),
     durationMinutes: record.duration_minutes,
     id: record.id,
-    instructions: record.instructions,
+    instructions: sanitizeRichTextValue(record.instructions),
     publishedAt: record.published_at,
     scoringType: record.scoring_type,
     status: record.status,
@@ -125,7 +126,7 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
 
   return {
     competencyKey: question.competency_key,
-    description: question.description,
+    description: sanitizeRichTextValue(question.description),
     difficulty: question.difficulty,
     id: question.id,
     isRequired: settings.required ?? true,
@@ -143,7 +144,7 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
 
 function normalizeSection(section: SectionRecord): BuilderSection {
   return {
-    description: section.description,
+    description: sanitizeRichTextValue(section.description),
     id: section.id,
     orderIndex: section.order_index,
     questions: (section.questions ?? [])

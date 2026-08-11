@@ -146,7 +146,12 @@ export default async function AdminSystemTestPage({
                         <div className="flex justify-end gap-2">
                           <Link
                             className={buttonVariants({ size: "sm", variant: "outline" })}
-                            href={`/admin/tests/${template.id}/builder?version=${version.id}`}
+                            href={
+                              isEditable && version.status === "draft"
+                                ? `/admin/tests/${template.id}/builder?version=${version.id}`
+                                : `/admin/tests/${template.id}/preview?version=${version.id}`
+                            }
+                            target={isEditable && version.status === "draft" ? undefined : "_blank"}
                           >
                             {isEditable && version.status === "draft" ? "Конструктор" : "Preview"}
                           </Link>
@@ -243,7 +248,12 @@ export default async function AdminSystemTestPage({
           <CardContent className="pt-6">
             <Link
               className={buttonVariants()}
-              href={`/admin/tests/${template.id}/builder?version=${draftVersion?.id ?? template.latestVersion.id}`}
+              href={
+                draftVersion && isEditable
+                  ? `/admin/tests/${template.id}/builder?version=${draftVersion.id}`
+                  : `/admin/tests/${template.id}/preview?version=${template.latestVersion.id}`
+              }
+              target={draftVersion && isEditable ? undefined : "_blank"}
             >
               {draftVersion && isEditable ? "Открыть конструктор" : "Открыть preview"}
             </Link>

@@ -5,6 +5,7 @@ import { QuestionResponseFields } from "@/components/assessment/question-respons
 import { FeedbackMessage } from "@/components/feedback-message";
 import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { RichTextContent } from "@/components/ui/rich-text-content";
 import {
   completeEmptyEmployeeAssessmentSessionAction,
   saveEmployeeAssessmentSectionAction,
@@ -72,6 +73,12 @@ export default async function EmployeeAssessmentTestPage({
             Тест {completedSessions + 1} из {data.assessment.sessions.length}
             {section ? ` / секция ${sectionIndex + 1} из ${data.sections.length}` : ""}
           </p>
+          {sectionIndex === 0 && data.session.test.description ? (
+            <RichTextContent
+              className="mt-3 text-sm text-muted-foreground"
+              value={data.session.test.description}
+            />
+          ) : null}
           {section ? (
             <div
               aria-label={`Секция ${sectionIndex + 1} из ${data.sections.length}`}
@@ -87,6 +94,13 @@ export default async function EmployeeAssessmentTestPage({
         </div>
 
         <FeedbackMessage error={feedback.error} />
+
+        {sectionIndex === 0 && data.session.test.instructions ? (
+          <RichTextContent
+            className="rounded-lg border bg-muted/40 p-4 text-sm"
+            value={data.session.test.instructions}
+          />
+        ) : null}
 
         {!section ? (
           <Card>
@@ -109,7 +123,9 @@ export default async function EmployeeAssessmentTestPage({
             <CardHeader>
               <CardDescription>Секция {sectionIndex + 1}</CardDescription>
               <CardTitle className="text-lg leading-snug">{section.title}</CardTitle>
-              {section.description ? <p className="text-sm text-muted-foreground">{section.description}</p> : null}
+              {section.description ? (
+                <RichTextContent className="text-sm text-muted-foreground" value={section.description} />
+              ) : null}
             </CardHeader>
             <CardContent className="pt-6">
               <form action={saveEmployeeAssessmentSectionAction} className="space-y-8">
@@ -122,12 +138,15 @@ export default async function EmployeeAssessmentTestPage({
                   section.questions.map((question, index) => (
                     <div className="space-y-4 border-b pb-8 last:border-0 last:pb-0" key={question.id}>
                       <div>
-                        <p className="font-medium">
+                        <p className="whitespace-pre-wrap font-medium">
                           {index + 1}. {question.text}
                           {question.isRequired ? <span className="ml-1 text-destructive">*</span> : null}
                         </p>
                         {question.description ? (
-                          <p className="mt-1 text-sm text-muted-foreground">{question.description}</p>
+                          <RichTextContent
+                            className="mt-1 text-sm text-muted-foreground"
+                            value={question.description}
+                          />
                         ) : null}
                       </div>
                       <QuestionResponseFields
