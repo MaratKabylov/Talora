@@ -510,6 +510,8 @@ export async function autosaveCandidateAnswer(
     ? await query.upsert(
         {
           ...answer,
+          is_correct: null,
+          points_awarded: null,
           question_id: identity.questionId,
           session_id: identity.sessionId,
         },

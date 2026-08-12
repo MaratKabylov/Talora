@@ -4,6 +4,7 @@ import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import type { TestTemplate, TestVersion } from "./data";
 import { getTestTemplatePageData } from "./data";
 import type { QuestionDifficulty, QuestionType, TestCompetencyKey } from "./builder-constants";
+import type { QuestionSettings } from "./remediation";
 
 type OptionRecord = {
   competency_effect_json: Record<string, number> | null;
@@ -24,7 +25,7 @@ type QuestionRecord = {
   order_index: number;
   points: number;
   question_type: QuestionType;
-  settings_json: { max?: number; min?: number; required?: boolean } | null;
+  settings_json: QuestionSettings | null;
   text: string;
 };
 
@@ -56,11 +57,13 @@ export type BuilderQuestion = {
   description: string | null;
   difficulty: QuestionDifficulty | null;
   id: string;
+  incorrectFeedback: string | null;
   isRequired: boolean;
   options: BuilderOption[];
   orderIndex: number;
   points: number;
   questionType: QuestionType;
+  remediationQuestionId: string | null;
   scaleMax: number;
   scaleMin: number;
   text: string;
@@ -108,6 +111,8 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
     description: sanitizeRichTextValue(question.description),
     difficulty: question.difficulty,
     id: question.id,
+    incorrectFeedback:
+      typeof settings.incorrectFeedback === "string" ? settings.incorrectFeedback : null,
     isRequired: settings.required ?? true,
     options: (question.answer_options ?? [])
       .map(normalizeOption)
@@ -115,6 +120,10 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
     orderIndex: question.order_index,
     points: Number(question.points),
     questionType: question.question_type,
+    remediationQuestionId:
+      typeof settings.remediationQuestionId === "string"
+        ? settings.remediationQuestionId
+        : null,
     scaleMax: typeof settings.max === "number" ? settings.max : 5,
     scaleMin: typeof settings.min === "number" ? settings.min : 1,
     text: question.text,

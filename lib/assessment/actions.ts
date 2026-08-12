@@ -15,6 +15,7 @@ import {
   type ActiveAssessment,
   type FlowQuestion,
 } from "./data";
+import { evaluateRemediationBranches } from "./remediation";
 import { guardCandidateSessionSubmission } from "./session-control";
 
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
@@ -324,6 +325,8 @@ export async function saveCandidateAnswerAction(formData: FormData) {
   const { error } = await admin.from("candidate_answers").upsert(
     {
       ...answer,
+      is_correct: null,
+      points_awarded: null,
       question_id: question.id,
       session_id: sessionId.data,
     },
@@ -371,7 +374,10 @@ export async function saveCandidateSectionAction(formData: FormData) {
     answer: buildAnswer(question, formData, `q_${question.id}_`),
     question,
   }));
-  const missingRequired = answers.find(({ answer, question }) => question.isRequired && !answer);
+  const missingRequired = answers.find(
+    ({ answer, question }) =>
+      !question.remediationParentId && question.isRequired && !answer,
+  );
   if (missingRequired) {
     redirectWithError(
       testPath(token, sessionId.data, sectionIndex),
@@ -384,6 +390,8 @@ export async function saveCandidateSectionAction(formData: FormData) {
     .filter((entry) => entry.answer)
     .map(({ answer, question }) => ({
       ...answer!,
+      is_correct: null,
+      points_awarded: null,
       question_id: question.id,
       session_id: sessionId.data,
     }));
@@ -407,6 +415,56 @@ export async function saveCandidateSectionAction(formData: FormData) {
       .in("question_id", clearedOptionalIds);
     if (error) {
       redirectWithError(testPath(token, sessionId.data, sectionIndex), "Не удалось обновить ответы.");
+    }
+  }
+
+  const remediationDecisions = await evaluateRemediationBranches(
+    admin,
+    section.questions,
+    answers.map(({ answer, question }) => ({
+      questionId: question.id,
+      selectedOptionId: answer?.selected_option_id ?? null,
+    })),
+  );
+  const remediationUpdates = await Promise.all(
+    remediationDecisions.map((decision) =>
+      admin
+        .from("candidate_answers")
+        .update({ is_correct: decision.isCorrect })
+        .eq("session_id", sessionId.data)
+        .eq("question_id", decision.parentQuestionId),
+    ),
+  );
+  if (remediationUpdates.some((result) => result.error)) {
+    redirectWithError(testPath(token, sessionId.data, sectionIndex), "Не удалось проверить ответ.");
+  }
+
+  const inactiveTargetIds = remediationDecisions
+    .filter((decision) => decision.isCorrect !== false)
+    .map((decision) => decision.targetQuestionId);
+  if (inactiveTargetIds.length > 0) {
+    const { error } = await admin
+      .from("candidate_answers")
+      .delete()
+      .eq("session_id", sessionId.data)
+      .in("question_id", inactiveTargetIds);
+    if (error) {
+      redirectWithError(testPath(token, sessionId.data, sectionIndex), "Не удалось обновить повторный вопрос.");
+    }
+  }
+
+  if (direction === "next") {
+    const missingRemediation = remediationDecisions.find((decision) => {
+      if (decision.isCorrect !== false) {
+        return false;
+      }
+      const target = section.questions.find(
+        (question) => question.id === decision.targetQuestionId,
+      );
+      return target && !answers.find(({ answer, question }) => question.id === target.id && answer);
+    });
+    if (missingRemediation) {
+      redirect(testPath(token, sessionId.data, sectionIndex));
     }
   }
 

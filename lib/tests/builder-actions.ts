@@ -15,6 +15,7 @@ import {
   type TestCompetencyKey,
 } from "./builder-constants";
 import { canManageTests, SCORING_TYPE_VALUES } from "./constants";
+import { validateRemediationLinks } from "./remediation";
 import { formatTestVersionTitle } from "./version-title";
 
 const competencyKeys = TEST_COMPETENCIES.map((competency) => competency.key) as [
@@ -135,10 +136,12 @@ const documentQuestionSchema = z
     description: z.string().max(20000).nullable(),
     difficulty: z.enum(DIFFICULTY_VALUES).nullable(),
     id: z.string().uuid(),
+    incorrectFeedback: z.string().trim().max(4000).nullable(),
     isRequired: z.boolean(),
     options: z.array(documentOptionSchema).max(100),
     points: z.number().min(0).max(10000),
     questionType: z.enum(QUESTION_TYPE_VALUES),
+    remediationQuestionId: z.string().uuid().nullable(),
     scaleMax: z.number().int().min(2).max(100),
     scaleMin: z.number().int().min(1).max(99),
     text: z.string().trim().min(2).max(4000),
@@ -385,6 +388,10 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
       instructions: sanitizeRichTextValue(parsed.data.version.instructions),
     },
   };
+  const remediationError = validateRemediationLinks(document.sections);
+  if (remediationError) {
+    return { error: remediationError, ok: false };
+  }
   const context = await getDocumentContext(document.templateId, document.versionId);
   if (!context) {
     return { error: "Редактировать можно только активную черновую версию.", ok: false };
@@ -486,6 +493,12 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
       settings_json: {
         ...(question.questionType === "scale"
           ? { max: question.scaleMax, min: question.scaleMin }
+          : {}),
+        ...(question.remediationQuestionId
+          ? {
+              incorrectFeedback: question.incorrectFeedback?.trim(),
+              remediationQuestionId: question.remediationQuestionId,
+            }
           : {}),
         required: question.isRequired,
       },

@@ -60,6 +60,11 @@ export default async function EmployeeAssessmentTestPage({
     ? Math.min(Math.max(requestedIndex, 0), Math.max(data.sections.length - 1, 0))
     : 0;
   const section = data.sections[sectionIndex];
+  const visibleQuestions = (section?.questions ?? []).filter(
+    (question) =>
+      !question.remediationParentId ||
+      data.answers[question.remediationParentId]?.isCorrect === false,
+  );
   const completedSessions = data.assessment.sessions.filter((session) => session.status === "completed").length;
   const progress = section ? ((sectionIndex + 1) / data.sections.length) * 100 : 0;
 
@@ -132,12 +137,17 @@ export default async function EmployeeAssessmentTestPage({
                 <input name="token" type="hidden" value={token} />
                 <input name="sessionId" type="hidden" value={sessionId} />
                 <input name="sectionIndex" type="hidden" value={sectionIndex} />
-                {section.questions.length === 0 ? (
+                {visibleQuestions.length === 0 ? (
                   <p className="text-sm text-muted-foreground">В этой секции нет вопросов.</p>
                 ) : (
-                  section.questions.map((question, index) => (
+                  visibleQuestions.map((question, index) => (
                     <div className="space-y-4 border-b pb-8 last:border-0 last:pb-0" key={question.id}>
                       <div>
+                        {question.remediationParentId ? (
+                          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-primary">
+                            Повторный вопрос
+                          </p>
+                        ) : null}
                         <p className="whitespace-pre-wrap font-medium">
                           {index + 1}. {question.text}
                           {question.isRequired ? <span className="ml-1 text-destructive">*</span> : null}
@@ -152,8 +162,23 @@ export default async function EmployeeAssessmentTestPage({
                       <QuestionResponseFields
                         answer={data.answers[question.id] ?? null}
                         inputPrefix={`q_${question.id}`}
-                        question={question}
+                        question={
+                          question.remediationParentId
+                            ? { ...question, isRequired: true }
+                            : question
+                        }
                       />
+                      {data.answers[question.id]?.isCorrect === false && question.incorrectFeedback ? (
+                        <div
+                          className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"
+                          role="status"
+                        >
+                          <p className="text-sm font-semibold">Разбор ответа</p>
+                          <p className="mt-2 whitespace-pre-wrap text-sm">
+                            {question.incorrectFeedback}
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
                   ))
                 )}

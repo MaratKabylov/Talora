@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { scoreCompletedApplication } from "@/lib/scoring/service";
 import type { QuestionType } from "@/lib/tests/builder-constants";
+import type { QuestionSettings } from "@/lib/tests/remediation";
 
 type InvitationStatus =
   | "created"
@@ -91,7 +92,7 @@ type QuestionRecord = {
   id: string;
   order_index: number;
   question_type: QuestionType;
-  settings_json: { max?: number; min?: number; required?: boolean } | null;
+  settings_json: QuestionSettings | null;
   text: string;
 };
 
@@ -106,6 +107,7 @@ type SectionRecord = {
 type AnswerRecord = {
   answer_json: Record<string, unknown> | null;
   answer_text: string | null;
+  is_correct: boolean | null;
   question_id: string;
   selected_option_id: string | null;
 };
@@ -169,9 +171,12 @@ export type FlowOption = {
 export type FlowQuestion = {
   description: string | null;
   id: string;
+  incorrectFeedback: string | null;
   isRequired: boolean;
   options: FlowOption[];
   questionType: QuestionType;
+  remediationParentId: string | null;
+  remediationQuestionId: string | null;
   scaleMax: number;
   scaleMin: number;
   sectionTitle: string;
@@ -189,6 +194,7 @@ export type AssessmentQuestionPageData = {
   answers: Record<string, {
     answerJson: Record<string, unknown>;
     answerText: string | null;
+    isCorrect: boolean | null;
     selectedOptionId: string | null;
   }>;
   assessment: ActiveAssessment;
@@ -420,7 +426,7 @@ export async function getAssessmentQuestionPageData(
         .eq("test_version_id", session.test.versionId),
       admin
         .from("candidate_answers")
-        .select("question_id, selected_option_id, answer_text, answer_json")
+        .select("question_id, selected_option_id, answer_text, answer_json, is_correct")
         .eq("session_id", session.id),
     ]);
 
@@ -428,8 +434,22 @@ export async function getAssessmentQuestionPageData(
     throw new Error("Unable to load candidate assessment questions.");
   }
 
-  const sections = ((sectionsData ?? []) as unknown as SectionRecord[])
-    .sort((left, right) => left.order_index - right.order_index)
+  const sectionRecords = ((sectionsData ?? []) as unknown as SectionRecord[]).sort(
+    (left, right) => left.order_index - right.order_index,
+  );
+  const answerRecords = (answersData ?? []) as AnswerRecord[];
+  const answerByQuestion = new Map(
+    answerRecords.map((answer) => [answer.question_id, answer]),
+  );
+  const remediationParentByTarget = new Map<string, string>();
+  for (const question of sectionRecords.flatMap((section) => section.questions ?? [])) {
+    const remediationQuestionId = question.settings_json?.remediationQuestionId;
+    if (typeof remediationQuestionId === "string") {
+      remediationParentByTarget.set(remediationQuestionId, question.id);
+    }
+  }
+
+  const sections = sectionRecords
     .map((section) => ({
       description: sanitizeRichTextValue(section.description),
       id: section.id,
@@ -437,16 +457,27 @@ export async function getAssessmentQuestionPageData(
         .sort((left, right) => left.order_index - right.order_index)
         .map((question) => {
           const settings = question.settings_json ?? {};
+          const answer = answerByQuestion.get(question.id);
+          const remediationQuestionId =
+            typeof settings.remediationQuestionId === "string"
+              ? settings.remediationQuestionId
+              : null;
 
           return {
             description: sanitizeRichTextValue(question.description),
             id: question.id,
+            incorrectFeedback:
+              answer?.is_correct === false && typeof settings.incorrectFeedback === "string"
+                ? settings.incorrectFeedback
+                : null,
             isRequired: settings.required ?? true,
             options: (question.answer_options ?? [])
               .slice()
               .sort((left, right) => left.order_index - right.order_index)
               .map((option) => ({ id: option.id, text: option.text })),
             questionType: question.question_type,
+            remediationParentId: remediationParentByTarget.get(question.id) ?? null,
+            remediationQuestionId,
             scaleMax: typeof settings.max === "number" ? settings.max : 5,
             scaleMin: typeof settings.min === "number" ? settings.min : 1,
             sectionTitle: section.title,
@@ -457,14 +488,14 @@ export async function getAssessmentQuestionPageData(
     }));
   const questions = sections.flatMap((section) => section.questions);
 
-  const answers = (answersData ?? []) as AnswerRecord[];
   return {
     answers: Object.fromEntries(
-      answers.map((answer) => [
+      answerRecords.map((answer) => [
         answer.question_id,
         {
           answerJson: answer.answer_json ?? {},
           answerText: answer.answer_text,
+          isCorrect: answer.is_correct,
           selectedOptionId: answer.selected_option_id,
         },
       ]),

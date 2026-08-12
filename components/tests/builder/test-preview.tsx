@@ -82,7 +82,16 @@ export function TestPreview({
           В этой версии пока нет секций и вопросов.
         </p>
       ) : (
-        visibleSections.map((section) => (
+        visibleSections.map((section) => {
+          const remediationParentByTarget = new Map(
+            section.questions.flatMap((question) =>
+              question.remediationQuestionId
+                ? [[question.remediationQuestionId, question.id] as const]
+                : [],
+            ),
+          );
+
+          return (
           <section className="space-y-4 rounded-lg border bg-background p-5" key={section.id}>
             <div>
               {isPaged ? (
@@ -101,6 +110,11 @@ export function TestPreview({
               section.questions.map((question, index) => (
                 <div className="space-y-3 border-t pt-4 first:border-0 first:pt-0" key={question.id}>
                   <div>
+                    {remediationParentByTarget.has(question.id) ? (
+                      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-primary">
+                        Повторный вопрос после ошибки
+                      </p>
+                    ) : null}
                     <p className="whitespace-pre-wrap text-sm font-medium">
                       {index + 1}. {question.text}
                       {question.isRequired ? <span className="ml-1 text-destructive">*</span> : null}
@@ -110,6 +124,12 @@ export function TestPreview({
                     <RichTextContent className="text-sm text-muted-foreground" value={question.description} />
                   ) : null}
                   <QuestionInputPreview question={question} />
+                  {question.remediationQuestionId && question.incorrectFeedback ? (
+                    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                      <p className="font-medium">Если допущена ошибка:</p>
+                      <p className="mt-1 whitespace-pre-wrap">{question.incorrectFeedback}</p>
+                    </div>
+                  ) : null}
                 </div>
               ))
             )}
@@ -135,7 +155,8 @@ export function TestPreview({
               </div>
             ) : null}
           </section>
-        ))
+          );
+        })
       )}
     </div>
   );

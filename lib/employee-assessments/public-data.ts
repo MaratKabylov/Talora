@@ -2,6 +2,7 @@ import { scoreCompletedEmployeeAssessmentParticipant } from "@/lib/scoring/servi
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { QuestionType } from "@/lib/tests/builder-constants";
+import type { QuestionSettings } from "@/lib/tests/remediation";
 import type { InvitationStatus } from "@/lib/candidates/constants";
 
 type Relation<T> = T | T[] | null;
@@ -74,7 +75,7 @@ type QuestionRecord = {
   id: string;
   order_index: number;
   question_type: QuestionType;
-  settings_json: { max?: number; min?: number; required?: boolean } | null;
+  settings_json: QuestionSettings | null;
   text: string;
 };
 
@@ -89,6 +90,7 @@ type SectionRecord = {
 type AnswerRecord = {
   answer_json: Record<string, unknown> | null;
   answer_text: string | null;
+  is_correct: boolean | null;
   question_id: string;
   selected_option_id: string | null;
 };
@@ -151,9 +153,12 @@ export type EmployeeFlowOption = {
 export type EmployeeFlowQuestion = {
   description: string | null;
   id: string;
+  incorrectFeedback: string | null;
   isRequired: boolean;
   options: EmployeeFlowOption[];
   questionType: QuestionType;
+  remediationParentId: string | null;
+  remediationQuestionId: string | null;
   scaleMax: number;
   scaleMin: number;
   sectionTitle: string;
@@ -173,6 +178,7 @@ export type EmployeeAssessmentQuestionPageData = {
     {
       answerJson: Record<string, unknown>;
       answerText: string | null;
+      isCorrect: boolean | null;
       selectedOptionId: string | null;
     }
   >;
@@ -412,7 +418,7 @@ export async function getEmployeeAssessmentQuestionPageData(
         .eq("test_version_id", session.test.versionId),
       admin
         .from("employee_assessment_answers")
-        .select("question_id, selected_option_id, answer_text, answer_json")
+        .select("question_id, selected_option_id, answer_text, answer_json, is_correct")
         .eq("session_id", session.id),
     ]);
 
@@ -420,8 +426,22 @@ export async function getEmployeeAssessmentQuestionPageData(
     throw new Error("Unable to load employee assessment questions.");
   }
 
-  const sections = ((sectionsData ?? []) as unknown as SectionRecord[])
-    .sort((left, right) => left.order_index - right.order_index)
+  const sectionRecords = ((sectionsData ?? []) as unknown as SectionRecord[]).sort(
+    (left, right) => left.order_index - right.order_index,
+  );
+  const answerRecords = (answersData ?? []) as AnswerRecord[];
+  const answerByQuestion = new Map(
+    answerRecords.map((answer) => [answer.question_id, answer]),
+  );
+  const remediationParentByTarget = new Map<string, string>();
+  for (const question of sectionRecords.flatMap((section) => section.questions ?? [])) {
+    const remediationQuestionId = question.settings_json?.remediationQuestionId;
+    if (typeof remediationQuestionId === "string") {
+      remediationParentByTarget.set(remediationQuestionId, question.id);
+    }
+  }
+
+  const sections = sectionRecords
     .map((section) => ({
       description: sanitizeRichTextValue(section.description),
       id: section.id,
@@ -429,16 +449,27 @@ export async function getEmployeeAssessmentQuestionPageData(
         .sort((left, right) => left.order_index - right.order_index)
         .map((question) => {
           const settings = question.settings_json ?? {};
+          const answer = answerByQuestion.get(question.id);
+          const remediationQuestionId =
+            typeof settings.remediationQuestionId === "string"
+              ? settings.remediationQuestionId
+              : null;
 
           return {
             description: sanitizeRichTextValue(question.description),
             id: question.id,
+            incorrectFeedback:
+              answer?.is_correct === false && typeof settings.incorrectFeedback === "string"
+                ? settings.incorrectFeedback
+                : null,
             isRequired: settings.required ?? true,
             options: (question.answer_options ?? [])
               .slice()
               .sort((left, right) => left.order_index - right.order_index)
               .map((option) => ({ id: option.id, text: option.text })),
             questionType: question.question_type,
+            remediationParentId: remediationParentByTarget.get(question.id) ?? null,
+            remediationQuestionId,
             scaleMax: typeof settings.max === "number" ? settings.max : 5,
             scaleMin: typeof settings.min === "number" ? settings.min : 1,
             sectionTitle: section.title,
@@ -449,14 +480,14 @@ export async function getEmployeeAssessmentQuestionPageData(
     }));
   const questions = sections.flatMap((section) => section.questions);
 
-  const answers = (answersData ?? []) as AnswerRecord[];
   return {
     answers: Object.fromEntries(
-      answers.map((answer) => [
+      answerRecords.map((answer) => [
         answer.question_id,
         {
           answerJson: answer.answer_json ?? {},
           answerText: answer.answer_text,
+          isCorrect: answer.is_correct,
           selectedOptionId: answer.selected_option_id,
         },
       ]),

@@ -66,6 +66,7 @@ function question(questionType: QuestionType = "single_choice", text = "Новы
     description: null,
     difficulty: null,
     id: uuid(),
+    incorrectFeedback: null,
     isRequired: true,
     options:
       questionType === "single_choice" || questionType === "multiple_choice"
@@ -74,6 +75,7 @@ function question(questionType: QuestionType = "single_choice", text = "Новы
     orderIndex: 1,
     points: 1,
     questionType,
+    remediationQuestionId: null,
     scaleMax: 5,
     scaleMin: 1,
     text,
@@ -95,16 +97,30 @@ function copyQuestion(source: BuilderQuestion): BuilderQuestion {
   return {
     ...source,
     id: uuid(),
+    incorrectFeedback: null,
     isRequired: source.isRequired ?? true,
     options: source.options.map((entry) => ({ ...entry, id: uuid(), isCorrect: Boolean(entry.isCorrect) })),
+    remediationQuestionId: null,
   };
 }
 
 function copySection(source: BuilderSection): BuilderSection {
+  const questionIds = new Map(source.questions.map((entry) => [entry.id, uuid()]));
   return {
     ...source,
     id: uuid(),
-    questions: source.questions.map(copyQuestion),
+    questions: source.questions.map((entry) => ({
+      ...entry,
+      id: questionIds.get(entry.id)!,
+      options: entry.options.map((optionEntry) => ({
+        ...optionEntry,
+        id: uuid(),
+        isCorrect: Boolean(optionEntry.isCorrect),
+      })),
+      remediationQuestionId: entry.remediationQuestionId
+        ? questionIds.get(entry.remediationQuestionId) ?? null
+        : null,
+    })),
   };
 }
 
@@ -113,11 +129,13 @@ function editableSections(sections: BuilderSection[]) {
     ...entry,
     questions: entry.questions.map((currentQuestion) => ({
       ...currentQuestion,
+      incorrectFeedback: currentQuestion.incorrectFeedback ?? null,
       isRequired: currentQuestion.isRequired ?? true,
       options: currentQuestion.options.map((currentOption) => ({
         ...currentOption,
         isCorrect: Boolean(currentOption.isCorrect),
       })),
+      remediationQuestionId: currentQuestion.remediationQuestionId ?? null,
     })),
   }));
 }
@@ -191,6 +209,7 @@ export function TestBuilderEditor({
           description: nullableText(currentQuestion.description ?? ""),
           difficulty: currentQuestion.difficulty,
           id: currentQuestion.id,
+          incorrectFeedback: nullableText(currentQuestion.incorrectFeedback ?? ""),
           isRequired: currentQuestion.isRequired,
           options: currentQuestion.options.map((currentOption) => ({
             competencyEffects: currentOption.competencyEffects,
@@ -202,6 +221,7 @@ export function TestBuilderEditor({
           })),
           points: Number(currentQuestion.points) || 0,
           questionType: currentQuestion.questionType,
+          remediationQuestionId: currentQuestion.remediationQuestionId,
           scaleMax: Number(currentQuestion.scaleMax) || 5,
           scaleMin: Number(currentQuestion.scaleMin) || 1,
           text: currentQuestion.text,
@@ -527,9 +547,17 @@ export function TestBuilderEditor({
                               entry.id === currentSection.id
                                 ? {
                                     ...entry,
-                                    questions: entry.questions.filter(
-                                      (entryQuestion) => entryQuestion.id !== currentQuestion.id,
-                                    ),
+                                    questions: entry.questions
+                                      .filter((entryQuestion) => entryQuestion.id !== currentQuestion.id)
+                                      .map((entryQuestion) =>
+                                        entryQuestion.remediationQuestionId === currentQuestion.id
+                                          ? {
+                                              ...entryQuestion,
+                                              incorrectFeedback: null,
+                                              remediationQuestionId: null,
+                                            }
+                                          : entryQuestion,
+                                      ),
                                   }
                                 : entry,
                             ),
@@ -561,6 +589,9 @@ export function TestBuilderEditor({
                         patchQuestion(currentSection.id, currentQuestion.id, {
                           options: needsOptions ? [option("Вариант 1"), option("Вариант 2")] : currentQuestion.options,
                           questionType,
+                          ...(questionType === "single_choice"
+                            ? {}
+                            : { incorrectFeedback: null, remediationQuestionId: null }),
                         });
                       }}
                       value={currentQuestion.questionType}
@@ -581,6 +612,44 @@ export function TestBuilderEditor({
                     placeholder="Пояснение к вопросу (необязательно)"
                     value={currentQuestion.description ?? ""}
                   />
+
+                  {currentQuestion.questionType === "single_choice" ? (
+                    <div className="mt-4 space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+                      <div>
+                        <p className="text-sm font-medium">Если допущена ошибка</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Покажем объяснение и откроем выбранный повторный вопрос. Он должен находиться ниже в этой секции.
+                        </p>
+                      </div>
+                      <Select
+                        aria-label="Повторный вопрос после ошибки"
+                        onChange={(event) =>
+                          patchQuestion(currentSection.id, currentQuestion.id, {
+                            ...(event.target.value ? {} : { incorrectFeedback: null }),
+                            remediationQuestionId: event.target.value || null,
+                          })
+                        }
+                        value={currentQuestion.remediationQuestionId ?? ""}
+                      >
+                        <option value="">Не использовать ветку</option>
+                        {currentSection.questions.slice(questionIndex + 1).map((candidate, offset) => (
+                          <option key={candidate.id} value={candidate.id}>
+                            Вопрос {questionIndex + offset + 2}: {candidate.text.slice(0, 90)}
+                          </option>
+                        ))}
+                      </Select>
+                      <Textarea
+                        disabled={!currentQuestion.remediationQuestionId}
+                        onChange={(event) =>
+                          patchQuestion(currentSection.id, currentQuestion.id, {
+                            incorrectFeedback: event.target.value,
+                          })
+                        }
+                        placeholder="Например: Слово собирается из трёх признаков…"
+                        value={currentQuestion.incorrectFeedback ?? ""}
+                      />
+                    </div>
+                  ) : null}
 
                   {currentQuestion.questionType === "scale" ? (
                     <div className="mt-4 grid max-w-sm grid-cols-2 gap-3">

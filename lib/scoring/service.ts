@@ -3,6 +3,7 @@ import "server-only";
 import { COMPETENCIES, type CompetencyKey } from "@/lib/jobs/constants";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { QuestionType } from "@/lib/tests/builder-constants";
+import type { QuestionSettings } from "@/lib/tests/remediation";
 
 type ScoringType = "points" | "competency_profile" | "manual" | "mixed";
 
@@ -73,7 +74,7 @@ type QuestionRecord = {
   id: string;
   points: number;
   question_type: QuestionType;
-  settings_json: { max?: number; min?: number } | null;
+  settings_json: QuestionSettings | null;
 };
 
 type SectionRecord = {
@@ -213,6 +214,14 @@ function scoreSession(
   }
 
   const answersByQuestion = new Map(answers.map((answer) => [answer.question_id, answer]));
+  const questionsById = new Map(questions.map((question) => [question.id, question]));
+  const remediationParentByTarget = new Map<string, string>();
+  for (const question of questions) {
+    const remediationQuestionId = question.settings_json?.remediationQuestionId;
+    if (typeof remediationQuestionId === "string") {
+      remediationParentByTarget.set(remediationQuestionId, question.id);
+    }
+  }
   const competencies = new Map<CompetencyKey, CompetencyTotal>();
   const answerScores = new Map<string, { isCorrect: boolean | null; pointsAwarded: number | null }>();
   let rawScore = 0;
@@ -220,6 +229,25 @@ function scoreSession(
   let requiresReview = version.scoring_type === "manual";
 
   for (const question of questions) {
+    const remediationParentId = remediationParentByTarget.get(question.id);
+    if (remediationParentId) {
+      const parent = questionsById.get(remediationParentId);
+      const parentAnswer = answersByQuestion.get(remediationParentId);
+      const selectedParentOption = (parent?.answer_options ?? []).find(
+        (option) => option.id === parentAnswer?.selected_option_id,
+      );
+      if (selectedParentOption?.is_correct !== false) {
+        const inactiveAnswer = answersByQuestion.get(question.id);
+        if (inactiveAnswer) {
+          answerScores.set(inactiveAnswer.id, {
+            isCorrect: null,
+            pointsAwarded: null,
+          });
+        }
+        continue;
+      }
+    }
+
     const answer = answersByQuestion.get(question.id);
     const options = question.answer_options ?? [];
 

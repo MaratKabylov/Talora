@@ -15,6 +15,7 @@ import type {
 } from "@/lib/tests/builder-constants";
 import type { ScoringType, TestTemplateStatus, TestVersionStatus } from "@/lib/tests/constants";
 import type { TestTemplate, TestVersion } from "@/lib/tests/data";
+import type { QuestionSettings } from "@/lib/tests/remediation";
 
 import { requirePlatformContext } from "./context";
 
@@ -62,7 +63,7 @@ type QuestionRecord = {
   order_index: number;
   points: number;
   question_type: QuestionType;
-  settings_json: { max?: number; min?: number; required?: boolean } | null;
+  settings_json: QuestionSettings | null;
   text: string;
 };
 
@@ -129,6 +130,8 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
     description: sanitizeRichTextValue(question.description),
     difficulty: question.difficulty,
     id: question.id,
+    incorrectFeedback:
+      typeof settings.incorrectFeedback === "string" ? settings.incorrectFeedback : null,
     isRequired: settings.required ?? true,
     options: (question.answer_options ?? [])
       .map(normalizeOption)
@@ -136,6 +139,10 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
     orderIndex: question.order_index,
     points: Number(question.points),
     questionType: question.question_type,
+    remediationQuestionId:
+      typeof settings.remediationQuestionId === "string"
+        ? settings.remediationQuestionId
+        : null,
     scaleMax: typeof settings.max === "number" ? settings.max : 5,
     scaleMin: typeof settings.min === "number" ? settings.min : 1,
     text: question.text,

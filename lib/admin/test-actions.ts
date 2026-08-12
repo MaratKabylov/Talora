@@ -14,6 +14,7 @@ import {
 } from "@/lib/tests/builder-constants";
 import type { BuilderSaveResult } from "@/lib/tests/builder-actions";
 import { SCORING_TYPE_VALUES, TEST_TEMPLATE_STATUS_VALUES } from "@/lib/tests/constants";
+import { validateRemediationLinks } from "@/lib/tests/remediation";
 import { formatTestVersionTitle } from "@/lib/tests/version-title";
 
 import { canManageSystemTests } from "./constants";
@@ -75,10 +76,12 @@ const documentQuestionSchema = z
     description: z.string().max(20000).nullable(),
     difficulty: z.enum(DIFFICULTY_VALUES).nullable(),
     id: z.string().uuid(),
+    incorrectFeedback: z.string().trim().max(4000).nullable(),
     isRequired: z.boolean(),
     options: z.array(documentOptionSchema).max(100),
     points: z.number().min(0).max(10000),
     questionType: z.enum(QUESTION_TYPE_VALUES),
+    remediationQuestionId: z.string().uuid().nullable(),
     scaleMax: z.number().int().min(2).max(100),
     scaleMin: z.number().int().min(1).max(99),
     text: z.string().trim().min(2).max(4000),
@@ -750,6 +753,10 @@ export async function saveSystemTestBuilderDocumentAction(input: unknown): Promi
       instructions: sanitizeRichTextValue(parsed.data.version.instructions),
     },
   };
+  const remediationError = validateRemediationLinks(document.sections);
+  if (remediationError) {
+    return { error: remediationError, ok: false };
+  }
   const actionContext = await getSystemDocumentContext(document.templateId, document.versionId);
   if (!actionContext) {
     return { error: "Редактировать можно только активную черновую системную версию.", ok: false };
@@ -890,6 +897,12 @@ export async function saveSystemTestBuilderDocumentAction(input: unknown): Promi
       settings_json: {
         ...(question.questionType === "scale"
           ? { max: question.scaleMax, min: question.scaleMin }
+          : {}),
+        ...(question.remediationQuestionId
+          ? {
+              incorrectFeedback: question.incorrectFeedback?.trim(),
+              remediationQuestionId: question.remediationQuestionId,
+            }
           : {}),
         required: question.isRequired,
       },
