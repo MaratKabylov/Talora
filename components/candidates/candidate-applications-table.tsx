@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { EmptyState } from "@/components/empty-state";
-import { cancelInvitationAction } from "@/lib/candidates/actions";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
+import { cancelInvitationAction, resendInvitationAction } from "@/lib/candidates/actions";
 import {
   APPLICATION_STATUS_LABELS,
   INVITATION_STATUS_LABELS,
@@ -36,6 +37,19 @@ function canCancelInvitation(application: CandidateApplication) {
     (application.latestInvitation?.status === "created" ||
       application.latestInvitation?.status === "sent" ||
       application.latestInvitation?.status === "opened")
+  );
+}
+
+function canResendInvitation(application: CandidateApplication) {
+  const invitation = application.latestInvitation;
+
+  return Boolean(
+    invitation &&
+      application.job &&
+      application.candidate.email &&
+      application.status === "invited" &&
+      invitation.status !== "started" &&
+      invitation.status !== "completed",
   );
 }
 
@@ -163,9 +177,25 @@ export function CandidateApplicationsTable({
                       </Link>
                     ) : null}
                     {mayManage ? (
-                      invitation && canCancelInvitation(application) ? (
-                        <>
+                      <>
+                        {invitation && canCancelInvitation(application) ? (
                           <CopyInvitationLinkButton token={invitation.token} />
+                        ) : null}
+                        {canResendInvitation(application) ? (
+                          <form action={resendInvitationAction}>
+                            <input name="applicationId" type="hidden" value={application.id} />
+                            <input name="returnTo" type="hidden" value={returnTo} />
+                            <PendingSubmitButton
+                              pendingText="Создаем..."
+                              size="sm"
+                              type="submit"
+                              variant="outline"
+                            >
+                              Отправить повторно
+                            </PendingSubmitButton>
+                          </form>
+                        ) : null}
+                        {invitation && canCancelInvitation(application) ? (
                           <form action={cancelInvitationAction}>
                             <input name="invitationId" type="hidden" value={invitation.id} />
                             <input name="returnTo" type="hidden" value={returnTo} />
@@ -173,15 +203,19 @@ export function CandidateApplicationsTable({
                               Отменить
                             </Button>
                           </form>
-                        </>
-                      ) : application.job && !hasReport(application) ? (
-                        <Link
-                          className={buttonVariants({ size: "sm", variant: "outline" })}
-                          href={`/dashboard/jobs/${application.job.id}/candidates`}
-                        >
-                          Открыть вакансию
-                        </Link>
-                      ) : null
+                        ) : null}
+                        {!canResendInvitation(application) &&
+                        !canCancelInvitation(application) &&
+                        application.job &&
+                        !hasReport(application) ? (
+                          <Link
+                            className={buttonVariants({ size: "sm", variant: "outline" })}
+                            href={`/dashboard/jobs/${application.job.id}/candidates`}
+                          >
+                            Открыть вакансию
+                          </Link>
+                        ) : null}
+                      </>
                     ) : null}
                   </div>
                 </td>

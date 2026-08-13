@@ -34,6 +34,27 @@ const invitationSchema = z.object({
   source: optionalText(120),
 });
 
+type CandidateInvitationTarget = {
+  candidates:
+    | {
+        city: string | null;
+        email: string | null;
+        full_name: string | null;
+        phone: string | null;
+        source: string | null;
+      }
+    | {
+        city: string | null;
+        email: string | null;
+        full_name: string | null;
+        phone: string | null;
+        source: string | null;
+      }[]
+    | null;
+  job_id: string;
+  status: string;
+};
+
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
@@ -134,6 +155,69 @@ export async function inviteCandidateAction(formData: FormData) {
   revalidatePath(path);
   revalidatePath("/dashboard/candidates");
   redirectWithFeedback(path, "message", "Кандидат добавлен, ссылка-приглашение создана.");
+}
+
+export async function resendInvitationAction(formData: FormData) {
+  const applicationId = z.string().uuid().safeParse(formString(formData, "applicationId"));
+  const path = getReturnPath(formData);
+
+  if (!applicationId.success) {
+    redirect(path);
+  }
+
+  const context = await requireCompanyContext();
+  if (!canManageCandidates(context.activeCompany.role)) {
+    redirectWithFeedback(path, "error", "У вашей роли нет права повторно приглашать кандидатов.");
+  }
+
+  const supabase = await createClient();
+  const { data, error: applicationError } = await supabase
+    .from("candidate_applications")
+    .select("job_id, status, candidates(full_name, email, phone, city, source)")
+    .eq("company_id", context.activeCompany.id)
+    .eq("id", applicationId.data)
+    .maybeSingle();
+  const application = data as CandidateInvitationTarget | null;
+  const candidate = Array.isArray(application?.candidates)
+    ? application.candidates[0]
+    : application?.candidates;
+
+  if (applicationError || !application || !candidate) {
+    redirectWithFeedback(path, "error", "Отклик кандидата не найден или недоступен.");
+  }
+
+  if (application.status !== "invited") {
+    redirectWithFeedback(path, "error", "Повторное приглашение доступно только до начала оценки.");
+  }
+
+  if (!candidate.email || !candidate.full_name) {
+    redirectWithFeedback(path, "error", "Для повторного приглашения у кандидата должны быть имя и email.");
+  }
+
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { error } = await supabase.rpc("invite_candidate_to_job", {
+    candidate_city: candidate.city,
+    candidate_email: candidate.email,
+    candidate_full_name: candidate.full_name,
+    candidate_phone: candidate.phone,
+    candidate_source: candidate.source,
+    invitation_expires_at: expiresAt,
+    target_company_id: context.activeCompany.id,
+    target_job_id: application.job_id,
+  });
+
+  if (error) {
+    redirectWithFeedback(path, "error", getInvitationErrorMessage(error.message));
+  }
+
+  revalidatePath(path);
+  revalidatePath(`/dashboard/jobs/${application.job_id}/candidates`);
+  revalidatePath("/dashboard/candidates");
+  redirectWithFeedback(
+    path,
+    "message",
+    "Новое приглашение создано на 7 дней. Предыдущая ссылка больше не действует.",
+  );
 }
 
 export async function cancelInvitationAction(formData: FormData) {
