@@ -2,6 +2,7 @@ import { scoreCompletedEmployeeAssessmentParticipant } from "@/lib/scoring/servi
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { QuestionType } from "@/lib/tests/builder-constants";
+import { getTestContentBlocks, type TestContentBlock } from "@/lib/tests/content-blocks";
 import type { QuestionSettings } from "@/lib/tests/remediation";
 import type { InvitationStatus } from "@/lib/candidates/constants";
 
@@ -84,6 +85,7 @@ type SectionRecord = {
   id: string;
   order_index: number;
   questions?: QuestionRecord[] | null;
+  settings_json: unknown;
   title: string;
 };
 
@@ -156,6 +158,7 @@ export type EmployeeFlowQuestion = {
   incorrectFeedback: string | null;
   isRequired: boolean;
   options: EmployeeFlowOption[];
+  orderIndex: number;
   questionType: QuestionType;
   remediationParentId: string | null;
   remediationQuestionId: string | null;
@@ -166,6 +169,7 @@ export type EmployeeFlowQuestion = {
 };
 
 export type EmployeeFlowSection = {
+  contentBlocks: TestContentBlock[];
   description: string | null;
   id: string;
   questions: EmployeeFlowQuestion[];
@@ -413,7 +417,7 @@ export async function getEmployeeAssessmentQuestionPageData(
       admin
         .from("test_sections")
         .select(
-          "id, title, description, order_index, questions(id, question_type, text, description, order_index, settings_json, answer_options(id, text, order_index))",
+          "id, title, description, order_index, settings_json, questions(id, question_type, text, description, order_index, settings_json, answer_options(id, text, order_index))",
         )
         .eq("test_version_id", session.test.versionId),
       admin
@@ -443,6 +447,10 @@ export async function getEmployeeAssessmentQuestionPageData(
 
   const sections = sectionRecords
     .map((section) => ({
+      contentBlocks: getTestContentBlocks(section.settings_json).map((block) => ({
+        ...block,
+        description: sanitizeRichTextValue(block.description),
+      })),
       description: sanitizeRichTextValue(section.description),
       id: section.id,
       questions: (section.questions ?? [])
@@ -467,6 +475,7 @@ export async function getEmployeeAssessmentQuestionPageData(
               .slice()
               .sort((left, right) => left.order_index - right.order_index)
               .map((option) => ({ id: option.id, text: option.text })),
+            orderIndex: question.order_index,
             questionType: question.question_type,
             remediationParentId: remediationParentByTarget.get(question.id) ?? null,
             remediationQuestionId,

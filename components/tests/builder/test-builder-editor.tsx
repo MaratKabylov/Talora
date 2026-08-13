@@ -1,7 +1,7 @@
 "use client";
 
-import { Copy, Eye, FileInput, GripVertical, Plus, Save, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Copy, Eye, FileInput, GripVertical, Plus, Save, Trash2, Type } from "lucide-react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ import {
   type QuestionType,
 } from "@/lib/tests/builder-constants";
 import type {
+  BuilderContentBlock,
   BuilderImportSource,
   BuilderQuestion,
   BuilderSection,
@@ -82,8 +83,19 @@ function question(questionType: QuestionType = "single_choice", text = "Новы
   };
 }
 
+function contentBlock(positionIndex: number): BuilderContentBlock {
+  return {
+    description: null,
+    id: uuid(),
+    orderIndex: 1,
+    positionIndex,
+    title: "Без названия",
+  };
+}
+
 function section(title = "Новая секция"): BuilderSection {
   return {
+    contentBlocks: [],
     description: null,
     id: uuid(),
     orderIndex: 1,
@@ -108,6 +120,7 @@ function copySection(source: BuilderSection): BuilderSection {
   const questionIds = new Map(source.questions.map((entry) => [entry.id, uuid()]));
   return {
     ...source,
+    contentBlocks: source.contentBlocks.map((block) => ({ ...block, id: uuid() })),
     id: uuid(),
     questions: source.questions.map((entry) => ({
       ...entry,
@@ -127,6 +140,10 @@ function copySection(source: BuilderSection): BuilderSection {
 function editableSections(sections: BuilderSection[]) {
   return sections.map((entry) => ({
     ...entry,
+    contentBlocks: (entry.contentBlocks ?? []).map((block) => ({
+      ...block,
+      positionIndex: Math.min(Math.max(block.positionIndex, 0), entry.questions.length),
+    })),
     questions: entry.questions.map((currentQuestion) => ({
       ...currentQuestion,
       incorrectFeedback: currentQuestion.incorrectFeedback ?? null,
@@ -202,6 +219,15 @@ export function TestBuilderEditor({
     setStatus("saving");
     const input: BuilderDocumentInput = {
       sections: sections.map((currentSection) => ({
+        contentBlocks: currentSection.contentBlocks.map((block, orderIndex) => ({
+          ...block,
+          description: nullableText(block.description ?? ""),
+          orderIndex: orderIndex + 1,
+          positionIndex: Math.min(
+            Math.max(block.positionIndex, 0),
+            currentSection.questions.length,
+          ),
+        })),
         description: nullableText(currentSection.description ?? ""),
         id: currentSection.id,
         questions: currentSection.questions.map((currentQuestion) => ({
@@ -287,6 +313,25 @@ export function TestBuilderEditor({
     );
   }
 
+  function patchContentBlock(
+    sectionId: string,
+    blockId: string,
+    patch: Partial<BuilderContentBlock>,
+  ) {
+    updateSections((current) =>
+      current.map((entry) =>
+        entry.id === sectionId
+          ? {
+              ...entry,
+              contentBlocks: entry.contentBlocks.map((block) =>
+                block.id === blockId ? { ...block, ...patch } : block,
+              ),
+            }
+          : entry,
+      ),
+    );
+  }
+
   function addQuestionAfter(sectionId: string, questionId: string) {
     const newQuestion = question("single_choice", "Повторный вопрос");
 
@@ -301,6 +346,13 @@ export function TestBuilderEditor({
 
         return {
           ...entry,
+          contentBlocks: entry.contentBlocks.map((block) => ({
+            ...block,
+            positionIndex:
+              block.positionIndex >= questionIndex + 1
+                ? block.positionIndex + 1
+                : block.positionIndex,
+          })),
           questions: [
             ...entry.questions.slice(0, questionIndex + 1),
             newQuestion,
@@ -362,6 +414,115 @@ export function TestBuilderEditor({
 
     previewWindow.opener = null;
     previewWindow.location.href = previewPath;
+  }
+
+  function renderContentBlocks(currentSection: BuilderSection, positionIndex: number) {
+    return currentSection.contentBlocks
+      .filter(
+        (block) =>
+          Math.min(Math.max(block.positionIndex, 0), currentSection.questions.length) ===
+          positionIndex,
+      )
+      .map((block) => {
+        const blockIndex = currentSection.contentBlocks.findIndex((entry) => entry.id === block.id);
+
+        return (
+          <article
+            className="rounded-lg border border-l-4 border-l-primary bg-background p-4 transition-shadow hover:shadow-sm"
+            key={block.id}
+          >
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <Type className="size-4" />
+                Название и описание
+              </div>
+              <div className="flex gap-1">
+                <Button
+                  aria-label="Переместить блок выше"
+                  disabled={positionIndex === 0}
+                  onClick={() =>
+                    patchContentBlock(currentSection.id, block.id, {
+                      positionIndex: Math.max(0, positionIndex - 1),
+                    })
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <ArrowUp />
+                </Button>
+                <Button
+                  aria-label="Переместить блок ниже"
+                  disabled={positionIndex === currentSection.questions.length}
+                  onClick={() =>
+                    patchContentBlock(currentSection.id, block.id, {
+                      positionIndex: Math.min(
+                        currentSection.questions.length,
+                        positionIndex + 1,
+                      ),
+                    })
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <ArrowDown />
+                </Button>
+                <Button
+                  aria-label="Дублировать блок"
+                  onClick={() =>
+                    patchSection(currentSection.id, {
+                      contentBlocks: [
+                        ...currentSection.contentBlocks.slice(0, blockIndex + 1),
+                        { ...block, id: uuid() },
+                        ...currentSection.contentBlocks.slice(blockIndex + 1),
+                      ],
+                    })
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <Copy />
+                </Button>
+                <Button
+                  aria-label="Удалить блок"
+                  onClick={() =>
+                    patchSection(currentSection.id, {
+                      contentBlocks: currentSection.contentBlocks.filter(
+                        (entry) => entry.id !== block.id,
+                      ),
+                    })
+                  }
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+            </div>
+            <Input
+              aria-label="Название блока"
+              className="h-auto border-0 bg-muted/40 px-3 py-2 text-lg font-semibold shadow-none focus-visible:ring-1"
+              onChange={(event) =>
+                patchContentBlock(currentSection.id, block.id, { title: event.target.value })
+              }
+              placeholder="Без названия"
+              value={block.title}
+            />
+            <RichTextEditor
+              className="mt-3"
+              id={`builder-content-block-${block.id}-description`}
+              onChange={(value) =>
+                patchContentBlock(currentSection.id, block.id, { description: value })
+              }
+              placeholder="Описание (необязательно)"
+              value={block.description ?? ""}
+            />
+          </article>
+        );
+      });
   }
 
   return (
@@ -507,10 +668,11 @@ export function TestBuilderEditor({
                 </div>
               </div>
 
+              {renderContentBlocks(currentSection, 0)}
               {currentSection.questions.map((currentQuestion, questionIndex) => (
+                <Fragment key={currentQuestion.id}>
                 <article
                   className="rounded-lg border bg-background p-4 transition-shadow hover:shadow-sm"
-                  key={currentQuestion.id}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={() => {
                     const source = dragQuestion.current;
@@ -547,6 +709,13 @@ export function TestBuilderEditor({
                               entry.id === currentSection.id
                                 ? {
                                     ...entry,
+                                    contentBlocks: entry.contentBlocks.map((block) => ({
+                                      ...block,
+                                      positionIndex:
+                                        block.positionIndex >= questionIndex + 1
+                                          ? block.positionIndex + 1
+                                          : block.positionIndex,
+                                    })),
                                     questions: [
                                       ...entry.questions.slice(0, questionIndex + 1),
                                       copyQuestion(currentQuestion),
@@ -571,6 +740,13 @@ export function TestBuilderEditor({
                               entry.id === currentSection.id
                                 ? {
                                     ...entry,
+                                    contentBlocks: entry.contentBlocks.map((block) => ({
+                                      ...block,
+                                      positionIndex:
+                                        block.positionIndex > questionIndex
+                                          ? Math.max(0, block.positionIndex - 1)
+                                          : block.positionIndex,
+                                    })),
                                     questions: entry.questions
                                       .filter((entryQuestion) => entryQuestion.id !== currentQuestion.id)
                                       .map((entryQuestion) =>
@@ -888,6 +1064,8 @@ export function TestBuilderEditor({
                     Обязательный вопрос
                   </label>
                 </article>
+                {renderContentBlocks(currentSection, questionIndex + 1)}
+                </Fragment>
               ))}
 
               <div className="flex flex-wrap gap-2 border-t pt-4">
@@ -902,6 +1080,21 @@ export function TestBuilderEditor({
                   variant="outline"
                 >
                   <Plus /> Вопрос
+                </Button>
+                <Button
+                  onClick={() =>
+                    patchSection(currentSection.id, {
+                      contentBlocks: [
+                        ...currentSection.contentBlocks,
+                        contentBlock(currentSection.questions.length),
+                      ],
+                    })
+                  }
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <Type /> Название и описание
                 </Button>
                 {QUESTION_PRESETS.map((preset) => (
                   <Button

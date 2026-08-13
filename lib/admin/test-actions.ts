@@ -13,6 +13,7 @@ import {
   type TestCompetencyKey,
 } from "@/lib/tests/builder-constants";
 import type { BuilderSaveResult } from "@/lib/tests/builder-actions";
+import { testContentBlockSchema, withTestContentBlocks } from "@/lib/tests/content-blocks";
 import { SCORING_TYPE_VALUES, TEST_TEMPLATE_STATUS_VALUES } from "@/lib/tests/constants";
 import { validateRemediationLinks } from "@/lib/tests/remediation";
 import { formatTestVersionTitle } from "@/lib/tests/version-title";
@@ -95,11 +96,19 @@ const builderDocumentSchema = z.object({
   sections: z
     .array(
       z.object({
+        contentBlocks: z.array(testContentBlockSchema).max(100),
         description: z.string().max(10000).nullable(),
         id: z.string().uuid(),
         questions: z.array(documentQuestionSchema).max(300),
         timeLimitMinutes: z.number().int().min(1).max(1440).nullable(),
         title: z.string().trim().min(2).max(180),
+      }).superRefine((section, context) => {
+        if (section.contentBlocks.some((block) => block.positionIndex > section.questions.length)) {
+          context.addIssue({
+            code: "custom",
+            message: "Положение блока названия и описания выходит за границы секции.",
+          });
+        }
       }),
     )
     .max(100),
@@ -741,6 +750,10 @@ export async function saveSystemTestBuilderDocumentAction(input: unknown): Promi
     ...parsed.data,
     sections: parsed.data.sections.map((section) => ({
       ...section,
+      contentBlocks: section.contentBlocks.map((block) => ({
+        ...block,
+        description: sanitizeRichTextValue(block.description),
+      })),
       description: sanitizeRichTextValue(section.description),
       questions: section.questions.map((question) => ({
         ...question,
@@ -765,7 +778,7 @@ export async function saveSystemTestBuilderDocumentAction(input: unknown): Promi
   const { admin, context } = actionContext;
   const { data: currentSections, error: currentError } = await admin
     .from("test_sections")
-    .select("id, questions(id, answer_options(id))")
+    .select("id, settings_json, questions(id, answer_options(id))")
     .eq("test_version_id", document.versionId);
   if (currentError) {
     return { error: "Не удалось проверить текущее содержание.", ok: false };
@@ -789,8 +802,12 @@ export async function saveSystemTestBuilderDocumentAction(input: unknown): Promi
   type StoredSection = {
     id: string;
     questions?: Array<{ answer_options?: Array<{ id: string }> | null; id: string }> | null;
+    settings_json: unknown;
   };
   const storedSections = (currentSections ?? []) as unknown as StoredSection[];
+  const storedSettingsBySectionId = new Map(
+    storedSections.map((section) => [section.id, section.settings_json]),
+  );
   const storedSectionIds = new Set(storedSections.map((section) => section.id));
   const storedQuestionIds = new Set(
     storedSections.flatMap((section) => (section.questions ?? []).map((question) => question.id)),
@@ -876,6 +893,10 @@ export async function saveSystemTestBuilderDocumentAction(input: unknown): Promi
         description: section.description,
         id: section.id,
         order_index: orderIndex + 1,
+        settings_json: withTestContentBlocks(
+          storedSettingsBySectionId.get(section.id),
+          section.contentBlocks,
+        ),
         test_version_id: document.versionId,
         time_limit_minutes: section.timeLimitMinutes,
         title: section.title,

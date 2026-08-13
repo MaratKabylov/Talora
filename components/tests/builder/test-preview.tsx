@@ -1,3 +1,5 @@
+import { Fragment } from "react";
+
 import { Button } from "@/components/ui/button";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import type { BuilderQuestion, BuilderSection } from "@/lib/tests/builder-data";
@@ -48,6 +50,25 @@ function QuestionInputPreview({ question }: { question: BuilderQuestion }) {
       ))}
     </div>
   );
+}
+
+function ContentBlocks({ positionIndex, section }: { positionIndex: number; section: BuilderSection }) {
+  return section.contentBlocks
+    .filter(
+      (block) =>
+        Math.min(Math.max(block.positionIndex, 0), section.questions.length) === positionIndex,
+    )
+    .map((block) => (
+      <div className="border-l-4 border-l-primary bg-muted/30 px-4 py-3" key={block.id}>
+        <h4 className="font-semibold">{block.title}</h4>
+        {block.description ? (
+          <RichTextContent
+            className="mt-1 text-sm text-muted-foreground"
+            value={block.description}
+          />
+        ) : null}
+      </div>
+    ));
 }
 
 export function TestPreview({
@@ -104,10 +125,12 @@ export function TestPreview({
                 <RichTextContent className="mt-1 text-sm text-muted-foreground" value={section.description} />
               ) : null}
             </div>
+            <ContentBlocks positionIndex={0} section={section} />
             {section.questions.length === 0 ? (
               <p className="text-sm text-muted-foreground">Вопросы еще не добавлены.</p>
             ) : (
               section.questions.map((question, index) => (
+                <Fragment key={question.id}>
                 <div className="space-y-3 border-t pt-4 first:border-0 first:pt-0" key={question.id}>
                   <div>
                     {remediationParentByTarget.has(question.id) ? (
@@ -131,6 +154,8 @@ export function TestPreview({
                     </div>
                   ) : null}
                 </div>
+                <ContentBlocks positionIndex={index + 1} section={section} />
+                </Fragment>
               ))
             )}
             {isPaged && onSectionChange ? (

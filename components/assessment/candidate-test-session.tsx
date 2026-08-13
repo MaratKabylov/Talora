@@ -180,6 +180,27 @@ export function CandidateTestSession({
       ),
     [answers, section],
   );
+  const sectionContent = useMemo(
+    () =>
+      [
+        ...(section?.contentBlocks ?? []).map((block) => ({
+          block,
+          kind: "content-block" as const,
+          orderIndex: block.orderIndex,
+          sortIndex: block.positionIndex * 2,
+        })),
+        ...visibleQuestions.map((question) => ({
+          kind: "question" as const,
+          orderIndex: question.orderIndex,
+          question,
+          sortIndex: question.orderIndex * 2 - 1,
+        })),
+      ].sort(
+        (left, right) =>
+          left.sortIndex - right.sortIndex || left.orderIndex - right.orderIndex,
+      ),
+    [section, visibleQuestions],
+  );
 
   const applyControlResponse = useCallback((response: ControlResponse) => {
     if (response.status === "redirect") {
@@ -719,10 +740,30 @@ export function CandidateTestSession({
                 <input name="sectionIndex" type="hidden" value={sectionIndex} />
                 <input name="clientId" type="hidden" value={clientId} />
                 <input name="deviceId" type="hidden" value={deviceId} />
-                {visibleQuestions.length === 0 ? (
+                {sectionContent.length === 0 ? (
                   <p className="text-sm text-muted-foreground">В этой секции нет вопросов.</p>
                 ) : (
-                  visibleQuestions.map((question, index) => (
+                  sectionContent.map((item) => {
+                    if (item.kind === "content-block") {
+                      return (
+                        <div
+                          className="border-l-4 border-l-primary bg-muted/30 px-4 py-3"
+                          key={item.block.id}
+                        >
+                          <h3 className="font-semibold">{item.block.title}</h3>
+                          {item.block.description ? (
+                            <RichTextContent
+                              className="mt-1 text-sm text-muted-foreground"
+                              value={item.block.description}
+                            />
+                          ) : null}
+                        </div>
+                      );
+                    }
+
+                    const question = item.question;
+                    const index = visibleQuestions.findIndex((entry) => entry.id === question.id);
+                    return (
                     <div
                       className="space-y-4 border-b pb-8 last:border-0 last:pb-0"
                       data-question-id={question.id}
@@ -766,7 +807,8 @@ export function CandidateTestSession({
                         </div>
                       ) : null}
                     </div>
-                  ))
+                    );
+                  })
                 )}
                 <div className="-mx-6 -mb-6 flex flex-col-reverse gap-3 border-t bg-background/95 px-6 py-4 sm:mx-0 sm:mb-0 sm:flex-row sm:justify-between sm:border-0 sm:p-0">
                   {sectionIndex > 0 ? (

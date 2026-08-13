@@ -15,6 +15,7 @@ import type {
 } from "@/lib/tests/builder-constants";
 import type { ScoringType, TestTemplateStatus, TestVersionStatus } from "@/lib/tests/constants";
 import type { TestTemplate, TestVersion } from "@/lib/tests/data";
+import { getTestContentBlocks } from "@/lib/tests/content-blocks";
 import type { QuestionSettings } from "@/lib/tests/remediation";
 
 import { requirePlatformContext } from "./context";
@@ -72,6 +73,7 @@ type SectionRecord = {
   id: string;
   order_index: number;
   questions?: QuestionRecord[] | null;
+  settings_json: unknown;
   time_limit_minutes: number | null;
   title: string;
 };
@@ -151,6 +153,10 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
 
 function normalizeSection(section: SectionRecord): BuilderSection {
   return {
+    contentBlocks: getTestContentBlocks(section.settings_json).map((block) => ({
+      ...block,
+      description: sanitizeRichTextValue(block.description),
+    })),
     description: sanitizeRichTextValue(section.description),
     id: section.id,
     orderIndex: section.order_index,
@@ -216,7 +222,7 @@ export async function getAdminSystemTestBuilderData(
   const { data, error } = await admin
     .from("test_sections")
     .select(
-      "id, title, description, order_index, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))",
+      "id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))",
     )
     .eq("test_version_id", version.id);
 
@@ -241,7 +247,7 @@ export async function getAdminSystemBuilderImportSources(
   const { data: templates, error } = await admin
     .from("test_templates")
     .select(
-      "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))))",
+      "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))))",
     )
     .eq("is_system", true)
     .is("company_id", null);

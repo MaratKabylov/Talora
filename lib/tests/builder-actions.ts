@@ -15,6 +15,7 @@ import {
   type TestCompetencyKey,
 } from "./builder-constants";
 import { canManageTests, SCORING_TYPE_VALUES } from "./constants";
+import { testContentBlockSchema, withTestContentBlocks } from "./content-blocks";
 import { validateRemediationLinks } from "./remediation";
 import { formatTestVersionTitle } from "./version-title";
 
@@ -155,11 +156,19 @@ const builderDocumentSchema = z.object({
   sections: z
     .array(
       z.object({
+        contentBlocks: z.array(testContentBlockSchema).max(100),
         description: z.string().max(10000).nullable(),
         id: z.string().uuid(),
         questions: z.array(documentQuestionSchema).max(300),
         timeLimitMinutes: z.number().int().min(1).max(1440).nullable(),
         title: z.string().trim().min(2).max(180),
+      }).superRefine((section, context) => {
+        if (section.contentBlocks.some((block) => block.positionIndex > section.questions.length)) {
+          context.addIssue({
+            code: "custom",
+            message: "Положение блока названия и описания выходит за границы секции.",
+          });
+        }
       }),
     )
     .max(100),
@@ -376,6 +385,10 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
     ...parsed.data,
     sections: parsed.data.sections.map((section) => ({
       ...section,
+      contentBlocks: section.contentBlocks.map((block) => ({
+        ...block,
+        description: sanitizeRichTextValue(block.description),
+      })),
       description: sanitizeRichTextValue(section.description),
       questions: section.questions.map((question) => ({
         ...question,
@@ -400,7 +413,7 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
   const { supabase } = context;
   const { data: currentSections, error: currentError } = await supabase
     .from("test_sections")
-    .select("id, questions(id, answer_options(id))")
+    .select("id, settings_json, questions(id, answer_options(id))")
     .eq("test_version_id", document.versionId);
 
   if (currentError) {
@@ -420,8 +433,12 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
   type StoredSection = {
     id: string;
     questions?: Array<{ answer_options?: Array<{ id: string }> | null; id: string }> | null;
+    settings_json: unknown;
   };
   const storedSections = (currentSections ?? []) as unknown as StoredSection[];
+  const storedSettingsBySectionId = new Map(
+    storedSections.map((section) => [section.id, section.settings_json]),
+  );
   const removedOptionIds = storedSections.flatMap((section) =>
     (section.questions ?? []).flatMap((question) =>
       (question.answer_options ?? [])
@@ -472,6 +489,10 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
         description: section.description,
         id: section.id,
         order_index: orderIndex + 1,
+        settings_json: withTestContentBlocks(
+          storedSettingsBySectionId.get(section.id),
+          section.contentBlocks,
+        ),
         test_version_id: document.versionId,
         time_limit_minutes: section.timeLimitMinutes,
         title: section.title,

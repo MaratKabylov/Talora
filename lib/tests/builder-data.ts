@@ -4,6 +4,7 @@ import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import type { TestTemplate, TestVersion } from "./data";
 import { getTestTemplatePageData } from "./data";
 import type { QuestionDifficulty, QuestionType, TestCompetencyKey } from "./builder-constants";
+import { getTestContentBlocks, type TestContentBlock } from "./content-blocks";
 import type { QuestionSettings } from "./remediation";
 
 type OptionRecord = {
@@ -34,6 +35,7 @@ type SectionRecord = {
   id: string;
   order_index: number;
   questions?: QuestionRecord[] | null;
+  settings_json: unknown;
   time_limit_minutes: number | null;
   title: string;
 };
@@ -69,7 +71,10 @@ export type BuilderQuestion = {
   text: string;
 };
 
+export type BuilderContentBlock = TestContentBlock;
+
 export type BuilderSection = {
+  contentBlocks: BuilderContentBlock[];
   description: string | null;
   id: string;
   orderIndex: number;
@@ -132,6 +137,10 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
 
 function normalizeSection(section: SectionRecord): BuilderSection {
   return {
+    contentBlocks: getTestContentBlocks(section.settings_json).map((block) => ({
+      ...block,
+      description: sanitizeRichTextValue(block.description),
+    })),
     description: sanitizeRichTextValue(section.description),
     id: section.id,
     orderIndex: section.order_index,
@@ -160,7 +169,7 @@ async function listGrantedSystemTemplateIds(
 }
 
 function importSourceSelect() {
-  return "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))))";
+  return "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))))";
 }
 
 export async function getTestBuilderData(
@@ -187,7 +196,7 @@ export async function getTestBuilderData(
   const { data, error } = await supabase
     .from("test_sections")
     .select(
-      "id, title, description, order_index, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))",
+      "id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))",
     )
     .eq("test_version_id", version.id);
 
