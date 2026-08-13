@@ -190,6 +190,10 @@ export function TestBuilderEditor({
   const [feedback, setFeedback] = useState("");
   const [importId, setImportId] = useState(imports[0]?.id ?? "");
   const revision = useRef(0);
+  const savedRevision = useRef(0);
+  const sectionsRef = useRef(sections);
+  const versionRef = useRef(version);
+  const saveInFlight = useRef<Promise<boolean> | null>(null);
   const dragQuestion = useRef<{ index: number; sectionId: string } | null>(null);
 
   const markChanged = useCallback(() => {
@@ -200,7 +204,9 @@ export function TestBuilderEditor({
 
   const updateSections = useCallback(
     (update: (current: BuilderSection[]) => BuilderSection[]) => {
-      setSections((current) => update(current));
+      const nextSections = update(sectionsRef.current);
+      sectionsRef.current = nextSections;
+      setSections(nextSections);
       markChanged();
     },
     [markChanged],
@@ -210,15 +216,21 @@ export function TestBuilderEditor({
     field: "description" | "durationMinutes" | "instructions",
     value: string,
   ) => {
-    setVersion((current) => ({ ...current, [field]: value }));
+    const nextVersion = { ...versionRef.current, [field]: value };
+    versionRef.current = nextVersion;
+    setVersion(nextVersion);
     markChanged();
   };
 
-  const save = useCallback(async () => {
+  const saveOnce = useCallback(async () => {
+    if (saveInFlight.current) return saveInFlight.current;
+
     const requestedRevision = revision.current;
+    const currentSections = sectionsRef.current;
+    const currentVersion = versionRef.current;
     setStatus("saving");
     const input: BuilderDocumentInput = {
-      sections: sections.map((currentSection) => ({
+      sections: currentSections.map((currentSection) => ({
         contentBlocks: currentSection.contentBlocks.map((block, orderIndex) => ({
           ...block,
           description: nullableText(block.description ?? ""),
@@ -257,34 +269,58 @@ export function TestBuilderEditor({
       })),
       templateId,
       version: {
-        description: nullableText(version.description),
-        durationMinutes: version.durationMinutes ? Number(version.durationMinutes) : null,
-        instructions: nullableText(version.instructions),
-        scoringType: version.scoringType,
+        description: nullableText(currentVersion.description),
+        durationMinutes: currentVersion.durationMinutes ? Number(currentVersion.durationMinutes) : null,
+        instructions: nullableText(currentVersion.instructions),
+        scoringType: currentVersion.scoringType,
         title: versionTitle,
       },
       versionId: initialVersion.id,
     };
 
-    const result = await saveAction(input);
-    if (!result.ok) {
-      setStatus("error");
-      setFeedback(result.error ?? "Не удалось сохранить изменения.");
-      return false;
-    }
+    const request = (async () => {
+      try {
+        const result = await saveAction(input);
+        if (!result.ok) {
+          setStatus("error");
+          setFeedback(result.error ?? "Не удалось сохранить изменения.");
+          return false;
+        }
 
-    if (revision.current === requestedRevision) {
-      setStatus("saved");
-      setFeedback(
-        `Сохранено ${new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(
-          new Date(result.savedAt ?? Date.now()),
-        )}`,
-      );
-    } else {
-      setStatus("dirty");
+        savedRevision.current = requestedRevision;
+        if (revision.current === requestedRevision) {
+          setStatus("saved");
+          setFeedback(
+            `Сохранено ${new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(
+              new Date(result.savedAt ?? Date.now()),
+            )}`,
+          );
+        } else {
+          setStatus("dirty");
+        }
+        return true;
+      } catch {
+        setStatus("error");
+        setFeedback("Не удалось сохранить изменения. Проверьте соединение и повторите попытку.");
+        return false;
+      }
+    })();
+
+    saveInFlight.current = request;
+    void request.finally(() => {
+      if (saveInFlight.current === request) {
+        saveInFlight.current = null;
+      }
+    });
+    return request;
+  }, [initialVersion.id, saveAction, templateId, versionTitle]);
+
+  const save = useCallback(async () => {
+    while (savedRevision.current < revision.current) {
+      if (!(await saveOnce())) return false;
     }
     return true;
-  }, [initialVersion.id, saveAction, sections, templateId, version, versionTitle]);
+  }, [saveOnce]);
 
   useEffect(() => {
     if (status !== "dirty") return;
@@ -584,10 +620,12 @@ export function TestBuilderEditor({
               />
               <Select
                 onChange={(event) => {
-                  setVersion((current) => ({
-                    ...current,
+                  const nextVersion = {
+                    ...versionRef.current,
                     scoringType: event.target.value as TestVersion["scoringType"],
-                  }));
+                  };
+                  versionRef.current = nextVersion;
+                  setVersion(nextVersion);
                   markChanged();
                 }}
                 value={version.scoringType}

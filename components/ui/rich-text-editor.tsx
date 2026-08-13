@@ -68,6 +68,7 @@ export function RichTextEditor({
   const [internalValue, setInternalValue] = useState(defaultValue ?? "");
   const editorRef = useRef<HTMLDivElement>(null);
   const resolvedValue = isControlled ? (value ?? "") : internalValue;
+  const lastEmittedValueRef = useRef(resolvedValue);
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -77,10 +78,15 @@ export function RichTextEditor({
     if (editor.innerHTML !== nextHtml) {
       editor.innerHTML = nextHtml;
     }
+
+    lastEmittedValueRef.current = serializeRichTextHtml(editor.innerHTML);
   }, [resolvedValue]);
 
   function emitValue() {
     const nextValue = serializeRichTextHtml(editorRef.current?.innerHTML ?? "");
+    if (nextValue === lastEmittedValueRef.current) return;
+
+    lastEmittedValueRef.current = nextValue;
     if (!isControlled) setInternalValue(nextValue);
     onChange?.(nextValue);
   }
