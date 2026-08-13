@@ -1,6 +1,19 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Copy, Eye, FileInput, GripVertical, Plus, Save, Trash2, Type } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Eye,
+  FileInput,
+  GripVertical,
+  Plus,
+  Save,
+  Trash2,
+  Type,
+} from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -189,12 +202,20 @@ export function TestBuilderEditor({
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [feedback, setFeedback] = useState("");
   const [importId, setImportId] = useState(imports[0]?.id ?? "");
+  const [collapsedQuestionIds, setCollapsedQuestionIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [draggingQuestionId, setDraggingQuestionId] = useState<string | null>(null);
+  const [questionDropTarget, setQuestionDropTarget] = useState<{
+    index: number;
+    sectionId: string;
+  } | null>(null);
   const revision = useRef(0);
   const savedRevision = useRef(0);
   const sectionsRef = useRef(sections);
   const versionRef = useRef(version);
   const saveInFlight = useRef<Promise<boolean> | null>(null);
-  const dragQuestion = useRef<{ index: number; sectionId: string } | null>(null);
+  const dragQuestion = useRef<{ questionId: string; sectionId: string } | null>(null);
 
   const markChanged = useCallback(() => {
     revision.current += 1;
@@ -347,6 +368,146 @@ export function TestBuilderEditor({
           : entry,
       ),
     );
+  }
+
+  function toggleQuestion(questionId: string) {
+    setCollapsedQuestionIds((current) => {
+      const next = new Set(current);
+      if (next.has(questionId)) {
+        next.delete(questionId);
+      } else {
+        next.add(questionId);
+      }
+      return next;
+    });
+  }
+
+  function toggleSectionQuestions(currentSection: BuilderSection) {
+    const shouldExpand =
+      currentSection.questions.length > 0 &&
+      currentSection.questions.every((currentQuestion) =>
+        collapsedQuestionIds.has(currentQuestion.id),
+      );
+
+    setCollapsedQuestionIds((current) => {
+      const next = new Set(current);
+      currentSection.questions.forEach((currentQuestion) => {
+        if (shouldExpand) {
+          next.delete(currentQuestion.id);
+        } else {
+          next.add(currentQuestion.id);
+        }
+      });
+      return next;
+    });
+  }
+
+  function normalizeRemediationQuestions(questions: BuilderQuestion[]) {
+    const questionIndexes = new Map(
+      questions.map((currentQuestion, index) => [currentQuestion.id, index]),
+    );
+
+    return questions.map((currentQuestion, index) => {
+      const remediationIndex = currentQuestion.remediationQuestionId
+        ? questionIndexes.get(currentQuestion.remediationQuestionId)
+        : undefined;
+
+      if (remediationIndex === undefined || remediationIndex <= index) {
+        return currentQuestion.remediationQuestionId
+          ? {
+              ...currentQuestion,
+              incorrectFeedback: null,
+              remediationQuestionId: null,
+            }
+          : currentQuestion;
+      }
+
+      return currentQuestion;
+    });
+  }
+
+  function moveQuestion(targetSectionId: string, targetIndex: number) {
+    const source = dragQuestion.current;
+    if (!source) return;
+
+    updateSections((current) => {
+      const sourceSection = current.find((entry) => entry.id === source.sectionId);
+      const targetSection = current.find((entry) => entry.id === targetSectionId);
+      const sourceIndex = sourceSection?.questions.findIndex(
+        (currentQuestion) => currentQuestion.id === source.questionId,
+      );
+
+      if (!sourceSection || !targetSection || sourceIndex === undefined || sourceIndex < 0) {
+        return current;
+      }
+
+      if (source.sectionId === targetSectionId) {
+        const reordered = [...sourceSection.questions];
+        const [movedQuestion] = reordered.splice(sourceIndex, 1);
+        const adjustedTargetIndex = Math.min(
+          Math.max(targetIndex - (sourceIndex < targetIndex ? 1 : 0), 0),
+          reordered.length,
+        );
+
+        if (adjustedTargetIndex === sourceIndex) return current;
+
+        reordered.splice(adjustedTargetIndex, 0, movedQuestion);
+        return current.map((entry) =>
+          entry.id === source.sectionId
+            ? { ...entry, questions: normalizeRemediationQuestions(reordered) }
+            : entry,
+        );
+      }
+
+      const movedQuestion = {
+        ...sourceSection.questions[sourceIndex],
+        incorrectFeedback: null,
+        remediationQuestionId: null,
+      };
+      const insertionIndex = Math.min(Math.max(targetIndex, 0), targetSection.questions.length);
+
+      return current.map((entry) => {
+        if (entry.id === source.sectionId) {
+          const remainingQuestions = entry.questions
+            .filter((currentQuestion) => currentQuestion.id !== source.questionId)
+            .map((currentQuestion) =>
+              currentQuestion.remediationQuestionId === source.questionId
+                ? {
+                    ...currentQuestion,
+                    incorrectFeedback: null,
+                    remediationQuestionId: null,
+                  }
+                : currentQuestion,
+            );
+
+          return {
+            ...entry,
+            contentBlocks: entry.contentBlocks.map((block) => ({
+              ...block,
+              positionIndex:
+                block.positionIndex > sourceIndex
+                  ? Math.max(0, block.positionIndex - 1)
+                  : block.positionIndex,
+            })),
+            questions: normalizeRemediationQuestions(remainingQuestions),
+          };
+        }
+
+        if (entry.id === targetSectionId) {
+          const questions = [...entry.questions];
+          questions.splice(insertionIndex, 0, movedQuestion);
+          return { ...entry, questions: normalizeRemediationQuestions(questions) };
+        }
+
+        return entry;
+      });
+    });
+  }
+
+  function finishQuestionDrag() {
+    dragQuestion.current = null;
+    setDraggingQuestionId(null);
+    setQuestionDropTarget(null);
   }
 
   function patchContentBlock(
@@ -645,7 +806,14 @@ export function TestBuilderEditor({
             />
           </div>
 
-          {sections.map((currentSection, sectionIndex) => (
+          {sections.map((currentSection, sectionIndex) => {
+            const allQuestionsCollapsed =
+              currentSection.questions.length > 0 &&
+              currentSection.questions.every((currentQuestion) =>
+                collapsedQuestionIds.has(currentQuestion.id),
+              );
+
+            return (
             <section className="space-y-4 rounded-xl border bg-card p-4 shadow-sm" key={currentSection.id}>
               <div className="flex items-start justify-between gap-3 rounded-lg bg-muted/40 p-4">
                 <div className="min-w-0 flex-1 space-y-3">
@@ -676,7 +844,22 @@ export function TestBuilderEditor({
                     value={currentSection.timeLimitMinutes ?? ""}
                   />
                 </div>
-                <div className="flex gap-1">
+                <div className="flex flex-wrap justify-end gap-1">
+                  <Button
+                    aria-label={
+                      allQuestionsCollapsed
+                        ? "Развернуть все вопросы секции"
+                        : "Свернуть все вопросы секции"
+                    }
+                    disabled={currentSection.questions.length === 0}
+                    onClick={() => toggleSectionQuestions(currentSection)}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                  >
+                    {allQuestionsCollapsed ? <ChevronRight /> : <ChevronDown />}
+                    {allQuestionsCollapsed ? "Развернуть вопросы" : "Свернуть вопросы"}
+                  </Button>
                   <Button
                     aria-label="Дублировать секцию"
                     onClick={() =>
@@ -707,36 +890,88 @@ export function TestBuilderEditor({
               </div>
 
               {renderContentBlocks(currentSection, 0)}
-              {currentSection.questions.map((currentQuestion, questionIndex) => (
+              {currentSection.questions.map((currentQuestion, questionIndex) => {
+                const isQuestionCollapsed = collapsedQuestionIds.has(currentQuestion.id);
+                const dropBefore =
+                  questionDropTarget?.sectionId === currentSection.id &&
+                  questionDropTarget.index === questionIndex;
+                const dropAfter =
+                  questionDropTarget?.sectionId === currentSection.id &&
+                  questionDropTarget.index === questionIndex + 1;
+
+                return (
                 <Fragment key={currentQuestion.id}>
                 <article
-                  className="rounded-lg border bg-background p-4 transition-shadow hover:shadow-sm"
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => {
-                    const source = dragQuestion.current;
-                    if (!source || source.sectionId !== currentSection.id || source.index === questionIndex) return;
-                    updateSections((current) =>
-                      current.map((entry) => {
-                        if (entry.id !== currentSection.id) return entry;
-                        const reordered = [...entry.questions];
-                        const [moved] = reordered.splice(source.index, 1);
-                        reordered.splice(questionIndex, 0, moved);
-                        return { ...entry, questions: reordered };
-                      }),
-                    );
-                    dragQuestion.current = null;
+                  className={`rounded-lg border bg-background p-4 transition-all hover:shadow-sm ${
+                    draggingQuestionId === currentQuestion.id ? "opacity-50" : ""
+                  } ${dropBefore ? "border-t-4 border-t-primary" : ""} ${
+                    dropAfter ? "border-b-4 border-b-primary" : ""
+                  }`}
+                  onDragOver={(event) => {
+                    if (!dragQuestion.current) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.dataTransfer.dropEffect = "move";
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    const targetIndex =
+                      event.clientY < bounds.top + bounds.height / 2
+                        ? questionIndex
+                        : questionIndex + 1;
+                    setQuestionDropTarget({ index: targetIndex, sectionId: currentSection.id });
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    const targetIndex =
+                      event.clientY < bounds.top + bounds.height / 2
+                        ? questionIndex
+                        : questionIndex + 1;
+                    moveQuestion(currentSection.id, targetIndex);
+                    finishQuestionDrag();
                   }}
                 >
-                  <div className="mb-4 flex items-center justify-between gap-2">
-                    <div
-                      className="flex cursor-grab items-center gap-2 text-xs text-muted-foreground"
-                      draggable
-                      onDragStart={() => {
-                        dragQuestion.current = { index: questionIndex, sectionId: currentSection.id };
-                      }}
-                    >
-                      <GripVertical className="cursor-grab" />
-                      Вопрос {questionIndex + 1}
+                  <div
+                    className={`flex items-center justify-between gap-2 ${
+                      isQuestionCollapsed ? "" : "mb-4"
+                    }`}
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-1">
+                      <div
+                        className="flex shrink-0 cursor-grab items-center rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
+                        draggable
+                        onDragEnd={finishQuestionDrag}
+                        onDragStart={(event) => {
+                          dragQuestion.current = {
+                            questionId: currentQuestion.id,
+                            sectionId: currentSection.id,
+                          };
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData("text/plain", currentQuestion.id);
+                          setDraggingQuestionId(currentQuestion.id);
+                        }}
+                        title="Перетащить вопрос"
+                      >
+                        <GripVertical />
+                      </div>
+                      <button
+                        aria-controls={`builder-question-${currentQuestion.id}-body`}
+                        aria-expanded={!isQuestionCollapsed}
+                        className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        onClick={() => toggleQuestion(currentQuestion.id)}
+                        type="button"
+                      >
+                        {isQuestionCollapsed ? <ChevronRight /> : <ChevronDown />}
+                        <span className="shrink-0 font-medium">Вопрос {questionIndex + 1}</span>
+                        <span className="truncate text-foreground">
+                          {currentQuestion.text || "Без текста"}
+                        </span>
+                        {isQuestionCollapsed ? (
+                          <span className="hidden shrink-0 rounded-full bg-muted px-2 py-0.5 sm:inline">
+                            {QUESTION_TYPE_LABELS[currentQuestion.questionType]}
+                          </span>
+                        ) : null}
+                      </button>
                     </div>
                     <div className="flex gap-1">
                       <Button
@@ -809,6 +1044,8 @@ export function TestBuilderEditor({
                       </Button>
                     </div>
                   </div>
+                  {!isQuestionCollapsed ? (
+                  <div id={`builder-question-${currentQuestion.id}-body`}>
                   <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_13rem]">
                     <Textarea
                       className="min-h-16 text-base"
@@ -1101,10 +1338,42 @@ export function TestBuilderEditor({
                     />
                     Обязательный вопрос
                   </label>
+                  </div>
+                  ) : null}
                 </article>
                 {renderContentBlocks(currentSection, questionIndex + 1)}
                 </Fragment>
-              ))}
+                );
+              })}
+
+              <div
+                className={`flex items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground transition-colors ${
+                  draggingQuestionId
+                    ? "min-h-12 border-primary/50 bg-primary/5"
+                    : "h-2 border-transparent"
+                } ${
+                  questionDropTarget?.sectionId === currentSection.id &&
+                  questionDropTarget.index === currentSection.questions.length
+                    ? "border-primary bg-primary/10 text-primary"
+                    : ""
+                }`}
+                onDragOver={(event) => {
+                  if (!dragQuestion.current) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  setQuestionDropTarget({
+                    index: currentSection.questions.length,
+                    sectionId: currentSection.id,
+                  });
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  moveQuestion(currentSection.id, currentSection.questions.length);
+                  finishQuestionDrag();
+                }}
+              >
+                {draggingQuestionId ? "Переместить в конец секции" : null}
+              </div>
 
               <div className="flex flex-wrap gap-2 border-t pt-4">
                 <Button
@@ -1154,7 +1423,8 @@ export function TestBuilderEditor({
                 ))}
               </div>
             </section>
-          ))}
+            );
+          })}
 
           <div className="rounded-xl border border-dashed bg-card p-4">
             <div className="flex flex-wrap gap-2">
@@ -1177,7 +1447,7 @@ export function TestBuilderEditor({
               ) : null}
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Вопросы можно перетаскивать только внутри секции. Импорт добавляет копии секций в текущий черновик.
+              Сверните вопросы и перетаскивайте их за ручку внутри секции или между секциями. Импорт добавляет копии секций в текущий черновик.
             </p>
           </div>
         </div>
