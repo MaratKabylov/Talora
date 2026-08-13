@@ -206,6 +206,23 @@ export function TestBuilderEditor({
   const [collapsedQuestionIds, setCollapsedQuestionIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [enabledRemediationQuestionIds, setEnabledRemediationQuestionIds] = useState<Set<string>>(
+    () =>
+      new Set(
+        initialSections.flatMap((entry) =>
+          entry.questions
+            .filter(
+              (currentQuestion) =>
+                currentQuestion.questionType === "single_choice" &&
+                Boolean(
+                  currentQuestion.remediationQuestionId ||
+                    currentQuestion.incorrectFeedback,
+                ),
+            )
+            .map((currentQuestion) => currentQuestion.id),
+        ),
+      ),
+  );
   const [draggingQuestionId, setDraggingQuestionId] = useState<string | null>(null);
   const [questionDropTarget, setQuestionDropTarget] = useState<{
     index: number;
@@ -1140,6 +1157,13 @@ export function TestBuilderEditor({
                           questionType !== "scale" &&
                           questionType !== "open_text" &&
                           currentQuestion.options.length === 0;
+                        if (questionType !== "single_choice") {
+                          setEnabledRemediationQuestionIds((current) => {
+                            const next = new Set(current);
+                            next.delete(currentQuestion.id);
+                            return next;
+                          });
+                        }
                         patchQuestion(currentSection.id, currentQuestion.id, {
                           options: needsOptions ? [option("Вариант 1"), option("Вариант 2")] : currentQuestion.options,
                           questionType,
@@ -1168,55 +1192,91 @@ export function TestBuilderEditor({
                   />
 
                   {currentQuestion.questionType === "single_choice" ? (
-                    <div className="mt-4 space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
-                      <div>
-                        <p className="text-sm font-medium">Если допущена ошибка</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Покажем объяснение и откроем выбранный повторный вопрос. Он должен находиться ниже в этой секции.
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-2 sm:flex-row">
-                        <Select
-                          aria-label="Повторный вопрос после ошибки"
-                          className="min-w-0 flex-1"
-                          onChange={(event) =>
-                            patchQuestion(currentSection.id, currentQuestion.id, {
-                              ...(event.target.value ? {} : { incorrectFeedback: null }),
-                              remediationQuestionId: event.target.value || null,
-                            })
-                          }
-                          value={currentQuestion.remediationQuestionId ?? ""}
+                    <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5">
+                      <label className="flex cursor-pointer items-start gap-3 p-4">
+                        <input
+                          aria-controls={`builder-question-${currentQuestion.id}-remediation`}
+                          checked={enabledRemediationQuestionIds.has(currentQuestion.id)}
+                          className="mt-0.5 size-4 shrink-0 accent-primary"
+                          onChange={(event) => {
+                            const isEnabled = event.target.checked;
+                            setEnabledRemediationQuestionIds((current) => {
+                              const next = new Set(current);
+                              if (isEnabled) {
+                                next.add(currentQuestion.id);
+                              } else {
+                                next.delete(currentQuestion.id);
+                              }
+                              return next;
+                            });
+                            if (!isEnabled) {
+                              patchQuestion(currentSection.id, currentQuestion.id, {
+                                incorrectFeedback: null,
+                                remediationQuestionId: null,
+                              });
+                            }
+                          }}
+                          type="checkbox"
+                        />
+                        <span>
+                          <span className="block text-sm font-medium">Если допущена ошибка</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            Покажем объяснение и откроем выбранный повторный вопрос.
+                          </span>
+                        </span>
+                      </label>
+                      {enabledRemediationQuestionIds.has(currentQuestion.id) ? (
+                        <div
+                          className="space-y-3 border-t border-primary/15 px-4 pb-4 pt-3"
+                          id={`builder-question-${currentQuestion.id}-remediation`}
                         >
-                          <option value="">
-                            {currentSection.questions.length > questionIndex + 1
-                              ? "Не использовать ветку"
-                              : "Нет вопросов ниже"}
-                          </option>
-                          {currentSection.questions.slice(questionIndex + 1).map((candidate, offset) => (
-                            <option key={candidate.id} value={candidate.id}>
-                              Вопрос {questionIndex + offset + 2}: {candidate.text.slice(0, 90)}
-                            </option>
-                          ))}
-                        </Select>
-                        <Button
-                          onClick={() => addQuestionAfter(currentSection.id, currentQuestion.id)}
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                        >
-                          <Plus /> Создать повторный вопрос
-                        </Button>
-                      </div>
-                      <Textarea
-                        disabled={!currentQuestion.remediationQuestionId}
-                        onChange={(event) =>
-                          patchQuestion(currentSection.id, currentQuestion.id, {
-                            incorrectFeedback: event.target.value,
-                          })
-                        }
-                        placeholder="Например: Слово собирается из трёх признаков…"
-                        value={currentQuestion.incorrectFeedback ?? ""}
-                      />
+                          <p className="text-xs text-muted-foreground">
+                            Повторный вопрос должен находиться ниже в этой секции.
+                          </p>
+                          <div className="flex flex-col gap-2 sm:flex-row">
+                            <Select
+                              aria-label="Повторный вопрос после ошибки"
+                              className="min-w-0 flex-1"
+                              onChange={(event) =>
+                                patchQuestion(currentSection.id, currentQuestion.id, {
+                                  ...(event.target.value ? {} : { incorrectFeedback: null }),
+                                  remediationQuestionId: event.target.value || null,
+                                })
+                              }
+                              value={currentQuestion.remediationQuestionId ?? ""}
+                            >
+                              <option value="">
+                                {currentSection.questions.length > questionIndex + 1
+                                  ? "Выберите повторный вопрос"
+                                  : "Нет вопросов ниже"}
+                              </option>
+                              {currentSection.questions.slice(questionIndex + 1).map((candidate, offset) => (
+                                <option key={candidate.id} value={candidate.id}>
+                                  Вопрос {questionIndex + offset + 2}: {candidate.text.slice(0, 90)}
+                                </option>
+                              ))}
+                            </Select>
+                            <Button
+                              onClick={() => addQuestionAfter(currentSection.id, currentQuestion.id)}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              <Plus /> Создать повторный вопрос
+                            </Button>
+                          </div>
+                          <Textarea
+                            disabled={!currentQuestion.remediationQuestionId}
+                            onChange={(event) =>
+                              patchQuestion(currentSection.id, currentQuestion.id, {
+                                incorrectFeedback: event.target.value,
+                              })
+                            }
+                            placeholder="Например: Слово собирается из трёх признаков…"
+                            value={currentQuestion.incorrectFeedback ?? ""}
+                          />
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
 
