@@ -15,6 +15,7 @@ import {
   Type,
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -216,6 +217,14 @@ export function TestBuilderEditor({
   const versionRef = useRef(version);
   const saveInFlight = useRef<Promise<boolean> | null>(null);
   const dragQuestion = useRef<{ questionId: string; sectionId: string } | null>(null);
+  const pointerQuestion = useRef<{
+    pointerId: number;
+    questionId: string;
+    sectionId: string;
+    startX: number;
+    startY: number;
+    started: boolean;
+  } | null>(null);
 
   const markChanged = useCallback(() => {
     revision.current += 1;
@@ -506,8 +515,100 @@ export function TestBuilderEditor({
 
   function finishQuestionDrag() {
     dragQuestion.current = null;
+    pointerQuestion.current = null;
     setDraggingQuestionId(null);
     setQuestionDropTarget(null);
+  }
+
+  function getQuestionDropTarget(clientX: number, clientY: number) {
+    const element = document.elementFromPoint(clientX, clientY);
+    const dropElement = element?.closest(
+      "[data-question-drop-index][data-question-section-id]",
+    ) as HTMLElement | null;
+    if (!dropElement) return null;
+
+    const sectionId = dropElement.dataset.questionSectionId;
+    const dropIndex = Number(dropElement.dataset.questionDropIndex);
+    if (!sectionId || !Number.isInteger(dropIndex)) return null;
+
+    if (dropElement.dataset.questionDropEnd === "true") {
+      return { index: dropIndex, sectionId };
+    }
+
+    const bounds = dropElement.getBoundingClientRect();
+    return {
+      index: clientY < bounds.top + bounds.height / 2 ? dropIndex : dropIndex + 1,
+      sectionId,
+    };
+  }
+
+  function startQuestionPointerDrag(
+    event: ReactPointerEvent<HTMLDivElement>,
+    sectionId: string,
+    questionId: string,
+  ) {
+    if (!event.isPrimary || event.button !== 0) return;
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pointerQuestion.current = {
+      pointerId: event.pointerId,
+      questionId,
+      sectionId,
+      startX: event.clientX,
+      startY: event.clientY,
+      started: false,
+    };
+  }
+
+  function continueQuestionPointerDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const pointer = pointerQuestion.current;
+    if (!pointer || pointer.pointerId !== event.pointerId) return;
+
+    const distance = Math.hypot(
+      event.clientX - pointer.startX,
+      event.clientY - pointer.startY,
+    );
+    if (!pointer.started && distance < 5) return;
+
+    event.preventDefault();
+    if (!pointer.started) {
+      pointer.started = true;
+      dragQuestion.current = {
+        questionId: pointer.questionId,
+        sectionId: pointer.sectionId,
+      };
+      setDraggingQuestionId(pointer.questionId);
+    }
+
+    const target = getQuestionDropTarget(event.clientX, event.clientY);
+    setQuestionDropTarget((current) =>
+      current?.index === target?.index && current?.sectionId === target?.sectionId
+        ? current
+        : target,
+    );
+
+    if (event.clientY < 72) {
+      window.scrollBy({ top: -16 });
+    } else if (event.clientY > window.innerHeight - 72) {
+      window.scrollBy({ top: 16 });
+    }
+  }
+
+  function completeQuestionPointerDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const pointer = pointerQuestion.current;
+    if (!pointer || pointer.pointerId !== event.pointerId) return;
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    if (pointer.started) {
+      const target = getQuestionDropTarget(event.clientX, event.clientY);
+      if (target) moveQuestion(target.sectionId, target.index);
+    }
+
+    finishQuestionDrag();
   }
 
   function patchContentBlock(
@@ -907,29 +1008,8 @@ export function TestBuilderEditor({
                   } ${dropBefore ? "border-t-4 border-t-primary" : ""} ${
                     dropAfter ? "border-b-4 border-b-primary" : ""
                   }`}
-                  onDragOver={(event) => {
-                    if (!dragQuestion.current) return;
-                    event.preventDefault();
-                    event.stopPropagation();
-                    event.dataTransfer.dropEffect = "move";
-                    const bounds = event.currentTarget.getBoundingClientRect();
-                    const targetIndex =
-                      event.clientY < bounds.top + bounds.height / 2
-                        ? questionIndex
-                        : questionIndex + 1;
-                    setQuestionDropTarget({ index: targetIndex, sectionId: currentSection.id });
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    const bounds = event.currentTarget.getBoundingClientRect();
-                    const targetIndex =
-                      event.clientY < bounds.top + bounds.height / 2
-                        ? questionIndex
-                        : questionIndex + 1;
-                    moveQuestion(currentSection.id, targetIndex);
-                    finishQuestionDrag();
-                  }}
+                  data-question-drop-index={questionIndex}
+                  data-question-section-id={currentSection.id}
                 >
                   <div
                     className={`flex items-center justify-between gap-2 ${
@@ -938,18 +1018,17 @@ export function TestBuilderEditor({
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-1">
                       <div
-                        className="flex shrink-0 cursor-grab items-center rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
-                        draggable
-                        onDragEnd={finishQuestionDrag}
-                        onDragStart={(event) => {
-                          dragQuestion.current = {
-                            questionId: currentQuestion.id,
-                            sectionId: currentSection.id,
-                          };
-                          event.dataTransfer.effectAllowed = "move";
-                          event.dataTransfer.setData("text/plain", currentQuestion.id);
-                          setDraggingQuestionId(currentQuestion.id);
-                        }}
+                        className="flex touch-none select-none shrink-0 cursor-grab items-center rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
+                        onPointerCancel={finishQuestionDrag}
+                        onPointerDown={(event) =>
+                          startQuestionPointerDrag(
+                            event,
+                            currentSection.id,
+                            currentQuestion.id,
+                          )
+                        }
+                        onPointerMove={continueQuestionPointerDrag}
+                        onPointerUp={completeQuestionPointerDrag}
                         title="Перетащить вопрос"
                       >
                         <GripVertical />
@@ -1357,20 +1436,9 @@ export function TestBuilderEditor({
                     ? "border-primary bg-primary/10 text-primary"
                     : ""
                 }`}
-                onDragOver={(event) => {
-                  if (!dragQuestion.current) return;
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = "move";
-                  setQuestionDropTarget({
-                    index: currentSection.questions.length,
-                    sectionId: currentSection.id,
-                  });
-                }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  moveQuestion(currentSection.id, currentSection.questions.length);
-                  finishQuestionDrag();
-                }}
+                data-question-drop-end="true"
+                data-question-drop-index={currentSection.questions.length}
+                data-question-section-id={currentSection.id}
               >
                 {draggingQuestionId ? "Переместить в конец секции" : null}
               </div>
