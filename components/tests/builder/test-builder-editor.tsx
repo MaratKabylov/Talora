@@ -287,6 +287,30 @@ export function TestBuilderEditor({
     );
   }
 
+  function addQuestionAfter(sectionId: string, questionId: string) {
+    const newQuestion = question("single_choice", "Повторный вопрос");
+
+    updateSections((current) =>
+      current.map((entry) => {
+        if (entry.id !== sectionId) return entry;
+
+        const questionIndex = entry.questions.findIndex(
+          (currentQuestion) => currentQuestion.id === questionId,
+        );
+        if (questionIndex === -1) return entry;
+
+        return {
+          ...entry,
+          questions: [
+            ...entry.questions.slice(0, questionIndex + 1),
+            newQuestion,
+            ...entry.questions.slice(questionIndex + 1),
+          ],
+        };
+      }),
+    );
+  }
+
   function patchOption(
     sectionId: string,
     questionId: string,
@@ -621,23 +645,38 @@ export function TestBuilderEditor({
                           Покажем объяснение и откроем выбранный повторный вопрос. Он должен находиться ниже в этой секции.
                         </p>
                       </div>
-                      <Select
-                        aria-label="Повторный вопрос после ошибки"
-                        onChange={(event) =>
-                          patchQuestion(currentSection.id, currentQuestion.id, {
-                            ...(event.target.value ? {} : { incorrectFeedback: null }),
-                            remediationQuestionId: event.target.value || null,
-                          })
-                        }
-                        value={currentQuestion.remediationQuestionId ?? ""}
-                      >
-                        <option value="">Не использовать ветку</option>
-                        {currentSection.questions.slice(questionIndex + 1).map((candidate, offset) => (
-                          <option key={candidate.id} value={candidate.id}>
-                            Вопрос {questionIndex + offset + 2}: {candidate.text.slice(0, 90)}
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Select
+                          aria-label="Повторный вопрос после ошибки"
+                          className="min-w-0 flex-1"
+                          onChange={(event) =>
+                            patchQuestion(currentSection.id, currentQuestion.id, {
+                              ...(event.target.value ? {} : { incorrectFeedback: null }),
+                              remediationQuestionId: event.target.value || null,
+                            })
+                          }
+                          value={currentQuestion.remediationQuestionId ?? ""}
+                        >
+                          <option value="">
+                            {currentSection.questions.length > questionIndex + 1
+                              ? "Не использовать ветку"
+                              : "Нет вопросов ниже"}
                           </option>
-                        ))}
-                      </Select>
+                          {currentSection.questions.slice(questionIndex + 1).map((candidate, offset) => (
+                            <option key={candidate.id} value={candidate.id}>
+                              Вопрос {questionIndex + offset + 2}: {candidate.text.slice(0, 90)}
+                            </option>
+                          ))}
+                        </Select>
+                        <Button
+                          onClick={() => addQuestionAfter(currentSection.id, currentQuestion.id)}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          <Plus /> Создать повторный вопрос
+                        </Button>
+                      </div>
                       <Textarea
                         disabled={!currentQuestion.remediationQuestionId}
                         onChange={(event) =>
