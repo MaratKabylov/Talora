@@ -22,16 +22,24 @@ import {
   saveCandidateSectionAction,
 } from "@/lib/assessment/actions";
 import type { FlowQuestion, FlowSection } from "@/lib/assessment/data";
+import type { TestPresentationSettings } from "@/lib/tests/presentation-settings";
 
 type SavedAnswer = {
   answerJson: Record<string, unknown>;
   answerText: string | null;
   isCorrect: boolean | null;
   selectedOptionId: string | null;
+  timeSpentSeconds: number | null;
 };
 
 type ControlResponse =
-  | { deadlineAt: string | null; savedAt?: string; status: "active" }
+  | {
+      answerIsCorrect?: boolean | null;
+      deadlineAt: string | null;
+      incorrectFeedback?: string | null;
+      savedAt?: string;
+      status: "active";
+    }
   | { retryAfterSeconds: number; status: "blocked" }
   | { redirectTo: string; status: "redirect" };
 
@@ -41,10 +49,15 @@ type SaveState = "idle" | "saving" | "saved" | "offline" | "error";
 type CandidateTestSessionProps = {
   answers: Record<string, SavedAnswer>;
   initialDeadlineAt: string | null;
+  otherVisibleQuestionCount: number;
+  presentationSettings: TestPresentationSettings;
+  questionOffset: number;
+  reviewMode: boolean;
   section: FlowSection | null;
   sectionCount: number;
   sectionIndex: number;
   sessionId: string;
+  testInstructions: string | null;
   token: string;
 };
 
@@ -106,7 +119,14 @@ function questionIdFromTarget(target: EventTarget | null) {
     : null;
 }
 
-function draftForQuestion(form: HTMLFormElement, question: FlowQuestion) {
+type AnswerDraft = {
+  answerText?: string | null;
+  scaleValue?: number | null;
+  selectedOptionId?: string | null;
+  selectedOptionIds?: string[];
+};
+
+function draftForQuestion(form: HTMLFormElement, question: FlowQuestion): AnswerDraft {
   const formData = new FormData(form);
   const prefix = `q_${question.id}_`;
 
@@ -133,13 +153,81 @@ function draftForQuestion(form: HTMLFormElement, question: FlowQuestion) {
   return { answerText: typeof value === "string" ? value : null };
 }
 
+function hasDraftAnswer(question: FlowQuestion, answer: AnswerDraft) {
+  if (question.questionType === "single_choice") {
+    return Boolean(answer.selectedOptionId);
+  }
+  if (question.questionType === "multiple_choice") {
+    return Boolean(answer.selectedOptionIds?.length);
+  }
+  if (question.questionType === "scale") {
+    return answer.scaleValue !== null && answer.scaleValue !== undefined;
+  }
+  return Boolean(answer.answerText?.trim());
+}
+
+function savedAnswerFromDraft(
+  question: FlowQuestion,
+  answer: AnswerDraft,
+  isCorrect: boolean | null,
+  timeSpentSeconds: number | null,
+): SavedAnswer {
+  if (question.questionType === "single_choice") {
+    return {
+      answerJson: answer.selectedOptionId ? {} : { skipped: true },
+      answerText: null,
+      isCorrect,
+      selectedOptionId: answer.selectedOptionId ?? null,
+      timeSpentSeconds,
+    };
+  }
+  if (question.questionType === "multiple_choice") {
+    return {
+      answerJson: answer.selectedOptionIds?.length
+        ? { selectedOptionIds: answer.selectedOptionIds }
+        : { skipped: true },
+      answerText: null,
+      isCorrect,
+      selectedOptionId: null,
+      timeSpentSeconds,
+    };
+  }
+  if (question.questionType === "scale") {
+    return {
+      answerJson:
+        answer.scaleValue === null || answer.scaleValue === undefined
+          ? { skipped: true }
+          : { value: answer.scaleValue },
+      answerText:
+        answer.scaleValue === null || answer.scaleValue === undefined
+          ? null
+          : String(answer.scaleValue),
+      isCorrect,
+      selectedOptionId: null,
+      timeSpentSeconds,
+    };
+  }
+  return {
+    answerJson: answer.answerText?.trim() ? {} : { skipped: true },
+    answerText: answer.answerText?.trim() || null,
+    isCorrect,
+    selectedOptionId: null,
+    timeSpentSeconds,
+  };
+}
+
 export function CandidateTestSession({
   answers,
   initialDeadlineAt,
+  otherVisibleQuestionCount,
+  presentationSettings,
+  questionOffset,
+  reviewMode,
   section,
   sectionCount,
   sectionIndex,
   sessionId,
+  testInstructions,
   token,
 }: CandidateTestSessionProps) {
   const [clientId, setClientId] = useState("");
@@ -152,8 +240,13 @@ export function CandidateTestSession({
       ? Math.max(0, Math.ceil((new Date(initialDeadlineAt).getTime() - Date.now()) / 1000))
       : null,
   );
+  const [sessionAnswers, setSessionAnswers] = useState(answers);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [questionError, setQuestionError] = useState<string | null>(null);
+  const [remediationFeedback, setRemediationFeedback] = useState(
+    new Map<string, string>(),
+  );
   const [tabWarning, setTabWarning] = useState(false);
   const [timerWarning, setTimerWarning] = useState<"five" | "one" | null>(null);
   const clientIdRef = useRef("");
@@ -164,6 +257,17 @@ export function CandidateTestSession({
   const lastQuestionIdRef = useRef<string | null>(null);
   const navigatingRef = useRef(false);
   const pendingSavesRef = useRef(0);
+  const activeTimedQuestionIdRef = useRef<string | null>(null);
+  const activeTimerStartedAtRef = useRef<number | null>(null);
+  const elapsedQuestionTimeRef = useRef(new Map<string, number>());
+  const savedQuestionTimeRef = useRef(
+    new Map(
+      Object.entries(answers).map(([questionId, answer]) => [
+        questionId,
+        answer.timeSpentSeconds ?? 0,
+      ]),
+    ),
+  );
   const queueAutosaveRef = useRef<(questionId: string) => void>(() => undefined);
   const saveChainsRef = useRef(new Map<string, Promise<void>>());
   const saveTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -176,10 +280,23 @@ export function CandidateTestSession({
       (section?.questions ?? []).filter(
         (question) =>
           !question.remediationParentId ||
-          answers[question.remediationParentId]?.isCorrect === false,
+          sessionAnswers[question.remediationParentId]?.isCorrect === false,
       ),
-    [answers, section],
+    [section, sessionAnswers],
   );
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(() => {
+    const firstIncomplete = visibleQuestions.findIndex((question) => !answers[question.id]);
+    if (firstIncomplete >= 0) {
+      return firstIncomplete;
+    }
+    return reviewMode && visibleQuestions.length > 0 ? visibleQuestions.length - 1 : -1;
+  });
+  const isOneQuestion = presentationSettings.presentationMode === "one_question";
+  const activeQuestion =
+    isOneQuestion && currentQuestionIndex >= 0
+      ? visibleQuestions[currentQuestionIndex] ?? null
+      : null;
+  const totalVisibleQuestionCount = otherVisibleQuestionCount + visibleQuestions.length;
   const sectionContent = useMemo(
     () =>
       [
@@ -232,6 +349,76 @@ export function CandidateTestSession({
     }),
     [sessionId, token],
   );
+
+  const pauseQuestionTimer = useCallback(() => {
+    const questionId = activeTimedQuestionIdRef.current;
+    const startedAt = activeTimerStartedAtRef.current;
+    if (!questionId || startedAt === null) {
+      return;
+    }
+
+    elapsedQuestionTimeRef.current.set(
+      questionId,
+      (elapsedQuestionTimeRef.current.get(questionId) ?? 0) + (performance.now() - startedAt),
+    );
+    activeTimerStartedAtRef.current = null;
+  }, []);
+
+  const startQuestionTimer = useCallback(
+    (questionId: string) => {
+      if (
+        !presentationSettings.captureQuestionTime ||
+        lockState !== "active" ||
+        tabWarning ||
+        document.visibilityState !== "visible"
+      ) {
+        return;
+      }
+
+      if (activeTimedQuestionIdRef.current !== questionId) {
+        pauseQuestionTimer();
+        activeTimedQuestionIdRef.current = questionId;
+      }
+      if (activeTimerStartedAtRef.current === null) {
+        activeTimerStartedAtRef.current = performance.now();
+      }
+    },
+    [lockState, pauseQuestionTimer, presentationSettings.captureQuestionTime, tabWarning],
+  );
+
+  const questionTimeSeconds = useCallback(
+    (questionId: string) => {
+      if (!presentationSettings.captureQuestionTime) {
+        return undefined;
+      }
+      if (activeTimedQuestionIdRef.current === questionId) {
+        pauseQuestionTimer();
+      }
+      const persistedSeconds = savedQuestionTimeRef.current.get(questionId) ?? 0;
+      const activeMilliseconds = elapsedQuestionTimeRef.current.get(questionId) ?? 0;
+      return Math.max(0, persistedSeconds + Math.round(activeMilliseconds / 1000));
+    },
+    [pauseQuestionTimer, presentationSettings.captureQuestionTime],
+  );
+
+  const markQuestionTimeSaved = useCallback((questionId: string, seconds?: number) => {
+    if (seconds === undefined) {
+      return;
+    }
+    savedQuestionTimeRef.current.set(questionId, seconds);
+    elapsedQuestionTimeRef.current.set(questionId, 0);
+  }, []);
+
+  useEffect(() => {
+    if (!isOneQuestion || !activeQuestion) {
+      pauseQuestionTimer();
+      return;
+    }
+
+    lastQuestionIdRef.current = activeQuestion.id;
+    startQuestionTimer(activeQuestion.id);
+    return pauseQuestionTimer;
+  }, [activeQuestion, isOneQuestion, pauseQuestionTimer, startQuestionTimer]);
 
   const claimSession = useCallback(async () => {
     if (!clientIdRef.current || !deviceIdRef.current) {
@@ -412,6 +599,7 @@ export function CandidateTestSession({
       }
 
       if (document.visibilityState === "hidden" && hiddenAtRef.current === null) {
+        pauseQuestionTimer();
         hiddenAtRef.current = Date.now();
         void recordEvent("focus_lost", lastQuestionIdRef.current, undefined, true);
         return;
@@ -427,7 +615,7 @@ export function CandidateTestSession({
 
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [lockState, recordEvent]);
+  }, [lockState, pauseQuestionTimer, recordEvent]);
 
   const queueAutosave = useCallback(
     (questionId: string) => {
@@ -438,6 +626,7 @@ export function CandidateTestSession({
       }
 
       const answer = draftForQuestion(form, question);
+      const timeSpentSeconds = questionTimeSeconds(questionId);
       const previous = saveChainsRef.current.get(questionId) ?? Promise.resolve();
       const next = previous
         .catch(() => undefined)
@@ -456,9 +645,11 @@ export function CandidateTestSession({
                 answer,
                 operation: "autosave",
                 questionId,
+                ...(timeSpentSeconds === undefined ? {} : { timeSpentSeconds }),
               });
               applyControlResponse(response);
               if (response.status === "active") {
+                markQuestionTimeSaved(questionId, timeSpentSeconds);
                 setSavedAt(response.savedAt ?? new Date().toISOString());
               }
               lastError = null;
@@ -490,7 +681,14 @@ export function CandidateTestSession({
         });
       saveChainsRef.current.set(questionId, next);
     },
-    [applyControlResponse, identity, lockState, questionsById],
+    [
+      applyControlResponse,
+      identity,
+      lockState,
+      markQuestionTimeSaved,
+      questionTimeSeconds,
+      questionsById,
+    ],
   );
 
   useEffect(() => {
@@ -565,28 +763,37 @@ export function CandidateTestSession({
 
   function handleInput(event: FormEvent<HTMLFormElement>) {
     const target = event.target;
+    const questionId = questionIdFromTarget(target);
+    if (questionId) {
+      startQuestionTimer(questionId);
+    }
     const delay =
       target instanceof HTMLTextAreaElement ||
       (target instanceof HTMLInputElement && ["text", "search"].includes(target.type))
         ? 800
         : 0;
-    scheduleAutosave(questionIdFromTarget(target), delay);
+    scheduleAutosave(questionId, delay);
   }
 
   function handleChange(event: FormEvent<HTMLFormElement>) {
     const target = event.target;
+    const questionId = questionIdFromTarget(target);
+    if (questionId) {
+      startQuestionTimer(questionId);
+    }
     if (
       target instanceof HTMLTextAreaElement ||
       (target instanceof HTMLInputElement && ["text", "search"].includes(target.type))
     ) {
       return;
     }
-    scheduleAutosave(questionIdFromTarget(target), 0);
+    scheduleAutosave(questionId, 0);
   }
 
   function handleBlur(event: SyntheticEvent<HTMLFormElement>) {
     const questionId = questionIdFromTarget(event.target);
     if (questionId) {
+      pauseQuestionTimer();
       scheduleAutosave(questionId, 0);
     }
   }
@@ -602,6 +809,154 @@ export function CandidateTestSession({
     void recordEvent(eventType, questionId);
   }
 
+  async function completeOneQuestionSession() {
+    setQuestionError(null);
+    setSaveState("saving");
+    try {
+      const response = await postControl({ ...identity(), operation: "complete" });
+      applyControlResponse(response);
+      if (response.status === "active") {
+        setSaveState("saved");
+      }
+    } catch {
+      setSaveState(navigator.onLine ? "error" : "offline");
+      setQuestionError(
+        navigator.onLine
+          ? "Не удалось завершить тест. Повторите попытку."
+          : "Нет соединения. Ответы сохранены; завершите тест после восстановления сети.",
+      );
+    }
+  }
+
+  async function handleOneQuestionSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const question = activeQuestion;
+    if (!question || lockState !== "active" || saveState === "saving") {
+      return;
+    }
+
+    const form = event.currentTarget;
+    const answer = draftForQuestion(form, question);
+    if ((question.isRequired || question.remediationParentId) && !hasDraftAnswer(question, answer)) {
+      setQuestionError("Выберите или укажите ответ.");
+      form.reportValidity();
+      return;
+    }
+
+    const timeSpentSeconds = questionTimeSeconds(question.id);
+    setQuestionError(null);
+    setSaveState("saving");
+
+    try {
+      const response = await postControl({
+        ...identity(),
+        answer,
+        finalize: true,
+        operation: "autosave",
+        questionId: question.id,
+        ...(timeSpentSeconds === undefined ? {} : { timeSpentSeconds }),
+      });
+      applyControlResponse(response);
+      if (response.status !== "active") {
+        return;
+      }
+
+      const nextSavedAnswer = savedAnswerFromDraft(
+        question,
+        answer,
+        response.answerIsCorrect ?? null,
+        timeSpentSeconds ?? null,
+      );
+      const nextAnswers = { ...sessionAnswers, [question.id]: nextSavedAnswer };
+      const nextVisibleQuestions = (section?.questions ?? []).filter(
+        (entry) =>
+          !entry.remediationParentId ||
+          nextAnswers[entry.remediationParentId]?.isCorrect === false,
+      );
+      const savedQuestionIndex = nextVisibleQuestions.findIndex(
+        (entry) => entry.id === question.id,
+      );
+      const nextQuestionIndex = savedQuestionIndex + 1;
+
+      markQuestionTimeSaved(question.id, timeSpentSeconds);
+      setSessionAnswers(nextAnswers);
+      setRemediationFeedback((current) => {
+        const next = new Map(current);
+        if (response.incorrectFeedback) {
+          next.set(question.id, response.incorrectFeedback);
+        } else {
+          next.delete(question.id);
+        }
+        return next;
+      });
+      setSavedAt(response.savedAt ?? new Date().toISOString());
+      setSaveState("saved");
+
+      if (nextQuestionIndex < nextVisibleQuestions.length) {
+        setCurrentQuestionIndex(nextQuestionIndex);
+        return;
+      }
+
+      if (sectionIndex < sectionCount - 1) {
+        navigatingRef.current = true;
+        window.location.assign(
+          `/assessment/${token}/test/${sessionId}?section=${sectionIndex + 1}${
+            presentationSettings.allowBack && reviewMode ? "&review=1" : ""
+          }`,
+        );
+        return;
+      }
+
+      await completeOneQuestionSession();
+    } catch {
+      setSaveState(navigator.onLine ? "error" : "offline");
+      setQuestionError(
+        navigator.onLine
+          ? "Не удалось сохранить ответ. Он остался на экране — повторите попытку."
+          : "Нет соединения. Ответ остался на экране — повторите после восстановления сети.",
+      );
+      startQuestionTimer(question.id);
+    }
+  }
+
+  function goToPreviousQuestion() {
+    if (!presentationSettings.allowBack || !activeQuestion) {
+      return;
+    }
+    pauseQuestionTimer();
+    setQuestionError(null);
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+      return;
+    }
+    if (sectionIndex > 0) {
+      navigatingRef.current = true;
+      window.location.assign(
+        `/assessment/${token}/test/${sessionId}?section=${sectionIndex - 1}&review=1`,
+      );
+    }
+  }
+
+  const activeRemediationParent = activeQuestion?.remediationParentId
+    ? questionsById.get(activeQuestion.remediationParentId) ?? null
+    : null;
+  const activeRemediationFeedback = activeRemediationParent
+    ? remediationFeedback.get(activeRemediationParent.id) ??
+      activeRemediationParent.incorrectFeedback
+    : null;
+  const activeQuestionPosition = activeQuestion
+    ? (section?.questions.findIndex((question) => question.id === activeQuestion.id) ?? -1)
+    : -1;
+  const activeContentBlocks =
+    activeQuestionPosition >= 0
+      ? (section?.contentBlocks ?? []).filter(
+          (block) => block.positionIndex === activeQuestionPosition,
+        )
+      : [];
+  const trailingContentBlocks = (section?.contentBlocks ?? []).filter(
+    (block) => block.positionIndex === (section?.questions.length ?? 0),
+  );
+
   const saveLabel =
     saveState === "saving"
       ? "Сохраняем ответы..."
@@ -611,7 +966,9 @@ export function CandidateTestSession({
           ? "Нет соединения — повторим автоматически"
           : saveState === "error"
             ? "Не удалось сохранить — продолжаем попытки"
-            : "Автосохранение включено";
+            : isOneQuestion
+              ? "Ответ сохраняется по кнопке «Ответить и далее»"
+              : "Автосохранение включено";
 
   const controlPanel = (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -682,7 +1039,8 @@ export function CandidateTestSession({
 
       {timerWarning ? (
         <p className="rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-sm" role="status">
-          {timerWarning === "one" ? "Осталась 1 минута." : "Осталось 5 минут."} Ответы сохраняются автоматически.
+          {timerWarning === "one" ? "Осталась 1 минута." : "Осталось 5 минут."}{" "}
+          {isOneQuestion ? "Не забудьте подтвердить текущий ответ." : "Ответы сохраняются автоматически."}
         </p>
       ) : null}
 
@@ -726,6 +1084,153 @@ export function CandidateTestSession({
               ) : null}
             </CardHeader>
             <CardContent className="pt-6">
+              {isOneQuestion ? (
+                activeQuestion ? (
+                  <form
+                    className="space-y-6"
+                    key={activeQuestion.id}
+                    onSubmit={handleOneQuestionSubmit}
+                    ref={formRef}
+                  >
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Вопрос {questionOffset + currentQuestionIndex + 1} из{" "}
+                      {totalVisibleQuestionCount}
+                    </p>
+
+                    {sectionIndex === 0 && currentQuestionIndex === 0 && testInstructions ? (
+                      <RichTextContent
+                        className="rounded-lg border bg-muted/40 p-4 text-sm"
+                        value={testInstructions}
+                      />
+                    ) : null}
+
+                    {activeContentBlocks.length > 0 ? (
+                      <div className="space-y-4">
+                        {activeContentBlocks.map((block) => (
+                          <div
+                            className="border-l-4 border-l-primary bg-muted/30 px-4 py-3"
+                            key={block.id}
+                          >
+                            <h3 className="font-semibold">{block.title}</h3>
+                            {block.description ? (
+                              <RichTextContent
+                                className="mt-1 text-sm text-muted-foreground"
+                                value={block.description}
+                              />
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    {activeRemediationFeedback ? (
+                      <div
+                        className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"
+                        role="status"
+                      >
+                        <p className="text-sm font-semibold">Разбор ответа</p>
+                        <p className="mt-2 whitespace-pre-wrap text-sm">
+                          {activeRemediationFeedback}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-4" data-question-id={activeQuestion.id}>
+                      <div>
+                        {activeQuestion.remediationParentId ? (
+                          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-primary">
+                            Повторный вопрос
+                          </p>
+                        ) : null}
+                        <p className="whitespace-pre-wrap text-lg font-medium">
+                          {activeQuestion.text}
+                          {activeQuestion.isRequired ? (
+                            <span className="ml-1 text-destructive">*</span>
+                          ) : null}
+                        </p>
+                        {activeQuestion.description ? (
+                          <RichTextContent
+                            className="mt-2 text-sm text-muted-foreground"
+                            value={activeQuestion.description}
+                          />
+                        ) : null}
+                      </div>
+                      <QuestionResponseFields
+                        answer={sessionAnswers[activeQuestion.id] ?? null}
+                        inputPrefix={`q_${activeQuestion.id}`}
+                        question={
+                          activeQuestion.remediationParentId
+                            ? { ...activeQuestion, isRequired: true }
+                            : activeQuestion
+                        }
+                      />
+                    </div>
+
+                    {questionError ? (
+                      <p
+                        className="rounded-md border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+                        role="alert"
+                      >
+                        {questionError}
+                      </p>
+                    ) : null}
+
+                    <div className="flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:justify-between">
+                      {presentationSettings.allowBack &&
+                      (currentQuestionIndex > 0 || sectionIndex > 0) ? (
+                        <Button
+                          className="w-full sm:w-auto"
+                          disabled={saveState === "saving"}
+                          onClick={goToPreviousQuestion}
+                          type="button"
+                          variant="outline"
+                        >
+                          Назад
+                        </Button>
+                      ) : (
+                        <span className="hidden sm:block" />
+                      )}
+                      <Button
+                        className="w-full sm:w-auto"
+                        disabled={saveState === "saving"}
+                        type="submit"
+                      >
+                        {saveState === "saving" ? "Сохраняем ответ..." : "Ответить и далее"}
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="space-y-4">
+                    {trailingContentBlocks.map((block) => (
+                      <div
+                        className="border-l-4 border-l-primary bg-muted/30 px-4 py-3"
+                        key={block.id}
+                      >
+                        <h3 className="font-semibold">{block.title}</h3>
+                        {block.description ? (
+                          <RichTextContent
+                            className="mt-1 text-sm text-muted-foreground"
+                            value={block.description}
+                          />
+                        ) : null}
+                      </div>
+                    ))}
+                    <p className="text-sm text-muted-foreground">
+                      Все доступные вопросы сохранены. Завершите тест, чтобы перейти дальше.
+                    </p>
+                    {questionError ? (
+                      <p className="text-sm text-destructive" role="alert">{questionError}</p>
+                    ) : null}
+                    <Button
+                      disabled={saveState === "saving"}
+                      onClick={() => void completeOneQuestionSession()}
+                      type="button"
+                    >
+                      {saveState === "saving" ? "Завершаем..." : "Завершить тест"}
+                    </Button>
+                  </div>
+                )
+              ) : (
               <form
                 action={saveCandidateSectionAction}
                 className="space-y-8"
@@ -787,7 +1292,7 @@ export function CandidateTestSession({
                         ) : null}
                       </div>
                       <QuestionResponseFields
-                        answer={answers[question.id] ?? null}
+                        answer={sessionAnswers[question.id] ?? null}
                         inputPrefix={`q_${question.id}`}
                         question={
                           question.remediationParentId
@@ -795,7 +1300,7 @@ export function CandidateTestSession({
                             : question
                         }
                       />
-                      {answers[question.id]?.isCorrect === false && question.incorrectFeedback ? (
+                      {sessionAnswers[question.id]?.isCorrect === false && question.incorrectFeedback ? (
                         <div
                           className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"
                           role="status"
@@ -811,7 +1316,7 @@ export function CandidateTestSession({
                   })
                 )}
                 <div className="-mx-6 -mb-6 flex flex-col-reverse gap-3 border-t bg-background/95 px-6 py-4 sm:mx-0 sm:mb-0 sm:flex-row sm:justify-between sm:border-0 sm:p-0">
-                  {sectionIndex > 0 ? (
+                  {sectionIndex > 0 && presentationSettings.allowBack ? (
                     <PendingSubmitButton
                       className="w-full sm:w-auto"
                       name="direction"
@@ -835,6 +1340,7 @@ export function CandidateTestSession({
                   </PendingSubmitButton>
                 </div>
               </form>
+              )}
             </CardContent>
           </Card>
         )}
@@ -852,7 +1358,7 @@ export function CandidateTestSession({
             <ShieldAlert className="size-8 text-destructive" aria-hidden="true" />
             <h2 className="mt-4 text-xl font-semibold" id="tab-warning-title">Не покидайте страницу теста</h2>
             <p className="mt-2 text-sm text-muted-foreground" id="tab-warning-description">
-              Переход в другую вкладку или приложение зафиксирован и будет показан работодателю в отчете. Таймер продолжал идти.
+              Переход в другую вкладку или приложение зафиксирован и будет показан работодателю в отчете. Общий таймер теста продолжал идти.
             </p>
             <Button className="mt-5 w-full" onClick={() => setTabWarning(false)} type="button">
               Продолжить тест

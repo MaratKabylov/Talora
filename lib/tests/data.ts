@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 
 import type { ScoringType, TestTemplateStatus, TestVersionStatus } from "./constants";
+import {
+  normalizePresentationSettings,
+  type TestPresentationSettings,
+} from "./presentation-settings";
 
 type VersionRecord = {
   created_at: string;
@@ -11,6 +15,7 @@ type VersionRecord = {
   instructions: string | null;
   published_at: string | null;
   scoring_type: ScoringType;
+  settings_json: unknown;
   status: TestVersionStatus;
   title: string;
   version_number: number;
@@ -39,6 +44,7 @@ export type TestVersion = {
   id: string;
   instructions: string | null;
   publishedAt: string | null;
+  presentationSettings: TestPresentationSettings;
   scoringType: ScoringType;
   status: TestVersionStatus;
   title: string;
@@ -66,6 +72,7 @@ function normalizeVersion(record: VersionRecord): TestVersion {
     id: record.id,
     instructions: sanitizeRichTextValue(record.instructions),
     publishedAt: record.published_at,
+    presentationSettings: normalizePresentationSettings(record.settings_json),
     scoringType: record.scoring_type,
     status: record.status,
     title: record.title,
@@ -117,7 +124,7 @@ async function listGrantedSystemTemplateIds(
 }
 
 function testTemplateSelect() {
-  return "id, title, description, category, is_system, status, created_at, updated_at, test_versions(id, version_number, title, description, instructions, duration_minutes, scoring_type, status, published_at, created_at)";
+  return "id, title, description, category, is_system, status, created_at, updated_at, test_versions(id, version_number, title, description, instructions, duration_minutes, scoring_type, settings_json, status, published_at, created_at)";
 }
 
 export async function listTestTemplates(companyId: string) {

@@ -7,7 +7,7 @@ import { RichTextContent } from "@/components/ui/rich-text-content";
 import { getAssessmentByToken, getAssessmentQuestionPageData } from "@/lib/assessment/data";
 
 type TestParams = Promise<{ sessionId: string; token: string }>;
-type TestSearchParams = Promise<{ error?: string; section?: string }>;
+type TestSearchParams = Promise<{ error?: string; review?: string; section?: string }>;
 
 export default async function CandidateTestPage({
   params,
@@ -47,10 +47,38 @@ export default async function CandidateTestPage({
   }
 
   const requestedIndex = Number(feedback.section ?? "0");
-  const sectionIndex = Number.isInteger(requestedIndex)
+  const clampedRequestedIndex = Number.isInteger(requestedIndex)
     ? Math.min(Math.max(requestedIndex, 0), Math.max(data.sections.length - 1, 0))
     : 0;
+  const presentationSettings = data.session.test.presentationSettings;
+  const visibleQuestionsBySection = data.sections.map((section) =>
+    section.questions.filter(
+      (question) =>
+        !question.remediationParentId ||
+        data.answers[question.remediationParentId]?.isCorrect === false,
+    ),
+  );
+  const firstIncompleteSectionIndex = visibleQuestionsBySection.findIndex((questions) =>
+    questions.some((question) => !data.answers[question.id]),
+  );
+  const reviewMode =
+    presentationSettings.presentationMode === "one_question" &&
+    presentationSettings.allowBack &&
+    feedback.review === "1";
+  const sectionIndex =
+    presentationSettings.presentationMode === "one_question" &&
+    !reviewMode &&
+    firstIncompleteSectionIndex >= 0
+      ? firstIncompleteSectionIndex
+      : clampedRequestedIndex;
   const section = data.sections[sectionIndex];
+  const questionOffset = visibleQuestionsBySection
+    .slice(0, sectionIndex)
+    .reduce((sum, questions) => sum + questions.length, 0);
+  const otherVisibleQuestionCount = visibleQuestionsBySection.reduce(
+    (sum, questions, index) => sum + (index === sectionIndex ? 0 : questions.length),
+    0,
+  );
   const completedSessions = data.assessment.sessions.filter((session) => session.status === "completed").length;
   const progress = section ? ((sectionIndex + 1) / data.sections.length) * 100 : 0;
 
@@ -86,7 +114,9 @@ export default async function CandidateTestPage({
 
         <FeedbackMessage error={feedback.error} />
 
-        {sectionIndex === 0 && data.session.test.instructions ? (
+        {sectionIndex === 0 &&
+        presentationSettings.presentationMode === "section" &&
+        data.session.test.instructions ? (
           <RichTextContent
             className="rounded-lg border bg-muted/40 p-4 text-sm"
             value={data.session.test.instructions}
@@ -96,10 +126,15 @@ export default async function CandidateTestPage({
         <CandidateTestSession
           answers={data.answers}
           initialDeadlineAt={data.session.deadlineAt}
+          otherVisibleQuestionCount={otherVisibleQuestionCount}
+          presentationSettings={presentationSettings}
+          questionOffset={questionOffset}
+          reviewMode={reviewMode}
           section={section ?? null}
           sectionCount={data.sections.length}
           sectionIndex={sectionIndex}
           sessionId={sessionId}
+          testInstructions={data.session.test.instructions}
           token={token}
         />
       </div>

@@ -5,6 +5,7 @@ import {
   ASSESSMENT_INTEGRITY_EVENT_TYPES,
   autosaveCandidateAnswer,
   claimCandidateSession,
+  completeOneQuestionCandidateSession,
   expireCandidateSessionIfNeeded,
   heartbeatCandidateSession,
   recordCandidateSessionEvent,
@@ -44,8 +45,14 @@ const requestSchema = z.discriminatedUnion("operation", [
       selectedOptionId: z.string().uuid().nullable().optional(),
       selectedOptionIds: z.array(z.string().uuid()).max(100).optional(),
     }),
+    finalize: z.boolean().optional(),
     operation: z.literal("autosave"),
     questionId: z.string().uuid(),
+    timeSpentSeconds: z.number().int().min(0).max(604_800).optional(),
+  }),
+  z.object({
+    ...identityShape,
+    operation: z.literal("complete"),
   }),
   z.object({
     ...identityShape,
@@ -89,6 +96,8 @@ export async function POST(request: NextRequest) {
             ? await recordCandidateSessionEvent(input)
             : input.operation === "autosave"
               ? await autosaveCandidateAnswer(input)
+              : input.operation === "complete"
+                ? await completeOneQuestionCandidateSession(input)
               : await expireCandidateSessionIfNeeded(input);
 
     return NextResponse.json(result, {

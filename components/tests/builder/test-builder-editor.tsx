@@ -19,6 +19,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -198,6 +199,7 @@ export function TestBuilderEditor({
     description: initialVersion.description ?? "",
     durationMinutes: initialVersion.durationMinutes?.toString() ?? "",
     instructions: initialVersion.instructions ?? "",
+    presentationSettings: initialVersion.presentationSettings,
     scoringType: initialVersion.scoringType,
   });
   const [status, setStatus] = useState<SaveStatus>("idle");
@@ -269,6 +271,21 @@ export function TestBuilderEditor({
     markChanged();
   };
 
+  const updatePresentationSettings = (
+    patch: Partial<TestVersion["presentationSettings"]>,
+  ) => {
+    const nextVersion = {
+      ...versionRef.current,
+      presentationSettings: {
+        ...versionRef.current.presentationSettings,
+        ...patch,
+      },
+    };
+    versionRef.current = nextVersion;
+    setVersion(nextVersion);
+    markChanged();
+  };
+
   const saveOnce = useCallback(async () => {
     if (saveInFlight.current) return saveInFlight.current;
 
@@ -319,6 +336,7 @@ export function TestBuilderEditor({
         description: nullableText(currentVersion.description),
         durationMinutes: currentVersion.durationMinutes ? Number(currentVersion.durationMinutes) : null,
         instructions: nullableText(currentVersion.instructions),
+        presentationSettings: currentVersion.presentationSettings,
         scoringType: currentVersion.scoringType,
         title: versionTitle,
       },
@@ -914,6 +932,45 @@ export function TestBuilderEditor({
                 <option value="manual">Ручная оценка</option>
                 <option value="mixed">Смешанная</option>
               </Select>
+            </div>
+            <div className="mt-4 space-y-4 rounded-lg border bg-muted/20 p-4">
+              <div className="space-y-2">
+                <Label htmlFor="builder-presentation-mode">Показывать вопросы</Label>
+                <Select
+                  id="builder-presentation-mode"
+                  onChange={(event) =>
+                    updatePresentationSettings({
+                      presentationMode: event.target.value as TestVersion["presentationSettings"]["presentationMode"],
+                    })
+                  }
+                  value={version.presentationSettings.presentationMode}
+                >
+                  <option value="section">Все вопросы секции</option>
+                  <option value="one_question">По одному вопросу</option>
+                </Select>
+              </div>
+              <label className="flex cursor-pointer items-start gap-3 text-sm">
+                <input
+                  checked={version.presentationSettings.captureQuestionTime}
+                  className="mt-0.5 size-4 accent-primary"
+                  onChange={(event) =>
+                    updatePresentationSettings({ captureQuestionTime: event.target.checked })
+                  }
+                  type="checkbox"
+                />
+                <span>Записывать время ответа на каждый вопрос</span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 text-sm">
+                <input
+                  checked={version.presentationSettings.allowBack}
+                  className="mt-0.5 size-4 accent-primary"
+                  onChange={(event) =>
+                    updatePresentationSettings({ allowBack: event.target.checked })
+                  }
+                  type="checkbox"
+                />
+                <span>Разрешать возврат к предыдущим вопросам</span>
+              </label>
             </div>
             <RichTextEditor
               className="mt-3"

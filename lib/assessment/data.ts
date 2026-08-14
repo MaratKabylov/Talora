@@ -3,6 +3,10 @@ import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { scoreCompletedApplication } from "@/lib/scoring/service";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 import { getTestContentBlocks } from "@/lib/tests/content-blocks";
+import {
+  normalizePresentationSettings,
+  type TestPresentationSettings,
+} from "@/lib/tests/presentation-settings";
 import type { QuestionSettings } from "@/lib/tests/remediation";
 
 type InvitationStatus =
@@ -43,6 +47,7 @@ type PackageTestRecord = {
         duration_minutes: number | null;
         id: string;
         instructions: string | null;
+        settings_json: unknown;
         status: string;
         title: string;
       }
@@ -51,6 +56,7 @@ type PackageTestRecord = {
         duration_minutes: number | null;
         id: string;
         instructions: string | null;
+        settings_json: unknown;
         status: string;
         title: string;
       }[]
@@ -112,6 +118,7 @@ type AnswerRecord = {
   is_correct: boolean | null;
   question_id: string;
   selected_option_id: string | null;
+  time_spent_seconds: number | null;
 };
 
 export type AssessmentTest = {
@@ -119,6 +126,7 @@ export type AssessmentTest = {
   durationMinutes: number | null;
   instructions: string | null;
   orderIndex: number;
+  presentationSettings: TestPresentationSettings;
   title: string;
   versionId: string;
 };
@@ -208,6 +216,7 @@ export type AssessmentQuestionPageData = {
     answerText: string | null;
     isCorrect: boolean | null;
     selectedOptionId: string | null;
+    timeSpentSeconds: number | null;
   }>;
   assessment: ActiveAssessment;
   questions: FlowQuestion[];
@@ -239,6 +248,7 @@ function normalizeTests(job: JobRecord) {
           durationMinutes: version.duration_minutes,
           instructions: sanitizeRichTextValue(version.instructions),
           orderIndex: packageTest.order_index,
+          presentationSettings: normalizePresentationSettings(version.settings_json),
           title: version.title,
           versionId: version.id,
         },
@@ -304,7 +314,7 @@ export async function getAssessmentByToken(token: string): Promise<AssessmentAva
     admin
       .from("jobs")
       .select(
-        "id, title, department, location, assessment_packages(id, title, description, assessment_package_tests(order_index, test_version_id, test_versions(id, title, description, instructions, duration_minutes, status)))",
+        "id, title, department, location, assessment_packages(id, title, description, assessment_package_tests(order_index, test_version_id, test_versions(id, title, description, instructions, duration_minutes, settings_json, status)))",
       )
       .eq("id", invitation.job_id)
       .eq("company_id", invitation.company_id)
@@ -438,7 +448,7 @@ export async function getAssessmentQuestionPageData(
         .eq("test_version_id", session.test.versionId),
       admin
         .from("candidate_answers")
-        .select("question_id, selected_option_id, answer_text, answer_json, is_correct")
+        .select("question_id, selected_option_id, answer_text, answer_json, is_correct, time_spent_seconds")
         .eq("session_id", session.id),
     ]);
 
@@ -514,6 +524,7 @@ export async function getAssessmentQuestionPageData(
           answerText: answer.answer_text,
           isCorrect: answer.is_correct,
           selectedOptionId: answer.selected_option_id,
+          timeSpentSeconds: answer.time_spent_seconds,
         },
       ]),
     ),

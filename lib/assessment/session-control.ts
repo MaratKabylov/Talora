@@ -3,9 +3,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizePresentationSettings } from "@/lib/tests/presentation-settings";
 
 import { completeCandidateSessionAndGetPath } from "./completion";
-import { getAssessmentByToken } from "./data";
+import { getAssessmentByToken, getAssessmentQuestionPageData } from "./data";
 
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
 const SESSION_LEASE_MS = 90_000;
@@ -29,7 +30,13 @@ export type AssessmentAnswerDraft = {
 };
 
 export type CandidateSessionControlResponse =
-  | { deadlineAt: string | null; savedAt?: string; status: "active" }
+  | {
+      answerIsCorrect?: boolean | null;
+      deadlineAt: string | null;
+      incorrectFeedback?: string | null;
+      savedAt?: string;
+      status: "active";
+    }
   | { retryAfterSeconds: number; status: "blocked" }
   | { redirectTo: string; status: "redirect" };
 
@@ -51,6 +58,10 @@ type SessionRecord = {
   started_at: string | null;
   status: string;
   test_version_id: string;
+  test_versions:
+    | { settings_json: unknown }
+    | Array<{ settings_json: unknown }>
+    | null;
 };
 
 type CandidateSessionAccess = {
@@ -91,6 +102,13 @@ function isPast(value: string | null) {
 
 function leaseExpiry() {
   return new Date(Date.now() + SESSION_LEASE_MS).toISOString();
+}
+
+function presentationSettingsForSession(session: SessionRecord) {
+  const version = Array.isArray(session.test_versions)
+    ? session.test_versions[0] ?? null
+    : session.test_versions;
+  return normalizePresentationSettings(version?.settings_json);
 }
 
 async function redirectForAssessment(token: string) {
@@ -139,7 +157,7 @@ async function loadCandidateSessionAccess(
   const { data: sessionData, error: sessionError } = await admin
     .from("test_sessions")
     .select(
-      "id, test_version_id, status, started_at, deadline_at, active_client_id_hash, active_device_id_hash, lease_expires_at, last_heartbeat_at",
+      "id, test_version_id, status, started_at, deadline_at, active_client_id_hash, active_device_id_hash, lease_expires_at, last_heartbeat_at, test_versions(settings_json)",
     )
     .eq("application_id", invitation.application_id)
     .eq("id", parsed.data.sessionId)
@@ -401,11 +419,17 @@ export async function recordCandidateSessionEvent(
 }
 
 type QuestionRecord = {
-  answer_options?: Array<{ id: string }> | null;
+  answer_options?: Array<{ id: string; is_correct: boolean | null }> | null;
   id: string;
   question_type: string;
   section_id: string;
-  settings_json: { max?: number; min?: number } | null;
+  settings_json: {
+    incorrectFeedback?: string;
+    max?: number;
+    min?: number;
+    remediationQuestionId?: string;
+    required?: boolean;
+  } | null;
 };
 
 async function answerRowForDraft(
@@ -415,7 +439,7 @@ async function answerRowForDraft(
 ) {
   const { data: questionData, error: questionError } = await access.admin
     .from("questions")
-    .select("id, section_id, question_type, settings_json, answer_options(id)")
+    .select("id, section_id, question_type, settings_json, answer_options(id, is_correct)")
     .eq("id", questionId)
     .maybeSingle();
 
@@ -492,7 +516,12 @@ async function answerRowForDraft(
 }
 
 export async function autosaveCandidateAnswer(
-  identity: ClientIdentity & { answer: AssessmentAnswerDraft; questionId: string },
+  identity: ClientIdentity & {
+    answer: AssessmentAnswerDraft;
+    finalize?: boolean;
+    questionId: string;
+    timeSpentSeconds?: number;
+  },
 ): Promise<CandidateSessionControlResponse> {
   const access = await loadCandidateSessionAccess(identity);
   if (!access) {
@@ -504,16 +533,109 @@ export async function autosaveCandidateAnswer(
     return blockedOrRedirect;
   }
 
-  const answer = await answerRowForDraft(access, identity.questionId, identity.answer);
+  const presentationSettings = presentationSettingsForSession(access.session);
+  const timeSpentSeconds = presentationSettings.captureQuestionTime
+    ? identity.timeSpentSeconds
+    : undefined;
+  if (presentationSettings.presentationMode === "one_question" && !identity.finalize) {
+    throw new Error("One-question answers must be finalized explicitly.");
+  }
+
+  let oneQuestionData: Awaited<ReturnType<typeof getAssessmentQuestionPageData>> = null;
+  if (presentationSettings.presentationMode === "one_question") {
+    oneQuestionData = await getAssessmentQuestionPageData(identity.token, identity.sessionId);
+    if (!oneQuestionData || oneQuestionData.session.status !== "in_progress") {
+      throw new Error("The active assessment question could not be loaded.");
+    }
+
+    const existingAnswer = oneQuestionData.answers[identity.questionId];
+    if (!presentationSettings.allowBack && existingAnswer) {
+      const question = oneQuestionData.questions.find(
+        (entry) => entry.id === identity.questionId,
+      );
+      return {
+        answerIsCorrect: existingAnswer.isCorrect,
+        deadlineAt: access.session.deadline_at,
+        incorrectFeedback:
+          existingAnswer.isCorrect === false ? question?.incorrectFeedback ?? null : null,
+        savedAt: new Date().toISOString(),
+        status: "active",
+      };
+    }
+
+    if (!presentationSettings.allowBack) {
+      const firstIncompleteQuestion = oneQuestionData.sections
+        .flatMap((section) =>
+          section.questions.filter(
+            (question) =>
+              (!question.remediationParentId ||
+                oneQuestionData!.answers[question.remediationParentId]?.isCorrect === false) &&
+              !oneQuestionData!.answers[question.id],
+          ),
+        )[0];
+      if (!firstIncompleteQuestion || firstIncompleteQuestion.id !== identity.questionId) {
+        throw new Error("The assessment question is no longer available for editing.");
+      }
+    }
+  }
+
+  const draftAnswer = await answerRowForDraft(access, identity.questionId, identity.answer);
+  const question = oneQuestionData?.questions.find((entry) => entry.id === identity.questionId);
+  if (
+    identity.finalize &&
+    !draftAnswer &&
+    (question?.isRequired || question?.remediationParentId)
+  ) {
+    throw new Error("A required assessment answer cannot be empty.");
+  }
+  const answer =
+    draftAnswer ??
+    (identity.finalize
+      ? { answer_json: { skipped: true }, answer_text: null, selected_option_id: null }
+      : null);
+  let answerIsCorrect: boolean | null = null;
+  let incorrectFeedback: string | null = null;
+
+  if (identity.finalize && question?.remediationQuestionId) {
+    const { data: keyData, error: keyError } = await access.admin
+      .from("questions")
+      .select("settings_json, answer_options(id, is_correct)")
+      .eq("id", identity.questionId)
+      .maybeSingle();
+    if (keyError) {
+      throw new Error("Unable to evaluate the remediation branch.");
+    }
+    const answerKey = keyData as unknown as {
+      answer_options?: Array<{ id: string; is_correct: boolean | null }> | null;
+      settings_json?: { incorrectFeedback?: string } | null;
+    } | null;
+    const selectedOption = (answerKey?.answer_options ?? []).find(
+      (option) => option.id === answer?.selected_option_id,
+    );
+    answerIsCorrect =
+      selectedOption?.is_correct === true
+        ? true
+        : selectedOption?.is_correct === false
+          ? false
+          : null;
+    incorrectFeedback =
+      answerIsCorrect === false && typeof answerKey?.settings_json?.incorrectFeedback === "string"
+        ? answerKey.settings_json.incorrectFeedback
+        : null;
+  }
+
   const query = access.admin.from("candidate_answers");
   const { error } = answer
     ? await query.upsert(
         {
           ...answer,
-          is_correct: null,
+          is_correct: answerIsCorrect,
           points_awarded: null,
           question_id: identity.questionId,
           session_id: identity.sessionId,
+          ...(timeSpentSeconds === undefined
+            ? {}
+            : { time_spent_seconds: timeSpentSeconds }),
         },
         { onConflict: "session_id,question_id" },
       )
@@ -526,11 +648,72 @@ export async function autosaveCandidateAnswer(
     throw new Error("Unable to autosave the assessment answer.");
   }
 
+  if (
+    identity.finalize &&
+    question?.remediationQuestionId &&
+    answerIsCorrect !== false
+  ) {
+    const { error: remediationError } = await access.admin
+      .from("candidate_answers")
+      .delete()
+      .eq("session_id", identity.sessionId)
+      .eq("question_id", question.remediationQuestionId);
+    if (remediationError) {
+      throw new Error("Unable to update the remediation branch.");
+    }
+  }
+
   return {
+    answerIsCorrect,
     deadlineAt: access.session.deadline_at,
+    incorrectFeedback,
     savedAt: new Date().toISOString(),
     status: "active",
   };
+}
+
+export async function completeOneQuestionCandidateSession(
+  identity: ClientIdentity,
+): Promise<CandidateSessionControlResponse> {
+  const access = await loadCandidateSessionAccess(identity);
+  if (!access) {
+    return { redirectTo: `/assessment/${identity.token}`, status: "redirect" };
+  }
+
+  const blockedOrRedirect = await touchOwnedLease(identity, access);
+  if (blockedOrRedirect) {
+    return blockedOrRedirect;
+  }
+
+  if (presentationSettingsForSession(access.session).presentationMode !== "one_question") {
+    throw new Error("This assessment session uses section navigation.");
+  }
+
+  const data = await getAssessmentQuestionPageData(identity.token, identity.sessionId);
+  if (!data || data.session.status !== "in_progress") {
+    return { redirectTo: await redirectForAssessment(identity.token), status: "redirect" };
+  }
+
+  const missingQuestion = data.sections
+    .flatMap((section) =>
+      section.questions.filter(
+        (question) =>
+          (!question.remediationParentId ||
+            data.answers[question.remediationParentId]?.isCorrect === false) &&
+          !data.answers[question.id],
+      ),
+    )[0];
+  if (missingQuestion) {
+    throw new Error("All visible questions must be finalized before completion.");
+  }
+
+  const redirectTo = await completeCandidateSessionAndGetPath(
+    identity.token,
+    data.assessment,
+    identity.sessionId,
+    "candidate",
+  );
+  return { redirectTo, status: "redirect" };
 }
 
 export async function expireCandidateSessionIfNeeded(

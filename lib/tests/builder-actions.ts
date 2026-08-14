@@ -16,6 +16,10 @@ import {
 } from "./builder-constants";
 import { canManageTests, SCORING_TYPE_VALUES } from "./constants";
 import { testContentBlockSchema, withTestContentBlocks } from "./content-blocks";
+import {
+  mergePresentationSettings,
+  TEST_PRESENTATION_MODES,
+} from "./presentation-settings";
 import { validateRemediationLinks } from "./remediation";
 import { formatTestVersionTitle } from "./version-title";
 
@@ -177,6 +181,11 @@ const builderDocumentSchema = z.object({
     description: z.string().max(20000).nullable(),
     durationMinutes: z.number().int().min(1).max(1440).nullable(),
     instructions: z.string().max(40000).nullable(),
+    presentationSettings: z.object({
+      allowBack: z.boolean(),
+      captureQuestionTime: z.boolean(),
+      presentationMode: z.enum(TEST_PRESENTATION_MODES),
+    }),
     scoringType: z.enum(SCORING_TYPE_VALUES),
     title: z.string().trim().min(2).max(180),
   }),
@@ -363,7 +372,7 @@ async function getDocumentContext(templateId: string, versionId: string) {
   const supabase = await createClient();
   const { data: version } = await supabase
     .from("test_versions")
-    .select("id, version_number, test_templates!inner(id, company_id, is_system, status)")
+    .select("id, version_number, settings_json, test_templates!inner(id, company_id, is_system, status)")
     .eq("id", versionId)
     .eq("test_template_id", templateId)
     .eq("status", "draft")
@@ -372,7 +381,9 @@ async function getDocumentContext(templateId: string, versionId: string) {
     .eq("test_templates.status", "active")
     .maybeSingle();
 
-  return version ? { supabase, versionNumber: version.version_number } : null;
+  return version
+    ? { settingsJson: version.settings_json, supabase, versionNumber: version.version_number }
+    : null;
 }
 
 export async function saveBuilderDocumentAction(input: unknown): Promise<BuilderSaveResult> {
@@ -475,6 +486,10 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
       duration_minutes: document.version.durationMinutes,
       instructions: document.version.instructions,
       scoring_type: document.version.scoringType,
+      settings_json: mergePresentationSettings(
+        context.settingsJson,
+        document.version.presentationSettings,
+      ),
       title: formatTestVersionTitle(context.versionNumber),
     })
     .eq("id", document.versionId)

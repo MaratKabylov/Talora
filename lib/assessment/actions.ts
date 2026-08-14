@@ -364,6 +364,13 @@ export async function saveCandidateSectionAction(formData: FormData) {
     redirectWithError(startPath(token), "Тест недоступен для прохождения.");
   }
 
+  if (direction === "previous" && !data.session.test.presentationSettings.allowBack) {
+    redirectWithError(
+      testPath(token, sessionId.data, requestedSection),
+      "Возврат к предыдущим вопросам отключен для этого теста.",
+    );
+  }
+
   const sectionIndex = Math.min(Math.max(requestedSection, 0), Math.max(data.sections.length - 1, 0));
   const section = data.sections[sectionIndex];
   if (!section) {

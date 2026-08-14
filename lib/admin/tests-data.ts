@@ -16,6 +16,7 @@ import type {
 import type { ScoringType, TestTemplateStatus, TestVersionStatus } from "@/lib/tests/constants";
 import type { TestTemplate, TestVersion } from "@/lib/tests/data";
 import { getTestContentBlocks } from "@/lib/tests/content-blocks";
+import { normalizePresentationSettings } from "@/lib/tests/presentation-settings";
 import type { QuestionSettings } from "@/lib/tests/remediation";
 
 import { requirePlatformContext } from "./context";
@@ -28,6 +29,7 @@ type VersionRecord = {
   instructions: string | null;
   published_at: string | null;
   scoring_type: ScoringType;
+  settings_json: unknown;
   status: TestVersionStatus;
   title: string;
   version_number: number;
@@ -86,6 +88,7 @@ function normalizeVersion(record: VersionRecord): TestVersion {
     id: record.id,
     instructions: sanitizeRichTextValue(record.instructions),
     publishedAt: record.published_at,
+    presentationSettings: normalizePresentationSettings(record.settings_json),
     scoringType: record.scoring_type,
     status: record.status,
     title: record.title,
@@ -172,7 +175,7 @@ function systemTemplateQuery() {
   return createAdminClient()
     .from("test_templates")
     .select(
-      "id, title, description, category, is_system, status, created_at, updated_at, test_versions(id, version_number, title, description, instructions, duration_minutes, scoring_type, status, published_at, created_at)",
+      "id, title, description, category, is_system, status, created_at, updated_at, test_versions(id, version_number, title, description, instructions, duration_minutes, scoring_type, settings_json, status, published_at, created_at)",
     )
     .eq("is_system", true)
     .is("company_id", null);
