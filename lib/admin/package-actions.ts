@@ -25,7 +25,7 @@ const optionalPercentage = z.preprocess(
     return text ? Number(text) : null;
   },
   z
-    .number()
+    .number({ error: "Введите процент числом." })
     .min(0, "Значение не может быть меньше 0.")
     .max(100, "Значение не может быть больше 100.")
     .nullable(),
@@ -45,19 +45,22 @@ const packageTestSchema = z.object({
   orderIndex: z.preprocess(
     (value) => {
       const text = typeof value === "string" ? value.trim() : "";
-      return text ? Number(text) : Number.NaN;
+      return text ? Number(text) : undefined;
     },
-    z.number().int("Порядок должен быть целым числом.").min(0, "Порядок не может быть меньше 0."),
+    z
+      .number({ error: "Укажите порядок теста числом." })
+      .int("Порядок должен быть целым числом.")
+      .min(0, "Порядок не может быть меньше 0."),
   ),
   passingScore: optionalPercentage,
   testVersionId: z.string().uuid(),
   weightPercent: z.preprocess(
     (value) => {
       const text = typeof value === "string" ? value.trim().replace(",", ".") : "";
-      return text ? Number(text) : Number.NaN;
+      return text ? Number(text) : 0;
     },
     z
-      .number()
+      .number({ error: "Укажите вес теста числом." })
       .min(0, "Вес теста не может быть меньше 0.")
       .max(100, "Вес теста не может быть больше 100."),
   ),
