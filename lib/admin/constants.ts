@@ -52,6 +52,10 @@ export function canManageSystemTests(role: PlatformRole) {
   return role === "platform_owner" || role === "platform_admin";
 }
 
+export function canManageSystemAssessmentPackages(role: PlatformRole) {
+  return role === "platform_owner" || role === "platform_admin";
+}
+
 export function canViewCandidatePii(role: PlatformRole) {
   return role !== "platform_analyst";
 }

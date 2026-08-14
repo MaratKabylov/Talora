@@ -11,10 +11,12 @@ function formatDuration(value: number | null) {
 export function AssessmentPackageTestsFields({
   availableVersions,
   disabled = false,
+  emptyText = "Нет опубликованных тестов, доступных этой компании. Опубликуйте тест или включите доступ к системным тестам.",
   selectedTests = [],
 }: {
   availableVersions: PublishedTestVersionOption[];
   disabled?: boolean;
+  emptyText?: string;
   selectedTests?: AssessmentPackageTest[];
 }) {
   const selectedByVersion = new Map(selectedTests.map((test) => [test.testVersionId, test]));
@@ -22,7 +24,7 @@ export function AssessmentPackageTestsFields({
   if (availableVersions.length === 0) {
     return (
       <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-        Нет опубликованных тестов, доступных этой компании. Опубликуйте тест или включите доступ к системным тестам.
+        {emptyText}
       </p>
     );
   }

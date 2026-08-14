@@ -12,6 +12,7 @@ const navigation = [
   { href: "/admin/cities", label: "Города" },
   { href: "/admin/applications", label: "Кандидаты" },
   { href: "/admin/tests", label: "Системные тесты" },
+  { href: "/admin/packages", label: "Пакеты оценки" },
   { href: "/admin/assessments", label: "Прохождения" },
   { href: "/admin/users", label: "Пользователи" },
   { href: "/admin/team", label: "Команда" },
