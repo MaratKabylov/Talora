@@ -178,6 +178,13 @@ function revalidateSystemTestPaths(templateId: string) {
   revalidatePath("/dashboard/tests");
 }
 
+function revalidateSystemTestPublicationPaths(templateId: string) {
+  revalidateSystemTestPaths(templateId);
+  revalidatePath("/admin/packages");
+  revalidatePath("/dashboard/packages");
+  revalidatePath("/dashboard/jobs");
+}
+
 async function requireSystemTestManager(path: string) {
   const context = await requirePlatformContext();
   if (!canManageSystemTests(context.role)) {
@@ -210,6 +217,38 @@ async function auditSystemVersion(
   await recordPlatformAudit(context, action, "test_version", versionId, null, null, {
     testTemplateId: templateId,
   });
+}
+
+function systemTestRevertErrorMessage(message: string) {
+  if (message.includes("SYSTEM_TEST_REVERT_PACKAGE_REFERENCES")) {
+    return "Отмена публикации невозможна: версия добавлена хотя бы в один пакет оценки.";
+  }
+  if (message.includes("SYSTEM_TEST_REVERT_CANDIDATE_USAGE")) {
+    return "Отмена публикации невозможна: по версии уже есть сессии или результаты кандидатов.";
+  }
+  if (message.includes("SYSTEM_TEST_REVERT_EMPLOYEE_USAGE")) {
+    return "Отмена публикации невозможна: по версии уже есть сессии или результаты сотрудников.";
+  }
+  if (message.includes("SYSTEM_TEST_REVERT_DRAFT_EXISTS")) {
+    return "У системного теста уже есть черновик. Сначала завершите работу с ним.";
+  }
+  if (message.includes("SYSTEM_TEST_REVERT_NOT_LATEST")) {
+    return "Отменить публикацию можно только у последней версии системного теста.";
+  }
+  if (message.includes("SYSTEM_TEST_REVERT_NOT_PUBLISHED")) {
+    return "Отменить публикацию можно только у опубликованной версии.";
+  }
+  if (message.includes("SYSTEM_TEST_REVERT_TEMPLATE_INACTIVE")) {
+    return "Сначала активируйте системный тест.";
+  }
+  if (message.includes("SYSTEM_TEST_REVERT_ACTOR_FORBIDDEN")) {
+    return "У вашей роли нет права отменять публикацию системных тестов.";
+  }
+  if (message.includes("SYSTEM_TEST_REVERT_NOT_FOUND")) {
+    return "Системный тест или его версия не найдены.";
+  }
+
+  return "Не удалось отменить публикацию. Обновите страницу и повторите попытку.";
 }
 
 export async function createSystemTestTemplateAction(formData: FormData) {
@@ -547,6 +586,34 @@ export async function publishSystemTestVersionAction(formData: FormData) {
   await auditSystemVersion(context, "publish_system_test_version", versionId.data, templateId.data);
   revalidateSystemTestPaths(templateId.data);
   redirectWithFeedback(path, "message", "Версия опубликована и теперь доступна компаниям только для чтения.");
+}
+
+export async function revertUnusedSystemTestPublicationAction(formData: FormData) {
+  const templateId = parseId(formData, "templateId");
+  const versionId = parseId(formData, "versionId");
+  if (!templateId.success || !versionId.success) {
+    redirect("/admin/tests");
+  }
+
+  const path = getTestPath(templateId.data);
+  const { admin, context } = await requireSystemTestManager(path);
+  const { error } = await admin.rpc("revert_unused_system_test_version_to_draft", {
+    acting_user_id: context.user.id,
+    acting_user_role: context.role,
+    target_template_id: templateId.data,
+    target_version_id: versionId.data,
+  });
+
+  if (error) {
+    redirectWithFeedback(path, "error", systemTestRevertErrorMessage(error.message));
+  }
+
+  revalidateSystemTestPublicationPaths(templateId.data);
+  redirectWithFeedback(
+    path,
+    "message",
+    "Публикация отменена. Версия снова доступна как черновик.",
+  );
 }
 
 type CloneSection = {

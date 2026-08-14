@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/empty-state";
 import { FeedbackMessage } from "@/components/feedback-message";
+import { RevertSystemTestPublicationForm } from "@/components/tests/revert-system-test-publication-form";
 import { TestTemplateFields } from "@/components/tests/test-template-fields";
 import { TestVersionFields } from "@/components/tests/test-version-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -18,7 +19,7 @@ import {
 } from "@/lib/admin/test-actions";
 import { canManageSystemTests } from "@/lib/admin/constants";
 import { requirePlatformContext } from "@/lib/admin/context";
-import { getAdminSystemTest } from "@/lib/admin/tests-data";
+import { getAdminSystemTest, getAdminSystemTestVersionUsage } from "@/lib/admin/tests-data";
 import {
   SCORING_TYPE_LABELS,
   TEST_TEMPLATE_STATUS_LABELS,
@@ -49,6 +50,16 @@ export default async function AdminSystemTestPage({
   const isEditable = mayManage && template.status === "active";
   const draftVersion = template.versions.find((version) => version.status === "draft");
   const nextVersionNumber = (template.latestVersion?.versionNumber ?? 0) + 1;
+  const revertiblePublishedVersion =
+    isEditable && !draftVersion && template.latestVersion?.status === "published"
+      ? template.latestVersion
+      : null;
+  const revertibleVersionUsage = revertiblePublishedVersion
+    ? await getAdminSystemTestVersionUsage(template.id, revertiblePublishedVersion.id)
+    : null;
+  const publishedVersionCount = template.versions.filter(
+    (version) => version.status === "published",
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -174,6 +185,29 @@ export default async function AdminSystemTestPage({
           )}
         </CardContent>
       </Card>
+
+      {revertiblePublishedVersion && revertibleVersionUsage ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Отмена ошибочной публикации</CardTitle>
+            <CardDescription>
+              Вернуть в черновик можно только последнюю системную версию, которая еще нигде не
+              используется. Проверка повторяется атомарно в базе данных.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <RevertSystemTestPublicationForm
+              templateId={template.id}
+              usage={revertibleVersionUsage}
+              versionId={revertiblePublishedVersion.id}
+              versionNumber={revertiblePublishedVersion.versionNumber}
+              willHideFromGrantedCompanies={
+                publishedVersionCount === 1 && revertibleVersionUsage.grantedCompanyCount > 0
+              }
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {isEditable && draftVersion ? (
         <Card>

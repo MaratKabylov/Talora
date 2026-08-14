@@ -47,6 +47,15 @@ type TemplateRecord = {
   updated_at: string;
 };
 
+export type SystemTestVersionUsage = {
+  assessmentPackageCount: number;
+  candidateResultCount: number;
+  candidateSessionCount: number;
+  employeeResultCount: number;
+  employeeSessionCount: number;
+  grantedCompanyCount: number;
+};
+
 type OptionRecord = {
   competency_effect_json: Record<string, number> | null;
   explanation: string | null;
@@ -201,6 +210,67 @@ export async function getAdminSystemTest(templateId: string) {
   }
 
   return data ? normalizeTemplate(data as unknown as TemplateRecord) : null;
+}
+
+export async function getAdminSystemTestVersionUsage(
+  templateId: string,
+  versionId: string,
+): Promise<SystemTestVersionUsage> {
+  await requirePlatformContext();
+  const admin = createAdminClient();
+  const [
+    assessmentPackages,
+    candidateSessions,
+    candidateResults,
+    employeeSessions,
+    employeeResults,
+    grantedCompanies,
+  ] = await Promise.all([
+    admin
+      .from("assessment_package_tests")
+      .select("id", { count: "exact", head: true })
+      .eq("test_version_id", versionId),
+    admin
+      .from("test_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("test_version_id", versionId),
+    admin
+      .from("test_results")
+      .select("id", { count: "exact", head: true })
+      .eq("test_version_id", versionId),
+    admin
+      .from("employee_assessment_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("test_version_id", versionId),
+    admin
+      .from("employee_assessment_test_results")
+      .select("id", { count: "exact", head: true })
+      .eq("test_version_id", versionId),
+    admin
+      .from("company_system_test_access")
+      .select("company_id", { count: "exact", head: true })
+      .eq("test_template_id", templateId),
+  ]);
+
+  if (
+    assessmentPackages.error ||
+    candidateSessions.error ||
+    candidateResults.error ||
+    employeeSessions.error ||
+    employeeResults.error ||
+    grantedCompanies.error
+  ) {
+    throw new Error("Unable to load system test version usage.");
+  }
+
+  return {
+    assessmentPackageCount: assessmentPackages.count ?? 0,
+    candidateResultCount: candidateResults.count ?? 0,
+    candidateSessionCount: candidateSessions.count ?? 0,
+    employeeResultCount: employeeResults.count ?? 0,
+    employeeSessionCount: employeeSessions.count ?? 0,
+    grantedCompanyCount: grantedCompanies.count ?? 0,
+  };
 }
 
 export async function getAdminSystemTestBuilderData(
