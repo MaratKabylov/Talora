@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:talvi:schema:test-import:v1",
-  "title": "Talvi test import format v1",
-  "description": "Формат одного пользовательского теста для импорта в Talvi. Импорт создает черновик; служебные идентификаторы и принадлежность компании назначает Talvi.",
+  "$id": "urn:talvia:schema:test-import:v1",
+  "title": "Talvia test import format v1",
+  "description": "Формат одного пользовательского теста для импорта в Talvia. Импорт создает черновик; служебные идентификаторы и принадлежность компании назначает Talvia.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -11,7 +11,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "talvi.test.v1"
+      "const": "talvia.test.v1"
     },
     "test": {
       "$ref": "#/$defs/test"
