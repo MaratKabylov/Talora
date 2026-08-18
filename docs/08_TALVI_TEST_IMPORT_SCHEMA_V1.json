@@ -1,0 +1,666 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:talvi:schema:test-import:v1",
+  "title": "Talvi test import format v1",
+  "description": "Формат одного пользовательского теста для импорта в Talvi. Импорт создает черновик; служебные идентификаторы и принадлежность компании назначает Talvi.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "test"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "talvi.test.v1"
+    },
+    "test": {
+      "$ref": "#/$defs/test"
+    }
+  },
+  "$defs": {
+    "competencyKey": {
+      "type": "string",
+      "enum": [
+        "learning_ability",
+        "attention_to_detail",
+        "logical_reasoning",
+        "work_behavior",
+        "communication",
+        "responsibility",
+        "motivation_income",
+        "motivation_growth",
+        "motivation_stability",
+        "motivation_autonomy",
+        "motivation_structure",
+        "motivation_recognition"
+      ]
+    },
+    "nullableCompetencyKey": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/competencyKey"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "localKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Локальный ключ внутри файла. Используется для диагностики импорта и не становится UUID в базе данных."
+    },
+    "presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "allow_back",
+        "capture_question_time"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "section",
+            "one_question"
+          ]
+        },
+        "allow_back": {
+          "type": "boolean"
+        },
+        "capture_question_time": {
+          "type": "boolean"
+        }
+      }
+    },
+    "hasSingleChoiceQuestion": {
+      "type": "object",
+      "required": [
+        "sections"
+      ],
+      "properties": {
+        "sections": {
+          "type": "array",
+          "contains": {
+            "type": "object",
+            "required": [
+              "questions"
+            ],
+            "properties": {
+              "questions": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "single_choice"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "hasScaleQuestion": {
+      "type": "object",
+      "required": [
+        "sections"
+      ],
+      "properties": {
+        "sections": {
+          "type": "array",
+          "contains": {
+            "type": "object",
+            "required": [
+              "questions"
+            ],
+            "properties": {
+              "questions": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "scale"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "hasOpenTextQuestion": {
+      "type": "object",
+      "required": [
+        "sections"
+      ],
+      "properties": {
+        "sections": {
+          "type": "array",
+          "contains": {
+            "type": "object",
+            "required": [
+              "questions"
+            ],
+            "properties": {
+              "questions": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "open_text"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "category",
+        "description",
+        "instructions",
+        "duration_minutes",
+        "scoring_type",
+        "presentation",
+        "sections"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 180,
+          "pattern": "\\S(?:[\\s\\S]*\\S)"
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "\\S"
+        },
+        "instructions": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 40000,
+          "pattern": "\\S"
+        },
+        "duration_minutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1440
+        },
+        "scoring_type": {
+          "type": "string",
+          "enum": [
+            "points",
+            "competency_profile",
+            "manual",
+            "mixed"
+          ]
+        },
+        "presentation": {
+          "$ref": "#/$defs/presentation"
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/section"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "$ref": "#/$defs/hasOpenTextQuestion"
+          },
+          "then": {
+            "if": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/hasSingleChoiceQuestion"
+                },
+                {
+                  "$ref": "#/$defs/hasScaleQuestion"
+                }
+              ]
+            },
+            "then": {
+              "properties": {
+                "scoring_type": {
+                  "type": "string",
+                  "const": "mixed"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "scoring_type": {
+                  "type": "string",
+                  "const": "manual"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "allOf": [
+              {
+                "not": {
+                  "$ref": "#/$defs/hasOpenTextQuestion"
+                }
+              },
+              {
+                "$ref": "#/$defs/hasScaleQuestion"
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "scoring_type": {
+                "type": "string",
+                "const": "competency_profile"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "allOf": [
+              {
+                "not": {
+                  "$ref": "#/$defs/hasOpenTextQuestion"
+                }
+              },
+              {
+                "not": {
+                  "$ref": "#/$defs/hasScaleQuestion"
+                }
+              },
+              {
+                "$ref": "#/$defs/hasSingleChoiceQuestion"
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "scoring_type": {
+                "type": "string",
+                "enum": [
+                  "points",
+                  "competency_profile"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "title",
+        "description",
+        "questions"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/localKey"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 180,
+          "pattern": "\\S(?:[\\s\\S]*\\S)"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 10000,
+          "pattern": "\\S"
+        },
+        "questions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 300,
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/singleChoiceQuestion"
+              },
+              {
+                "$ref": "#/$defs/scaleQuestion"
+              },
+              {
+                "$ref": "#/$defs/openTextQuestion"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "questionCommon": {
+      "type": "object",
+      "required": [
+        "key",
+        "type",
+        "text",
+        "description",
+        "required",
+        "difficulty",
+        "competency_key"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/localKey"
+        },
+        "type": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 4000,
+          "pattern": "\\S(?:[\\s\\S]*\\S)"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "difficulty": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "easy",
+                "medium",
+                "hard"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "competency_key": {
+          "$ref": "#/$defs/nullableCompetencyKey"
+        }
+      }
+    },
+    "singleChoiceQuestion": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionCommon"
+        },
+        {
+          "type": "object",
+          "required": [
+            "options"
+          ],
+          "properties": {
+            "type": {
+              "const": "single_choice"
+            },
+            "options": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 100,
+              "items": {
+                "$ref": "#/$defs/answerOption"
+              },
+              "allOf": [
+                {
+                  "contains": {
+                    "type": "object",
+                    "required": [
+                      "is_correct"
+                    ],
+                    "properties": {
+                      "is_correct": {
+                        "const": true
+                      }
+                    }
+                  },
+                  "minContains": 1,
+                  "maxContains": 1
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "required": [
+                      "is_correct",
+                      "points"
+                    ],
+                    "properties": {
+                      "is_correct": {
+                        "const": true
+                      },
+                      "points": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "if": {
+            "required": [
+              "competency_key"
+            ],
+            "properties": {
+              "competency_key": {
+                "$ref": "#/$defs/competencyKey"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "options": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "competency_effects": {
+                      "type": "object",
+                      "maxProperties": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "options": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "competency_effects"
+                  ],
+                  "properties": {
+                    "competency_effects": {
+                      "type": "object",
+                      "minProperties": 1
+                    }
+                  }
+                },
+                "minContains": 1
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "scaleQuestion": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionCommon"
+        },
+        {
+          "type": "object",
+          "required": [
+            "competency_key",
+            "scale"
+          ],
+          "properties": {
+            "type": {
+              "const": "scale"
+            },
+            "competency_key": {
+              "$ref": "#/$defs/competencyKey"
+            },
+            "scale": {
+              "$ref": "#/$defs/scale"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "openTextQuestion": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "open_text"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "scale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min",
+        "max"
+      ],
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 100
+        }
+      }
+    },
+    "answerOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "text",
+        "is_correct",
+        "points",
+        "competency_effects",
+        "explanation"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/localKey"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "\\S"
+        },
+        "is_correct": {
+          "type": "boolean"
+        },
+        "points": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "competency_effects": {
+          "type": "object",
+          "maxProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/competencyKey"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 10000
+          }
+        },
+        "explanation": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "\\S"
+        }
+      }
+    }
+  }
+}
