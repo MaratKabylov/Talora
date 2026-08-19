@@ -251,6 +251,38 @@ function systemTestRevertErrorMessage(message: string) {
   return "Не удалось отменить публикацию. Обновите страницу и повторите попытку.";
 }
 
+function systemTestDeleteErrorMessage(message: string) {
+  if (message.includes("SYSTEM_TEST_DELETE_PACKAGE_REFERENCES")) {
+    return "Удаление невозможно: одна из версий добавлена в пакет оценки.";
+  }
+  if (message.includes("SYSTEM_TEST_DELETE_CANDIDATE_USAGE")) {
+    return "Удаление невозможно: по тесту уже есть сессии или результаты кандидатов.";
+  }
+  if (message.includes("SYSTEM_TEST_DELETE_EMPLOYEE_USAGE")) {
+    return "Удаление невозможно: по тесту уже есть сессии или результаты сотрудников.";
+  }
+  if (message.includes("SYSTEM_TEST_DELETE_NOT_ARCHIVED")) {
+    return "Удалить можно только архивный системный тест.";
+  }
+  if (message.includes("SYSTEM_TEST_DELETE_ACTOR_FORBIDDEN")) {
+    return "У вашей роли нет права удалять системные тесты.";
+  }
+  if (message.includes("SYSTEM_TEST_DELETE_NOT_FOUND")) {
+    return "Системный тест не найден.";
+  }
+  if (message.includes("SYSTEM_TEST_DELETE_REFERENCED") || message.includes("23503")) {
+    return "Удаление невозможно: тест используется другими данными платформы.";
+  }
+  if (
+    message.includes("delete_unused_archived_system_test") &&
+    (message.includes("schema cache") || message.includes("Could not find the function"))
+  ) {
+    return "Функция удаления еще не установлена в базе данных. Примените последнюю миграцию Supabase.";
+  }
+
+  return "Не удалось удалить системный тест. Обновите страницу и повторите попытку.";
+}
+
 export async function createSystemTestTemplateAction(formData: FormData) {
   const path = "/admin/tests/new";
   const { admin, context } = await requireSystemTestManager(path);
@@ -378,6 +410,33 @@ export async function setSystemTestTemplateStatusAction(formData: FormData) {
     path,
     "message",
     status.data === "archived" ? "Системный тест перемещен в архив." : "Системный тест активирован.",
+  );
+}
+
+export async function deleteUnusedArchivedSystemTestAction(formData: FormData) {
+  const templateId = parseId(formData, "templateId");
+  if (!templateId.success) {
+    redirect("/admin/tests");
+  }
+
+  const path = getTestPath(templateId.data);
+  const { admin, context } = await requireSystemTestManager(path);
+  const { error } = await admin.rpc("delete_unused_archived_system_test", {
+    acting_user_id: context.user.id,
+    acting_user_role: context.role,
+    target_template_id: templateId.data,
+  });
+
+  if (error) {
+    redirectWithFeedback(path, "error", systemTestDeleteErrorMessage(error.message));
+  }
+
+  revalidateSystemTestPublicationPaths(templateId.data);
+  revalidatePath("/admin/audit");
+  redirectWithFeedback(
+    "/admin/tests",
+    "message",
+    "Архивный системный тест и все его версии удалены.",
   );
 }
 

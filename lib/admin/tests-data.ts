@@ -273,6 +273,81 @@ export async function getAdminSystemTestVersionUsage(
   };
 }
 
+export async function getAdminSystemTestUsage(
+  templateId: string,
+  versionIds: string[],
+): Promise<SystemTestVersionUsage> {
+  await requirePlatformContext();
+  const admin = createAdminClient();
+  const grantedCompanies = await admin
+    .from("company_system_test_access")
+    .select("company_id", { count: "exact", head: true })
+    .eq("test_template_id", templateId);
+
+  if (grantedCompanies.error) {
+    throw new Error("Unable to load system test access usage.");
+  }
+
+  if (versionIds.length === 0) {
+    return {
+      assessmentPackageCount: 0,
+      candidateResultCount: 0,
+      candidateSessionCount: 0,
+      employeeResultCount: 0,
+      employeeSessionCount: 0,
+      grantedCompanyCount: grantedCompanies.count ?? 0,
+    };
+  }
+
+  const [
+    assessmentPackages,
+    candidateSessions,
+    candidateResults,
+    employeeSessions,
+    employeeResults,
+  ] = await Promise.all([
+    admin
+      .from("assessment_package_tests")
+      .select("id", { count: "exact", head: true })
+      .in("test_version_id", versionIds),
+    admin
+      .from("test_sessions")
+      .select("id", { count: "exact", head: true })
+      .in("test_version_id", versionIds),
+    admin
+      .from("test_results")
+      .select("id", { count: "exact", head: true })
+      .in("test_version_id", versionIds),
+    admin
+      .from("employee_assessment_sessions")
+      .select("id", { count: "exact", head: true })
+      .in("test_version_id", versionIds),
+    admin
+      .from("employee_assessment_test_results")
+      .select("id", { count: "exact", head: true })
+      .in("test_version_id", versionIds),
+  ]);
+
+  if (
+    assessmentPackages.error ||
+    candidateSessions.error ||
+    candidateResults.error ||
+    employeeSessions.error ||
+    employeeResults.error
+  ) {
+    throw new Error("Unable to load system test usage.");
+  }
+
+  return {
+    assessmentPackageCount: assessmentPackages.count ?? 0,
+    candidateResultCount: candidateResults.count ?? 0,
+    candidateSessionCount: candidateSessions.count ?? 0,
+    employeeResultCount: employeeResults.count ?? 0,
+    employeeSessionCount: employeeSessions.count ?? 0,
+    grantedCompanyCount: grantedCompanies.count ?? 0,
+  };
+}
+
 export async function getAdminSystemTestBuilderData(
   templateId: string,
   selectedVersionId?: string,

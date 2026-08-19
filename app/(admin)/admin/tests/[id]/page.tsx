@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/empty-state";
 import { FeedbackMessage } from "@/components/feedback-message";
+import { DeleteArchivedSystemTestForm } from "@/components/tests/delete-archived-system-test-form";
 import { RevertSystemTestPublicationForm } from "@/components/tests/revert-system-test-publication-form";
 import { TestTemplateFields } from "@/components/tests/test-template-fields";
 import { TestVersionFields } from "@/components/tests/test-version-fields";
@@ -19,7 +20,11 @@ import {
 } from "@/lib/admin/test-actions";
 import { canManageSystemTests } from "@/lib/admin/constants";
 import { requirePlatformContext } from "@/lib/admin/context";
-import { getAdminSystemTest, getAdminSystemTestVersionUsage } from "@/lib/admin/tests-data";
+import {
+  getAdminSystemTest,
+  getAdminSystemTestUsage,
+  getAdminSystemTestVersionUsage,
+} from "@/lib/admin/tests-data";
 import {
   SCORING_TYPE_LABELS,
   TEST_TEMPLATE_STATUS_LABELS,
@@ -57,6 +62,13 @@ export default async function AdminSystemTestPage({
   const revertibleVersionUsage = revertiblePublishedVersion
     ? await getAdminSystemTestVersionUsage(template.id, revertiblePublishedVersion.id)
     : null;
+  const deletionUsage =
+    mayManage && template.status === "archived"
+      ? await getAdminSystemTestUsage(
+          template.id,
+          template.versions.map((version) => version.id),
+        )
+      : null;
   const publishedVersionCount = template.versions.filter(
     (version) => version.status === "published",
   ).length;
@@ -291,6 +303,25 @@ export default async function AdminSystemTestPage({
             >
               {draftVersion && isEditable ? "Открыть конструктор" : "Открыть preview"}
             </Link>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {mayManage && template.status === "archived" && deletionUsage ? (
+        <Card className="border-destructive/30">
+          <CardHeader>
+            <CardTitle>Удаление из архива</CardTitle>
+            <CardDescription>
+              Удаление доступно только для неиспользуемого системного теста. Проверка охватывает
+              все его версии и повторяется атомарно в базе данных.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <DeleteArchivedSystemTestForm
+              templateId={template.id}
+              templateTitle={template.title}
+              usage={deletionUsage}
+            />
           </CardContent>
         </Card>
       ) : null}
