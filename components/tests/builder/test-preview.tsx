@@ -72,19 +72,59 @@ function ContentBlocks({ positionIndex, section }: { positionIndex: number; sect
 }
 
 export function TestPreview({
-  currentSectionIndex,
-  onSectionChange,
+  currentPageIndex,
+  onPageChange,
   sections,
   version,
 }: {
-  currentSectionIndex?: number;
-  onSectionChange?: (index: number) => void;
+  currentPageIndex: number;
+  onPageChange: (index: number) => void;
   sections: BuilderSection[];
   version: TestVersion;
 }) {
-  const isPaged = typeof currentSectionIndex === "number";
-  const safeSectionIndex = Math.min(Math.max(currentSectionIndex ?? 0, 0), Math.max(sections.length - 1, 0));
-  const visibleSections = isPaged ? sections.slice(safeSectionIndex, safeSectionIndex + 1) : sections;
+  const isOneQuestion = version.presentationSettings.presentationMode === "one_question";
+  const questionPages = sections.flatMap((section, sectionIndex) =>
+    section.questions.map((question, questionIndex) => ({
+      question,
+      questionIndex,
+      section,
+      sectionIndex,
+    })),
+  );
+  const pageCount = isOneQuestion ? questionPages.length : sections.length;
+  const safePageIndex = Math.min(
+    Math.max(currentPageIndex, 0),
+    Math.max(pageCount - 1, 0),
+  );
+  const activeQuestionPage = isOneQuestion ? questionPages[safePageIndex] : null;
+  const visibleSections = isOneQuestion
+    ? []
+    : sections.slice(safePageIndex, safePageIndex + 1);
+
+  const navigation = pageCount > 0 ? (
+    <div className="flex justify-between border-t pt-4">
+      {version.presentationSettings.allowBack && safePageIndex > 0 ? (
+        <Button
+          onClick={() => onPageChange(safePageIndex - 1)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          Назад
+        </Button>
+      ) : (
+        <span />
+      )}
+      <Button
+        disabled={safePageIndex === pageCount - 1}
+        onClick={() => onPageChange(safePageIndex + 1)}
+        size="sm"
+        type="button"
+      >
+        {safePageIndex === pageCount - 1 ? "Завершить тест" : "Далее"}
+      </Button>
+    </div>
+  ) : null;
 
   return (
     <div className="space-y-6">
@@ -98,10 +138,71 @@ export function TestPreview({
         ) : null}
       </div>
 
-      {sections.length === 0 ? (
+      {pageCount === 0 ? (
         <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-          В этой версии пока нет секций и вопросов.
+          {sections.length === 0
+            ? "В этой версии пока нет секций и вопросов."
+            : "В этой версии пока нет вопросов."}
         </p>
+      ) : activeQuestionPage ? (
+        <section className="space-y-4 rounded-lg border bg-background p-5">
+          <div>
+            <p className="mb-1 text-xs font-medium text-primary">
+              Вопрос {safePageIndex + 1} из {questionPages.length}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Секция {activeQuestionPage.sectionIndex + 1} из {sections.length}
+            </p>
+            <h3 className="mt-1 font-semibold">{activeQuestionPage.section.title}</h3>
+            {activeQuestionPage.section.description ? (
+              <RichTextContent
+                className="mt-1 text-sm text-muted-foreground"
+                value={activeQuestionPage.section.description}
+              />
+            ) : null}
+          </div>
+
+          <ContentBlocks
+            positionIndex={activeQuestionPage.questionIndex}
+            section={activeQuestionPage.section}
+          />
+
+          <div className="space-y-3 border-t pt-4">
+            {activeQuestionPage.section.questions.some(
+              (question) => question.remediationQuestionId === activeQuestionPage.question.id,
+            ) ? (
+              <p className="text-xs font-medium uppercase tracking-wide text-primary">
+                Повторный вопрос после ошибки
+              </p>
+            ) : null}
+            <div>
+              <p className="whitespace-pre-wrap text-lg font-medium">
+                {activeQuestionPage.question.text}
+                {activeQuestionPage.question.isRequired ? (
+                  <span className="ml-1 text-destructive">*</span>
+                ) : null}
+              </p>
+            </div>
+            {activeQuestionPage.question.description ? (
+              <RichTextContent
+                className="text-sm text-muted-foreground"
+                value={activeQuestionPage.question.description}
+              />
+            ) : null}
+            <QuestionInputPreview question={activeQuestionPage.question} />
+            {activeQuestionPage.question.remediationQuestionId &&
+            activeQuestionPage.question.incorrectFeedback ? (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                <p className="font-medium">Если допущена ошибка:</p>
+                <p className="mt-1 whitespace-pre-wrap">
+                  {activeQuestionPage.question.incorrectFeedback}
+                </p>
+              </div>
+            ) : null}
+          </div>
+
+          {navigation}
+        </section>
       ) : (
         visibleSections.map((section) => {
           const remediationParentByTarget = new Map(
@@ -115,11 +216,9 @@ export function TestPreview({
           return (
           <section className="space-y-4 rounded-lg border bg-background p-5" key={section.id}>
             <div>
-              {isPaged ? (
-                <p className="mb-1 text-xs font-medium text-primary">
-                  Страница {safeSectionIndex + 1} из {sections.length}
-                </p>
-              ) : null}
+              <p className="mb-1 text-xs font-medium text-primary">
+                Секция {safePageIndex + 1} из {sections.length}
+              </p>
               <h3 className="font-semibold">{section.title}</h3>
               {section.description ? (
                 <RichTextContent className="mt-1 text-sm text-muted-foreground" value={section.description} />
@@ -158,27 +257,7 @@ export function TestPreview({
                 </Fragment>
               ))
             )}
-            {isPaged && onSectionChange ? (
-              <div className="flex justify-between border-t pt-4">
-                <Button
-                  disabled={safeSectionIndex === 0}
-                  onClick={() => onSectionChange(safeSectionIndex - 1)}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  Назад
-                </Button>
-                <Button
-                  disabled={safeSectionIndex === sections.length - 1}
-                  onClick={() => onSectionChange(safeSectionIndex + 1)}
-                  size="sm"
-                  type="button"
-                >
-                  Далее
-                </Button>
-              </div>
-            ) : null}
+            {navigation}
           </section>
           );
         })

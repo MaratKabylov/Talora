@@ -13,12 +13,12 @@ export function PagedTestPreview({
   sections: BuilderSection[];
   version: TestVersion;
 }) {
-  const [sectionIndex, setSectionIndex] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
 
   return (
     <TestPreview
-      currentSectionIndex={sectionIndex}
-      onSectionChange={setSectionIndex}
+      currentPageIndex={pageIndex}
+      onPageChange={setPageIndex}
       sections={sections}
       version={version}
     />

@@ -23,7 +23,7 @@ export function TestPreviewScreen({
           <p className="text-sm text-muted-foreground">{templateTitle}</p>
           <h1 className="text-2xl font-semibold tracking-tight">Предпросмотр для кандидата</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Кнопки ответов отключены, навигация между секциями работает как в тесте.
+            Кнопки ответов отключены. Вопросы и навигация показаны в режиме, выбранном в конструкторе.
           </p>
         </div>
         <Link className={buttonVariants({ variant: "outline" })} href={backHref}>
