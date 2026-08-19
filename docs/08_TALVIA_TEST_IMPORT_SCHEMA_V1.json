@@ -27,6 +27,11 @@
         "work_behavior",
         "communication",
         "responsibility",
+        "work_organization",
+        "work_initiative",
+        "work_result_orientation",
+        "work_collaboration",
+        "work_adaptability",
         "motivation_income",
         "motivation_growth",
         "motivation_stability",
@@ -133,6 +138,39 @@
                   "properties": {
                     "type": {
                       "const": "scale"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "hasForcedChoiceQuestion": {
+      "type": "object",
+      "required": [
+        "sections"
+      ],
+      "properties": {
+        "sections": {
+          "type": "array",
+          "contains": {
+            "type": "object",
+            "required": [
+              "questions"
+            ],
+            "properties": {
+              "questions": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "forced_choice"
                     }
                   }
                 }
@@ -258,6 +296,9 @@
                 },
                 {
                   "$ref": "#/$defs/hasScaleQuestion"
+                },
+                {
+                  "$ref": "#/$defs/hasForcedChoiceQuestion"
                 }
               ]
             },
@@ -288,6 +329,63 @@
                 }
               },
               {
+                "$ref": "#/$defs/hasForcedChoiceQuestion"
+              },
+              {
+                "$ref": "#/$defs/hasSingleChoiceQuestion"
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "scoring_type": {
+                "type": "string",
+                "const": "mixed"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "allOf": [
+              {
+                "not": {
+                  "$ref": "#/$defs/hasOpenTextQuestion"
+                }
+              },
+              {
+                "not": {
+                  "$ref": "#/$defs/hasSingleChoiceQuestion"
+                }
+              },
+              {
+                "$ref": "#/$defs/hasForcedChoiceQuestion"
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "scoring_type": {
+                "type": "string",
+                "const": "competency_profile"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "allOf": [
+              {
+                "not": {
+                  "$ref": "#/$defs/hasOpenTextQuestion"
+                }
+              },
+              {
+                "not": {
+                  "$ref": "#/$defs/hasForcedChoiceQuestion"
+                }
+              },
+              {
                 "$ref": "#/$defs/hasScaleQuestion"
               }
             ]
@@ -307,6 +405,11 @@
               {
                 "not": {
                   "$ref": "#/$defs/hasOpenTextQuestion"
+                }
+              },
+              {
+                "not": {
+                  "$ref": "#/$defs/hasForcedChoiceQuestion"
                 }
               },
               {
@@ -375,6 +478,9 @@
               },
               {
                 "$ref": "#/$defs/openTextQuestion"
+              },
+              {
+                "$ref": "#/$defs/forcedChoiceQuestion"
               }
             ]
           }
@@ -589,6 +695,101 @@
         }
       ],
       "unevaluatedProperties": false
+    },
+    "forcedChoiceQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "type",
+        "text",
+        "required",
+        "difficulty",
+        "forced_choice",
+        "options"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/localKey"
+        },
+        "type": {
+          "const": "forced_choice"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 4000,
+          "pattern": "\\S(?:[\\s\\S]*\\S)"
+        },
+        "description": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "difficulty": {
+          "oneOf": [
+            { "type": "string", "enum": ["easy", "medium", "hard"] },
+            { "type": "null" }
+          ]
+        },
+        "competency_key": {
+          "type": "null"
+        },
+        "forced_choice": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "mode": { "const": "most_least" }
+          }
+        },
+        "options": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/forcedChoiceOption"
+          }
+        }
+      }
+    },
+    "forcedChoiceOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "text", "competency_effects"],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/localKey"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "\\S"
+        },
+        "competency_effects": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/competencyKey"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 10000
+          }
+        },
+        "explanation": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "\\S"
+        }
+      }
     },
     "scale": {
       "type": "object",

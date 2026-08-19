@@ -89,6 +89,11 @@
 - `work_behavior` — рабочая зрелость;
 - `communication` — коммуникация;
 - `responsibility` — ответственность;
+- `work_organization` — организованность;
+- `work_initiative` — инициативность;
+- `work_result_orientation` — ориентация на результат;
+- `work_collaboration` — сотрудничество;
+- `work_adaptability` — самоконтроль и адаптивность;
 - `motivation_income` — деньги;
 - `motivation_growth` — рост;
 - `motivation_stability` — стабильность;

@@ -157,6 +157,7 @@ export type EmployeeFlowQuestion = {
   id: string;
   incorrectFeedback: string | null;
   isRequired: boolean;
+  forcedChoiceMode: "most_least" | null;
   options: EmployeeFlowOption[];
   orderIndex: number;
   questionType: QuestionType;
@@ -471,6 +472,7 @@ export async function getEmployeeAssessmentQuestionPageData(
                 ? settings.incorrectFeedback
                 : null,
             isRequired: settings.required ?? true,
+            forcedChoiceMode: settings.mode === "most_least" ? settings.mode : null,
             options: (question.answer_options ?? [])
               .slice()
               .sort((left, right) => left.order_index - right.order_index)

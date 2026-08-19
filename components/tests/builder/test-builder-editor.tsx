@@ -56,6 +56,7 @@ const QUESTION_PRESETS: Array<{
   text: string;
 }> = [
   { label: "Один выбор", questionType: "single_choice", text: "Выберите наиболее подходящий вариант." },
+  { label: "Forced Choice", questionType: "forced_choice", text: "Выберите, что больше и меньше всего похоже на вас." },
   { label: "Шкала", questionType: "scale", text: "Оцените утверждение по шкале." },
   { label: "Развернутый ответ", questionType: "open_text", text: "Опишите ваш подход к ситуации." },
 ];
@@ -85,11 +86,13 @@ function question(questionType: QuestionType = "single_choice", text = "Новы
     incorrectFeedback: null,
     isRequired: true,
     options:
-      questionType === "single_choice" || questionType === "multiple_choice"
-        ? [option("Вариант 1"), option("Вариант 2")]
+      questionType === "forced_choice"
+        ? [option("Утверждение 1"), option("Утверждение 2"), option("Утверждение 3")]
+        : questionType === "single_choice" || questionType === "multiple_choice"
+          ? [option("Вариант 1"), option("Вариант 2")]
         : [],
     orderIndex: 1,
-    points: 1,
+    points: questionType === "forced_choice" ? 0 : 1,
     questionType,
     remediationQuestionId: null,
     scaleMax: 5,
@@ -1214,6 +1217,21 @@ export function TestBuilderEditor({
                           questionType !== "scale" &&
                           questionType !== "open_text" &&
                           currentQuestion.options.length === 0;
+                        const forcedChoiceOptions =
+                          questionType === "forced_choice"
+                            ? [
+                                ...currentQuestion.options.map((entry) => ({
+                                  ...entry,
+                                  isCorrect: false,
+                                  points: 0,
+                                })),
+                                ...Array.from(
+                                  { length: Math.max(0, 3 - currentQuestion.options.length) },
+                                  (_, index) =>
+                                    option(`Утверждение ${currentQuestion.options.length + index + 1}`),
+                                ),
+                              ]
+                            : null;
                         if (questionType !== "single_choice") {
                           setEnabledRemediationQuestionIds((current) => {
                             const next = new Set(current);
@@ -1222,7 +1240,14 @@ export function TestBuilderEditor({
                           });
                         }
                         patchQuestion(currentSection.id, currentQuestion.id, {
-                          options: needsOptions ? [option("Вариант 1"), option("Вариант 2")] : currentQuestion.options,
+                          competencyKey:
+                            questionType === "forced_choice" ? null : currentQuestion.competencyKey,
+                          options:
+                            forcedChoiceOptions ??
+                            (needsOptions
+                              ? [option("Вариант 1"), option("Вариант 2")]
+                              : currentQuestion.options),
+                          points: questionType === "forced_choice" ? 0 : currentQuestion.points,
                           questionType,
                           ...(questionType === "single_choice"
                             ? {}
@@ -1362,11 +1387,23 @@ export function TestBuilderEditor({
                     </div>
                   ) : currentQuestion.questionType !== "open_text" ? (
                     <div className="mt-4 space-y-2">
+                      {currentQuestion.questionType === "forced_choice" ? (
+                        <p className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
+                          Режим MOST / LEAST. Для каждого утверждения выберите компетенцию;
+                          правильных ответов и баллов за правильность здесь нет.
+                        </p>
+                      ) : null}
                       {currentQuestion.options.map((currentOption) => {
                         const competencyEffect = Object.entries(currentOption.competencyEffects)[0];
                         return (
                         <div className="space-y-2 rounded-md bg-muted/30 p-2" key={currentOption.id}>
-                          <div className="grid gap-2 md:grid-cols-[1fr_6rem_auto_auto]">
+                          <div
+                            className={
+                              currentQuestion.questionType === "forced_choice"
+                                ? "grid gap-2 md:grid-cols-[1fr_auto]"
+                                : "grid gap-2 md:grid-cols-[1fr_6rem_auto_auto]"
+                            }
+                          >
                             <Input
                               onChange={(event) =>
                                 patchOption(currentSection.id, currentQuestion.id, currentOption.id, {
@@ -1375,32 +1412,40 @@ export function TestBuilderEditor({
                               }
                               value={currentOption.text}
                             />
-                            <Input
-                              min="0"
-                              onChange={(event) =>
-                                patchOption(currentSection.id, currentQuestion.id, currentOption.id, {
-                                  points: Number(event.target.value),
-                                })
-                              }
-                              step="0.01"
-                              type="number"
-                              value={currentOption.points}
-                            />
-                            <label className="flex items-center gap-2 px-2 text-sm">
-                              <input
-                                checked={Boolean(currentOption.isCorrect)}
-                                className="size-4 accent-primary"
-                                onChange={(event) =>
-                                  patchOption(currentSection.id, currentQuestion.id, currentOption.id, {
-                                    isCorrect: event.target.checked,
-                                  })
-                                }
-                                type="checkbox"
-                              />
-                              Верный
-                            </label>
+                            {currentQuestion.questionType !== "forced_choice" ? (
+                              <>
+                                <Input
+                                  min="0"
+                                  onChange={(event) =>
+                                    patchOption(currentSection.id, currentQuestion.id, currentOption.id, {
+                                      points: Number(event.target.value),
+                                    })
+                                  }
+                                  step="0.01"
+                                  type="number"
+                                  value={currentOption.points}
+                                />
+                                <label className="flex items-center gap-2 px-2 text-sm">
+                                  <input
+                                    checked={Boolean(currentOption.isCorrect)}
+                                    className="size-4 accent-primary"
+                                    onChange={(event) =>
+                                      patchOption(currentSection.id, currentQuestion.id, currentOption.id, {
+                                        isCorrect: event.target.checked,
+                                      })
+                                    }
+                                    type="checkbox"
+                                  />
+                                  Верный
+                                </label>
+                              </>
+                            ) : null}
                             <Button
                               aria-label="Удалить вариант"
+                              disabled={
+                                currentQuestion.questionType === "forced_choice" &&
+                                currentQuestion.options.length <= 3
+                              }
                               onClick={() =>
                                 patchQuestion(currentSection.id, currentQuestion.id, {
                                   options: currentQuestion.options.filter(
@@ -1415,84 +1460,112 @@ export function TestBuilderEditor({
                               <Trash2 />
                             </Button>
                           </div>
-                          <div className="grid gap-2 sm:grid-cols-[1fr_8rem_1fr]">
+                          <div
+                            className={
+                              currentQuestion.questionType === "forced_choice"
+                                ? "grid gap-2"
+                                : "grid gap-2 sm:grid-cols-[1fr_8rem_1fr]"
+                            }
+                          >
                             <Select
                               onChange={(event) => {
                                 const key = event.target.value;
                                 patchOption(currentSection.id, currentQuestion.id, currentOption.id, {
                                   competencyEffects: key
-                                    ? { [key]: Number(competencyEffect?.[1]) || 0 }
+                                    ? {
+                                        [key]:
+                                          Number(competencyEffect?.[1]) ||
+                                          (currentQuestion.questionType === "forced_choice" ? 1 : 0),
+                                      }
                                     : {},
                                 });
                               }}
                               value={competencyEffect?.[0] ?? ""}
                             >
-                              <option value="">Без эффекта компетенции</option>
+                              <option value="">
+                                {currentQuestion.questionType === "forced_choice"
+                                  ? "Выберите компетенцию"
+                                  : "Без эффекта компетенции"}
+                              </option>
                               {TEST_COMPETENCIES.map((competency) => (
                                 <option key={competency.key} value={competency.key}>
                                   {competency.label}
                                 </option>
                               ))}
                             </Select>
-                            <Input
-                              disabled={!competencyEffect}
-                              onChange={(event) =>
-                                competencyEffect
-                                  ? patchOption(currentSection.id, currentQuestion.id, currentOption.id, {
-                                      competencyEffects: {
-                                        [competencyEffect[0]]: Number(event.target.value) || 0,
-                                      },
+                            {currentQuestion.questionType !== "forced_choice" ? (
+                              <>
+                                <Input
+                                  disabled={!competencyEffect}
+                                  onChange={(event) =>
+                                    competencyEffect
+                                      ? patchOption(currentSection.id, currentQuestion.id, currentOption.id, {
+                                          competencyEffects: {
+                                            [competencyEffect[0]]: Number(event.target.value) || 0,
+                                          },
+                                        })
+                                      : undefined
+                                  }
+                                  placeholder="Эффект"
+                                  step="0.01"
+                                  type="number"
+                                  value={competencyEffect?.[1] ?? ""}
+                                />
+                                <Input
+                                  onChange={(event) =>
+                                    patchOption(currentSection.id, currentQuestion.id, currentOption.id, {
+                                      explanation: event.target.value,
                                     })
-                                  : undefined
-                              }
-                              placeholder="Эффект"
-                              step="0.01"
-                              type="number"
-                              value={competencyEffect?.[1] ?? ""}
-                            />
-                            <Input
-                              onChange={(event) =>
-                                patchOption(currentSection.id, currentQuestion.id, currentOption.id, {
-                                  explanation: event.target.value,
-                                })
-                              }
-                              placeholder="Комментарий для HR"
-                              value={currentOption.explanation ?? ""}
-                            />
+                                  }
+                                  placeholder="Комментарий для HR"
+                                  value={currentOption.explanation ?? ""}
+                                />
+                              </>
+                            ) : null}
                           </div>
                         </div>
                       )})}
                       <Button
                         onClick={() =>
                           patchQuestion(currentSection.id, currentQuestion.id, {
-                            options: [...currentQuestion.options, option(`Вариант ${currentQuestion.options.length + 1}`)],
+                            options: [
+                              ...currentQuestion.options,
+                              option(
+                                `${currentQuestion.questionType === "forced_choice" ? "Утверждение" : "Вариант"} ${currentQuestion.options.length + 1}`,
+                              ),
+                            ],
                           })
                         }
                         size="sm"
                         type="button"
                         variant="outline"
                       >
-                        <Plus /> Добавить вариант
+                        <Plus />
+                        {currentQuestion.questionType === "forced_choice"
+                          ? "Добавить утверждение"
+                          : "Добавить вариант"}
                       </Button>
                     </div>
                   ) : null}
 
                   <div className="mt-4 grid gap-3 border-t pt-4 sm:grid-cols-3">
-                    <Select
-                      onChange={(event) =>
-                        patchQuestion(currentSection.id, currentQuestion.id, {
-                          competencyKey: (event.target.value || null) as BuilderQuestion["competencyKey"],
-                        })
-                      }
-                      value={currentQuestion.competencyKey ?? ""}
-                    >
-                      <option value="">Без компетенции</option>
-                      {TEST_COMPETENCIES.map((competency) => (
-                        <option key={competency.key} value={competency.key}>
-                          {competency.label}
-                        </option>
-                      ))}
-                    </Select>
+                    {currentQuestion.questionType !== "forced_choice" ? (
+                      <Select
+                        onChange={(event) =>
+                          patchQuestion(currentSection.id, currentQuestion.id, {
+                            competencyKey: (event.target.value || null) as BuilderQuestion["competencyKey"],
+                          })
+                        }
+                        value={currentQuestion.competencyKey ?? ""}
+                      >
+                        <option value="">Без компетенции</option>
+                        {TEST_COMPETENCIES.map((competency) => (
+                          <option key={competency.key} value={competency.key}>
+                            {competency.label}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : null}
                     <Select
                       onChange={(event) =>
                         patchQuestion(currentSection.id, currentQuestion.id, {
@@ -1508,18 +1581,20 @@ export function TestBuilderEditor({
                         </option>
                       ))}
                     </Select>
-                    <Input
-                      min="0"
-                      onChange={(event) =>
-                        patchQuestion(currentSection.id, currentQuestion.id, {
-                          points: Number(event.target.value),
-                        })
-                      }
-                      placeholder="Макс. баллы"
-                      step="0.01"
-                      type="number"
-                      value={currentQuestion.points}
-                    />
+                    {currentQuestion.questionType !== "forced_choice" ? (
+                      <Input
+                        min="0"
+                        onChange={(event) =>
+                          patchQuestion(currentSection.id, currentQuestion.id, {
+                            points: Number(event.target.value),
+                          })
+                        }
+                        placeholder="Макс. баллы"
+                        step="0.01"
+                        type="number"
+                        value={currentQuestion.points}
+                      />
+                    ) : null}
                   </div>
                   <label className="mt-4 flex items-center gap-2 text-sm">
                     <input

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { InvitationStatus, Recommendation, RiskLevel } from "@/lib/candidates/constants";
 import type { CompetencyKey } from "@/lib/jobs/constants";
+import type { QuestionType } from "@/lib/tests/builder-constants";
 import { listAccessibleAssessmentPackages } from "@/lib/jobs/package-access";
 
 import type {
@@ -95,6 +96,23 @@ type ReportRecord = {
   strengths_json: unknown;
 };
 
+type EmployeeAnswerQuestion = {
+  answer_options?: Array<{ id: string; order_index: number; text: string }> | null;
+  order_index: number;
+  question_type: QuestionType;
+  text: string;
+};
+
+type EmployeeAnswerRecord = {
+  answer_json: Record<string, unknown> | null;
+  answer_text: string | null;
+  id: string;
+  is_correct: boolean | null;
+  points_awarded: number | null;
+  questions: Relation<EmployeeAnswerQuestion>;
+  selected_option_id: string | null;
+};
+
 type SessionRecord = {
   completed_at: string | null;
   employee_assessment_test_results?: Array<{
@@ -104,6 +122,7 @@ type SessionRecord = {
     raw_score: number | null;
     requires_review: boolean;
   }> | null;
+  employee_assessment_answers?: EmployeeAnswerRecord[] | null;
   id: string;
   percentage: number | null;
   score: number | null;
@@ -229,6 +248,13 @@ export type EmployeeAssessmentReportData = {
     strengths: unknown[];
   } | null;
   sessions: Array<{
+    answers: Array<{
+      answer: string;
+      isCorrect: boolean | null;
+      pointsAwarded: number | null;
+      question: string;
+      questionType: QuestionType;
+    }>;
     completedAt: string | null;
     id: string;
     percentage: number | null;
@@ -245,6 +271,39 @@ export type EmployeeAssessmentReportData = {
     score: number | null;
   }>;
 };
+
+function renderEmployeeAnswer(
+  answer: EmployeeAnswerRecord,
+  question: EmployeeAnswerQuestion,
+) {
+  const options = question.answer_options ?? [];
+  if (question.question_type === "single_choice") {
+    return options.find((option) => option.id === answer.selected_option_id)?.text ?? "Ответ не выбран";
+  }
+  if (question.question_type === "multiple_choice") {
+    const ids = Array.isArray(answer.answer_json?.selectedOptionIds)
+      ? answer.answer_json.selectedOptionIds.filter((id): id is string => typeof id === "string")
+      : [];
+    return options.filter((option) => ids.includes(option.id)).map((option) => option.text).join(", ") || "Ответ не выбран";
+  }
+  if (question.question_type === "forced_choice") {
+    const mostOptionId = answer.answer_json?.mostOptionId;
+    const leastOptionId = answer.answer_json?.leastOptionId;
+    const mostText = typeof mostOptionId === "string"
+      ? options.find((option) => option.id === mostOptionId)?.text
+      : null;
+    const leastText = typeof leastOptionId === "string"
+      ? options.find((option) => option.id === leastOptionId)?.text
+      : null;
+    return `Больше всего: ${mostText ?? "не выбрано"}\nМеньше всего: ${leastText ?? "не выбрано"}`;
+  }
+  if (question.question_type === "scale") {
+    return typeof answer.answer_json?.value === "number"
+      ? String(answer.answer_json.value)
+      : "Ответ не выбран";
+  }
+  return answer.answer_text ?? "Ответ не указан";
+}
 
 function related<T>(value: Relation<T>) {
   return Array.isArray(value) ? value[0] ?? null : value;
@@ -480,7 +539,7 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
   const { data, error } = await supabase
     .from("employee_assessment_participants")
     .select(
-      "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, completed_at, score, percentage, test_versions(id, title), employee_assessment_test_results(id, percentage, raw_score, level, requires_review))",
+      "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, completed_at, score, percentage, test_versions(id, title), employee_assessment_test_results(id, percentage, raw_score, level, requires_review), employee_assessment_answers(id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, order_index, answer_options(id, text, order_index))))",
     )
     .eq("company_id", companyId)
     .eq("id", participantId)
@@ -539,6 +598,28 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
       const result = session.employee_assessment_test_results?.[0] ?? null;
 
       return {
+        answers: (session.employee_assessment_answers ?? [])
+          .flatMap((answer) => {
+            const question = related(answer.questions);
+            return question
+              ? [{
+                  answer: renderEmployeeAnswer(answer, question),
+                  isCorrect: answer.is_correct,
+                  pointsAwarded: answer.points_awarded,
+                  question: question.text,
+                  questionType: question.question_type,
+                  questionIndex: question.order_index,
+                }]
+              : [];
+          })
+          .sort((left, right) => left.questionIndex - right.questionIndex)
+          .map((answer) => ({
+            answer: answer.answer,
+            isCorrect: answer.isCorrect,
+            pointsAwarded: answer.pointsAwarded,
+            question: answer.question,
+            questionType: answer.questionType,
+          })),
         completedAt: session.completed_at,
         id: session.id,
         percentage: session.percentage ?? result?.percentage ?? null,

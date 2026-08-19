@@ -1,0 +1,58 @@
+{
+  "schema_version": "talvia.test.v1",
+  "test": {
+    "title": "Рабочее поведение — Forced Choice",
+    "category": "work_behavior",
+    "description": "Короткий пример теста в формате MOST / LEAST.",
+    "instructions": "В каждом блоке выберите одно наиболее и одно наименее похожее на вас утверждение.",
+    "duration_minutes": 5,
+    "scoring_type": "competency_profile",
+    "presentation": {
+      "mode": "one_question",
+      "allow_back": true,
+      "capture_question_time": true
+    },
+    "sections": [
+      {
+        "key": "work_behavior",
+        "title": "Рабочее поведение",
+        "description": null,
+        "questions": [
+          {
+            "key": "wb_fc_01",
+            "type": "forced_choice",
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего и МЕНЬШЕ всего похоже на ваше обычное поведение.",
+            "required": true,
+            "difficulty": "medium",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "key": "a",
+                "text": "Я заранее планирую последовательность работы.",
+                "competency_effects": {
+                  "work_organization": 1
+                }
+              },
+              {
+                "key": "b",
+                "text": "Я сам предлагаю улучшения, если вижу такую возможность.",
+                "competency_effects": {
+                  "work_initiative": 1
+                }
+              },
+              {
+                "key": "c",
+                "text": "Я стараюсь учитывать влияние своих действий на коллег.",
+                "competency_effects": {
+                  "work_collaboration": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,6 +1,10 @@
 import "server-only";
 
 import { COMPETENCIES, type CompetencyKey } from "@/lib/jobs/constants";
+import {
+  scoreForcedChoiceQuestion,
+  validateForcedChoiceAnswer,
+} from "@/lib/forced-choice";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 import type { QuestionSettings } from "@/lib/tests/remediation";
@@ -93,12 +97,14 @@ type AnswerRecord = {
 
 type CompetencyTotal = {
   maxScore: number;
+  minScore: number;
   score: number;
 };
 
 type SessionScore = {
   competencies: Map<CompetencyKey, CompetencyTotal>;
   maxScore: number;
+  hasForcedChoice: boolean;
   packageTest: PackageTestRecord;
   percentage: number | null;
   rawScore: number;
@@ -130,6 +136,13 @@ function percentage(score: number, maxScore: number) {
   return maxScore > 0 ? round(Math.min(Math.max((score / maxScore) * 100, 0), 100)) : null;
 }
 
+function competencyPercentage(total: CompetencyTotal) {
+  const range = total.maxScore - total.minScore;
+  return range > 0
+    ? round(Math.min(Math.max(((total.score - total.minScore) / range) * 100, 0), 100))
+    : null;
+}
+
 function isCompetencyKey(value: string): value is CompetencyKey {
   return COMPETENCY_KEYS.has(value as CompetencyKey);
 }
@@ -148,8 +161,23 @@ function addCompetency(
     return;
   }
 
-  const existing = competencies.get(key) ?? { maxScore: 0, score: 0 };
+  const existing = competencies.get(key) ?? { maxScore: 0, minScore: 0, score: 0 };
   existing.score += Math.min(Math.max(score, 0), maxScore);
+  existing.maxScore += maxScore;
+  competencies.set(key, existing);
+}
+
+function addCompetencyRange(
+  competencies: Map<CompetencyKey, CompetencyTotal>,
+  key: CompetencyKey,
+  score: number,
+  minScore: number,
+  maxScore: number,
+) {
+  if (maxScore <= minScore) return;
+  const existing = competencies.get(key) ?? { maxScore: 0, minScore: 0, score: 0 };
+  existing.score += Math.min(Math.max(score, minScore), maxScore);
+  existing.minScore += minScore;
   existing.maxScore += maxScore;
   competencies.set(key, existing);
 }
@@ -226,6 +254,7 @@ function scoreSession(
   const answerScores = new Map<string, { isCorrect: boolean | null; pointsAwarded: number | null }>();
   let rawScore = 0;
   let maxScore = 0;
+  let hasForcedChoice = false;
   let requiresReview = version.scoring_type === "manual";
 
   for (const question of questions) {
@@ -250,6 +279,41 @@ function scoreSession(
 
     const answer = answersByQuestion.get(question.id);
     const options = question.answer_options ?? [];
+
+    if (question.question_type === "forced_choice") {
+      hasForcedChoice = true;
+      const answerValidation = validateForcedChoiceAnswer(
+        {
+          leastOptionId: answer?.answer_json?.leastOptionId,
+          mostOptionId: answer?.answer_json?.mostOptionId,
+        },
+        options.map((option) => option.id),
+        question.settings_json?.mode,
+      );
+      const forcedChoiceScores = scoreForcedChoiceQuestion(
+        options.map((option) => ({
+          competencyEffects: option.competency_effect_json,
+          id: option.id,
+        })),
+        answerValidation.ok ? answerValidation.answer : null,
+      );
+
+      for (const [key, score] of Object.entries(forcedChoiceScores)) {
+        if (isCompetencyKey(key)) {
+          addCompetencyRange(
+            competencies,
+            key,
+            score.rawScore,
+            score.minPossible,
+            score.maxPossible,
+          );
+        }
+      }
+      if (answer) {
+        answerScores.set(answer.id, { isCorrect: null, pointsAwarded: null });
+      }
+      continue;
+    }
 
     if (question.question_type === "single_choice") {
       const selectedOption = options.find((option) => option.id === answer?.selected_option_id);
@@ -332,6 +396,7 @@ function scoreSession(
     answerScores,
     score: {
       competencies,
+      hasForcedChoice,
       maxScore: round(maxScore),
       packageTest,
       percentage: percentage(rawScore, maxScore),
@@ -348,7 +413,7 @@ function combineCompetencies(sessionScores: SessionScore[]) {
 
   for (const sessionScore of sessionScores) {
     for (const [key, score] of sessionScore.competencies) {
-      addCompetency(totals, key, score.score, score.maxScore);
+      addCompetencyRange(totals, key, score.score, score.minScore, score.maxScore);
     }
   }
 
@@ -539,6 +604,10 @@ export async function scoreCompletedApplication(applicationId: string) {
         session_id: score.session.id,
         summary: score.requiresReview
           ? "Содержит ответы, требующие ручной проверки."
+          : score.hasForcedChoice && score.percentage !== null
+            ? `Качество рабочих решений: ${score.percentage} / 100. Forced Choice формирует отдельный профиль компетенций.`
+            : score.hasForcedChoice
+              ? "Forced Choice формирует профиль компетенций без оценки правильности."
           : score.scoringType === "competency_profile"
             ? "Профильная шкала без оценки правильности."
             : null,
@@ -574,7 +643,7 @@ export async function scoreCompletedApplication(applicationId: string) {
       application_id: application.id,
       competency_key: key,
       max_score: round(total.maxScore),
-      percentage: percentage(total.score, total.maxScore),
+      percentage: competencyPercentage(total),
       result_id: resultId,
       score: round(total.score),
     }));
@@ -591,7 +660,7 @@ export async function scoreCompletedApplication(applicationId: string) {
   const weightsByCompetency = new Map(weights.map((weight) => [weight.competency_key, weight]));
   const competencyTotals = combineCompetencies(sessionScores);
   const summaryRows = [...competencyTotals.entries()].map(([key, total]) => {
-    const value = percentage(total.score, total.maxScore);
+    const value = competencyPercentage(total);
     const weight = weightsByCompetency.get(key);
     const isBelowMinimum =
       !isMotivationCompetency(key) &&
@@ -957,6 +1026,10 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
         session_id: score.session.id,
         summary: score.requiresReview
           ? "Содержит ответы, требующие ручной проверки."
+          : score.hasForcedChoice && score.percentage !== null
+            ? `Качество рабочих решений: ${score.percentage} / 100. Forced Choice формирует отдельный профиль компетенций.`
+            : score.hasForcedChoice
+              ? "Forced Choice формирует профиль компетенций без оценки правильности."
           : score.scoringType === "competency_profile"
             ? "Профильная шкала без оценки правильности."
             : null,
@@ -995,7 +1068,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
       competency_key: key,
       max_score: round(total.maxScore),
       participant_id: participant.id,
-      percentage: percentage(total.score, total.maxScore),
+      percentage: competencyPercentage(total),
       result_id: resultId,
       score: round(total.score),
     }));
@@ -1012,7 +1085,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
   const weightsByCompetency = new Map(weights.map((weight) => [weight.competency_key, weight]));
   const competencyTotals = combineCompetencies(sessionScores);
   const summaryRows = [...competencyTotals.entries()].map(([key, total]) => {
-    const value = percentage(total.score, total.maxScore);
+    const value = competencyPercentage(total);
     const weight = weightsByCompetency.get(key);
     const isBelowMinimum =
       !isMotivationCompetency(key) &&

@@ -3,6 +3,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  ForcedChoiceAnswerValidationError,
+  validateForcedChoiceAnswer,
+} from "@/lib/forced-choice";
 import { normalizePresentationSettings } from "@/lib/tests/presentation-settings";
 
 import { completeCandidateSessionAndGetPath } from "./completion";
@@ -24,6 +28,8 @@ export type AssessmentIntegrityEventType =
 
 export type AssessmentAnswerDraft = {
   answerText?: string | null;
+  leastOptionId?: string | null;
+  mostOptionId?: string | null;
   scaleValue?: number | null;
   selectedOptionId?: string | null;
   selectedOptionIds?: string[];
@@ -426,6 +432,7 @@ type QuestionRecord = {
   settings_json: {
     incorrectFeedback?: string;
     max?: number;
+    mode?: string;
     min?: number;
     remediationQuestionId?: string;
     required?: boolean;
@@ -436,6 +443,7 @@ async function answerRowForDraft(
   access: CandidateSessionAccess,
   questionId: string,
   draft: AssessmentAnswerDraft,
+  requireComplete = false,
 ) {
   const { data: questionData, error: questionError } = await access.admin
     .from("questions")
@@ -460,6 +468,38 @@ async function answerRowForDraft(
   }
 
   const optionIds = new Set((question.answer_options ?? []).map((option) => option.id));
+  if (question.question_type === "forced_choice") {
+    if (!draft.mostOptionId && !draft.leastOptionId) {
+      if (requireComplete && question.settings_json?.required !== false) {
+        const validation = validateForcedChoiceAnswer(
+          draft,
+          optionIds,
+          question.settings_json?.mode,
+        );
+        if (!validation.ok) {
+          throw new ForcedChoiceAnswerValidationError(validation.error);
+        }
+      }
+      return null;
+    }
+    const validation = validateForcedChoiceAnswer(
+      draft,
+      optionIds,
+      question.settings_json?.mode,
+    );
+    if (!validation.ok) {
+      if (!requireComplete && (!draft.mostOptionId || !draft.leastOptionId)) {
+        return null;
+      }
+      throw new ForcedChoiceAnswerValidationError(validation.error);
+    }
+    return {
+      answer_json: validation.answer,
+      answer_text: null,
+      selected_option_id: null,
+    };
+  }
+
   if (question.question_type === "single_choice") {
     if (!draft.selectedOptionId) {
       return null;
@@ -579,7 +619,12 @@ export async function autosaveCandidateAnswer(
     }
   }
 
-  const draftAnswer = await answerRowForDraft(access, identity.questionId, identity.answer);
+  const draftAnswer = await answerRowForDraft(
+    access,
+    identity.questionId,
+    identity.answer,
+    Boolean(identity.finalize),
+  );
   const question = oneQuestionData?.questions.find((entry) => entry.id === identity.questionId);
   if (
     identity.finalize &&

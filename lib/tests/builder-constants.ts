@@ -5,6 +5,7 @@ export const QUESTION_TYPE_VALUES = [
   "open_text",
   "ordering",
   "matching",
+  "forced_choice",
 ] as const;
 
 export const QUESTION_TYPE_LABELS: Record<(typeof QUESTION_TYPE_VALUES)[number], string> = {
@@ -14,6 +15,7 @@ export const QUESTION_TYPE_LABELS: Record<(typeof QUESTION_TYPE_VALUES)[number],
   open_text: "Открытый ответ",
   ordering: "Сортировка",
   matching: "Сопоставление",
+  forced_choice: "Вынужденный выбор",
 };
 
 export const DIFFICULTY_VALUES = ["easy", "medium", "hard"] as const;
@@ -31,6 +33,11 @@ export const TEST_COMPETENCIES = [
   { key: "work_behavior", label: "Рабочее поведение" },
   { key: "communication", label: "Коммуникация" },
   { key: "responsibility", label: "Ответственность" },
+  { key: "work_organization", label: "Организованность" },
+  { key: "work_initiative", label: "Инициативность" },
+  { key: "work_result_orientation", label: "Ориентация на результат" },
+  { key: "work_collaboration", label: "Сотрудничество" },
+  { key: "work_adaptability", label: "Самоконтроль и адаптивность" },
   { key: "motivation_income", label: "Мотивация: доход" },
   { key: "motivation_growth", label: "Мотивация: рост" },
   { key: "motivation_stability", label: "Мотивация: стабильность" },

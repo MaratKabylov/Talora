@@ -245,6 +245,20 @@ function renderAnswer(record: AnswerRecord, question: QuestionRecord) {
     return texts.join(", ") || "Ответ не выбран";
   }
 
+  if (question.question_type === "forced_choice") {
+    const mostOptionId = record.answer_json?.mostOptionId;
+    const leastOptionId = record.answer_json?.leastOptionId;
+    const mostText =
+      typeof mostOptionId === "string"
+        ? options.find((option) => option.id === mostOptionId)?.text
+        : null;
+    const leastText =
+      typeof leastOptionId === "string"
+        ? options.find((option) => option.id === leastOptionId)?.text
+        : null;
+    return `Больше всего: ${mostText ?? "не выбрано"}\nМеньше всего: ${leastText ?? "не выбрано"}`;
+  }
+
   if (question.question_type === "scale") {
     const value = record.answer_json?.value;
     return typeof value === "number" ? String(value) : "Ответ не выбран";

@@ -30,6 +30,25 @@ function QuestionInputPreview({ question }: { question: BuilderQuestion }) {
     return <p className="text-sm text-muted-foreground">Варианты ответа еще не добавлены.</p>;
   }
 
+  if (question.questionType === "forced_choice") {
+    return (
+      <div className="overflow-hidden rounded-md border bg-background text-sm">
+        <div className="grid grid-cols-[minmax(0,1fr)_6rem_6rem] bg-muted/50 font-medium text-muted-foreground">
+          <span className="px-3 py-2">Утверждение</span>
+          <span className="px-2 py-2 text-center">Больше всего</span>
+          <span className="px-2 py-2 text-center">Меньше всего</span>
+        </div>
+        {question.options.map((option) => (
+          <div className="grid grid-cols-[minmax(0,1fr)_6rem_6rem] border-t" key={option.id}>
+            <span className="whitespace-pre-wrap px-3 py-3">{option.text}</span>
+            <span className="flex items-center justify-center"><input disabled type="radio" /></span>
+            <span className="flex items-center justify-center"><input disabled type="radio" /></span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       {question.options.map((option, index) => (

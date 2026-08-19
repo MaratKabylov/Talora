@@ -10,6 +10,7 @@ import {
   heartbeatCandidateSession,
   recordCandidateSessionEvent,
 } from "@/lib/assessment/session-control";
+import { ForcedChoiceAnswerValidationError } from "@/lib/forced-choice";
 
 const identityShape = {
   clientId: z.string().uuid(),
@@ -41,6 +42,8 @@ const requestSchema = z.discriminatedUnion("operation", [
     ...identityShape,
     answer: z.object({
       answerText: z.string().max(4000).nullable().optional(),
+      leastOptionId: z.string().uuid().nullable().optional(),
+      mostOptionId: z.string().uuid().nullable().optional(),
       scaleValue: z.number().int().nullable().optional(),
       selectedOptionId: z.string().uuid().nullable().optional(),
       selectedOptionIds: z.array(z.string().uuid()).max(100).optional(),
@@ -103,7 +106,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result, {
       headers: { "Cache-Control": "no-store" },
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof ForcedChoiceAnswerValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json(
       { error: "Не удалось обновить состояние теста." },
       { status: 500 },

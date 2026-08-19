@@ -11,6 +11,7 @@ import {
 import { requireCompanyContext } from "@/lib/auth/context";
 import { getEmployeeAssessmentReportData } from "@/lib/employee-assessments/data";
 import { COMPETENCIES } from "@/lib/jobs/constants";
+import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
 
 type EmployeeReportParams = Promise<{ id: string }>;
 type EmployeeReportSearchParams = Promise<{
@@ -264,6 +265,44 @@ export default async function EmployeeAssessmentReportPage({
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="mt-6 space-y-3">
+            <h2 className="font-medium">Ответы сотрудника</h2>
+            {data.sessions.every((session) => session.answers.length === 0) ? (
+              <p className="text-sm text-muted-foreground">Ответы пока отсутствуют.</p>
+            ) : (
+              data.sessions.map((session) =>
+                session.answers.length > 0 ? (
+                  <details className="rounded-lg border p-4" key={session.id}>
+                    <summary className="cursor-pointer font-medium">{session.testTitle}</summary>
+                    <div className="mt-4 space-y-4 border-t pt-4">
+                      {session.answers.map((answer, index) => (
+                        <div className="space-y-2 text-sm" key={`${session.id}-${index}`}>
+                          <div className="flex flex-wrap justify-between gap-3">
+                            <p className="font-medium">{index + 1}. {answer.question}</p>
+                            <span className="text-muted-foreground">
+                              {QUESTION_TYPE_LABELS[answer.questionType]}
+                            </span>
+                          </div>
+                          <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3">
+                            {answer.answer}
+                          </p>
+                          {answer.questionType !== "forced_choice" &&
+                          (answer.pointsAwarded !== null || answer.isCorrect !== null) ? (
+                            <p className="text-muted-foreground">
+                              {answer.pointsAwarded !== null ? `Баллы: ${answer.pointsAwarded}` : ""}
+                              {answer.isCorrect !== null
+                                ? `${answer.pointsAwarded !== null ? " / " : ""}${answer.isCorrect ? "Верно" : "Неверно"}`
+                                : ""}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                ) : null,
+              )
+            )}
           </div>
         </CardContent>
       </Card>

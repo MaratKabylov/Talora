@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { validateForcedChoiceAnswer } from "@/lib/forced-choice";
 
 import {
   completeCandidateSessionAndGetPath,
@@ -249,6 +250,20 @@ export async function submitCandidateProfileAction(formData: FormData) {
 function buildAnswer(question: FlowQuestion, formData: FormData, inputPrefix = "") {
   const field = (name: string) => `${inputPrefix}${name}`;
 
+  if (question.questionType === "forced_choice") {
+    const validation = validateForcedChoiceAnswer(
+      {
+        leastOptionId: formString(formData, field("leastOptionId")),
+        mostOptionId: formString(formData, field("mostOptionId")),
+      },
+      question.options.map((option) => option.id),
+      question.forcedChoiceMode,
+    );
+    return validation.ok
+      ? { answer_json: validation.answer, answer_text: null, selected_option_id: null }
+      : null;
+  }
+
   if (question.questionType === "single_choice") {
     const optionId = formString(formData, field("optionId"));
     const option = question.options.find((entry) => entry.id === optionId);
@@ -318,7 +333,23 @@ export async function saveCandidateAnswerAction(formData: FormData) {
 
   const answer = buildAnswer(question, formData);
   if (!answer) {
-    redirectWithError(testPath(token, sessionId.data, questionIndex), "Выберите или укажите ответ.");
+    const forcedChoiceValidation =
+      question.questionType === "forced_choice"
+        ? validateForcedChoiceAnswer(
+            {
+              leastOptionId: formString(formData, "leastOptionId"),
+              mostOptionId: formString(formData, "mostOptionId"),
+            },
+            question.options.map((option) => option.id),
+            question.forcedChoiceMode,
+          )
+        : null;
+    redirectWithError(
+      testPath(token, sessionId.data, questionIndex),
+      forcedChoiceValidation && !forcedChoiceValidation.ok
+        ? forcedChoiceValidation.error
+        : "Выберите или укажите ответ.",
+    );
   }
 
   const admin = createAdminClient();
@@ -377,6 +408,22 @@ export async function saveCandidateSectionAction(formData: FormData) {
     redirectWithError(testPath(token, sessionId.data), "Секция не найдена.");
   }
 
+  for (const question of section.questions) {
+    if (question.questionType !== "forced_choice" || question.remediationParentId) continue;
+    const prefix = `q_${question.id}_`;
+    const mostOptionId = formString(formData, `${prefix}mostOptionId`);
+    const leastOptionId = formString(formData, `${prefix}leastOptionId`);
+    if (!question.isRequired && !mostOptionId && !leastOptionId) continue;
+    const validation = validateForcedChoiceAnswer(
+      { leastOptionId, mostOptionId },
+      question.options.map((option) => option.id),
+      question.forcedChoiceMode,
+    );
+    if (!validation.ok) {
+      redirectWithError(testPath(token, sessionId.data, sectionIndex), validation.error);
+    }
+  }
+
   const answers = section.questions.map((question) => ({
     answer: buildAnswer(question, formData, `q_${question.id}_`),
     question,
@@ -386,9 +433,23 @@ export async function saveCandidateSectionAction(formData: FormData) {
       !question.remediationParentId && question.isRequired && !answer,
   );
   if (missingRequired) {
+    const prefix = `q_${missingRequired.question.id}_`;
+    const forcedChoiceValidation =
+      missingRequired.question.questionType === "forced_choice"
+        ? validateForcedChoiceAnswer(
+            {
+              leastOptionId: formString(formData, `${prefix}leastOptionId`),
+              mostOptionId: formString(formData, `${prefix}mostOptionId`),
+            },
+            missingRequired.question.options.map((option) => option.id),
+            missingRequired.question.forcedChoiceMode,
+          )
+        : null;
     redirectWithError(
       testPath(token, sessionId.data, sectionIndex),
-      "Ответьте на обязательные вопросы текущей секции.",
+      forcedChoiceValidation && !forcedChoiceValidation.ok
+        ? forcedChoiceValidation.error
+        : "Ответьте на обязательные вопросы текущей секции.",
     );
   }
 

@@ -1,6 +1,7 @@
 export type TalviaTestImportSummary = {
   competencyKeys: string[];
   durationMinutes: number;
+  forcedChoiceCount: number;
   openTextCount: number;
   optionCount: number;
   requiredQuestionCount: number;

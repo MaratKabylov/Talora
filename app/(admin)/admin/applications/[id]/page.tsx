@@ -76,6 +76,22 @@ function renderAnswer(answer: Answer) {
       text: question.text,
     };
   }
+  if (question.question_type === "forced_choice") {
+    const mostOptionId = answer.answer_json?.mostOptionId;
+    const leastOptionId = answer.answer_json?.leastOptionId;
+    const mostText =
+      typeof mostOptionId === "string"
+        ? options.find((option) => option.id === mostOptionId)?.text
+        : null;
+    const leastText =
+      typeof leastOptionId === "string"
+        ? options.find((option) => option.id === leastOptionId)?.text
+        : null;
+    return {
+      response: `Больше всего: ${mostText ?? "не выбрано"}\nМеньше всего: ${leastText ?? "не выбрано"}`,
+      text: question.text,
+    };
+  }
   if (question.question_type === "scale") {
     return { response: String(answer.answer_json?.value ?? "Ответ не выбран"), text: question.text };
   }
@@ -216,7 +232,7 @@ export default async function AdminApplicationPage({
                     return (
                       <div className="space-y-2 text-sm" key={answer.id}>
                         <p className="font-medium">{rendered.text}</p>
-                        <p className="rounded-md bg-muted/50 p-3">{rendered.response}</p>
+                        <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3">{rendered.response}</p>
                         {answer.points_awarded !== null ? (
                           <p className="text-muted-foreground">Баллы: {answer.points_awarded}</p>
                         ) : null}

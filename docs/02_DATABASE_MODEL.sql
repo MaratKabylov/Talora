@@ -163,7 +163,7 @@ create table if not exists public.test_sections (
 create table if not exists public.questions (
   id uuid primary key default gen_random_uuid(),
   section_id uuid not null references public.test_sections(id) on delete cascade,
-  question_type text not null check (question_type in ('single_choice','multiple_choice','scale','open_text','ordering','matching')),
+  question_type text not null check (question_type in ('single_choice','multiple_choice','scale','open_text','ordering','matching','forced_choice')),
   text text not null,
   description text,
   media_url text,

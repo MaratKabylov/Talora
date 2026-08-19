@@ -94,7 +94,10 @@ async function postControl(
   });
 
   if (!response.ok) {
-    throw new Error("Assessment control request failed.");
+    const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+    throw new Error(
+      typeof payload?.error === "string" ? payload.error : "Не удалось обновить состояние теста.",
+    );
   }
 
   return (await response.json()) as ControlResponse;
@@ -121,6 +124,8 @@ function questionIdFromTarget(target: EventTarget | null) {
 
 type AnswerDraft = {
   answerText?: string | null;
+  leastOptionId?: string | null;
+  mostOptionId?: string | null;
   scaleValue?: number | null;
   selectedOptionId?: string | null;
   selectedOptionIds?: string[];
@@ -129,6 +134,15 @@ type AnswerDraft = {
 function draftForQuestion(form: HTMLFormElement, question: FlowQuestion): AnswerDraft {
   const formData = new FormData(form);
   const prefix = `q_${question.id}_`;
+
+  if (question.questionType === "forced_choice") {
+    const mostOptionId = formData.get(`${prefix}mostOptionId`);
+    const leastOptionId = formData.get(`${prefix}leastOptionId`);
+    return {
+      leastOptionId: typeof leastOptionId === "string" && leastOptionId ? leastOptionId : null,
+      mostOptionId: typeof mostOptionId === "string" && mostOptionId ? mostOptionId : null,
+    };
+  }
 
   if (question.questionType === "single_choice") {
     const value = formData.get(`${prefix}optionId`);
@@ -154,6 +168,13 @@ function draftForQuestion(form: HTMLFormElement, question: FlowQuestion): Answer
 }
 
 function hasDraftAnswer(question: FlowQuestion, answer: AnswerDraft) {
+  if (question.questionType === "forced_choice") {
+    return Boolean(
+      answer.mostOptionId &&
+        answer.leastOptionId &&
+        answer.mostOptionId !== answer.leastOptionId,
+    );
+  }
   if (question.questionType === "single_choice") {
     return Boolean(answer.selectedOptionId);
   }
@@ -172,6 +193,22 @@ function savedAnswerFromDraft(
   isCorrect: boolean | null,
   timeSpentSeconds: number | null,
 ): SavedAnswer {
+  if (question.questionType === "forced_choice") {
+    const hasAnswer = Boolean(
+      answer.mostOptionId &&
+        answer.leastOptionId &&
+        answer.mostOptionId !== answer.leastOptionId,
+    );
+    return {
+      answerJson: hasAnswer
+        ? { leastOptionId: answer.leastOptionId, mostOptionId: answer.mostOptionId }
+        : { skipped: true },
+      answerText: null,
+      isCorrect: null,
+      selectedOptionId: null,
+      timeSpentSeconds,
+    };
+  }
   if (question.questionType === "single_choice") {
     return {
       answerJson: answer.selectedOptionId ? {} : { skipped: true },
@@ -296,6 +333,28 @@ export function CandidateTestSession({
     isOneQuestion && currentQuestionIndex >= 0
       ? visibleQuestions[currentQuestionIndex] ?? null
       : null;
+  const [forcedChoiceCompletion, setForcedChoiceCompletion] = useState<Record<string, boolean>>(
+    {},
+  );
+  const forcedChoiceIsComplete = useCallback(
+    (question: FlowQuestion) => {
+      const localCompletion = forcedChoiceCompletion[question.id];
+      if (localCompletion !== undefined) return localCompletion;
+      const stored = sessionAnswers[question.id]?.answerJson;
+      return (
+        typeof stored?.mostOptionId === "string" &&
+        typeof stored?.leastOptionId === "string" &&
+        stored.mostOptionId !== stored.leastOptionId
+      );
+    },
+    [forcedChoiceCompletion, sessionAnswers],
+  );
+  const isActiveAnswerComplete = activeQuestion
+    ? activeQuestion.questionType !== "forced_choice" || forcedChoiceIsComplete(activeQuestion)
+    : false;
+  const areSectionForcedChoicesComplete = visibleQuestions
+    .filter((question) => question.isRequired && question.questionType === "forced_choice")
+    .every(forcedChoiceIsComplete);
   const totalVisibleQuestionCount = otherVisibleQuestionCount + visibleQuestions.length;
   const sectionContent = useMemo(
     () =>
@@ -781,6 +840,27 @@ export function CandidateTestSession({
     if (questionId) {
       startQuestionTimer(questionId);
     }
+    if (activeQuestion?.id === questionId && activeQuestion.questionType === "forced_choice") {
+      setForcedChoiceCompletion((current) => ({
+        ...current,
+        [activeQuestion.id]: hasDraftAnswer(
+          activeQuestion,
+          draftForQuestion(event.currentTarget, activeQuestion),
+        ),
+      }));
+    }
+    if (!isOneQuestion) {
+      const changedQuestion = questionId ? questionsById.get(questionId) : null;
+      if (changedQuestion?.questionType === "forced_choice") {
+        setForcedChoiceCompletion((current) => ({
+          ...current,
+          [changedQuestion.id]: hasDraftAnswer(
+            changedQuestion,
+            draftForQuestion(event.currentTarget, changedQuestion),
+          ),
+        }));
+      }
+    }
     if (
       target instanceof HTMLTextAreaElement ||
       (target instanceof HTMLInputElement && ["text", "search"].includes(target.type))
@@ -908,11 +988,13 @@ export function CandidateTestSession({
       }
 
       await completeOneQuestionSession();
-    } catch {
+    } catch (error) {
       setSaveState(navigator.onLine ? "error" : "offline");
       setQuestionError(
         navigator.onLine
-          ? "Не удалось сохранить ответ. Он остался на экране — повторите попытку."
+          ? error instanceof Error
+            ? error.message
+            : "Не удалось сохранить ответ. Он остался на экране — повторите попытку."
           : "Нет соединения. Ответ остался на экране — повторите после восстановления сети.",
       );
       startQuestionTimer(question.id);
@@ -1158,6 +1240,7 @@ export function CandidateTestSession({
                       <QuestionResponseFields
                         answer={sessionAnswers[activeQuestion.id] ?? null}
                         inputPrefix={`q_${activeQuestion.id}`}
+                        key={activeQuestion.id}
                         question={
                           activeQuestion.remediationParentId
                             ? { ...activeQuestion, isRequired: true }
@@ -1192,7 +1275,12 @@ export function CandidateTestSession({
                       )}
                       <Button
                         className="w-full sm:w-auto"
-                        disabled={saveState === "saving"}
+                        disabled={
+                          saveState === "saving" ||
+                          (activeQuestion.questionType === "forced_choice" &&
+                            activeQuestion.isRequired &&
+                            !isActiveAnswerComplete)
+                        }
                         type="submit"
                       >
                         {saveState === "saving" ? "Сохраняем ответ..." : "Ответить и далее"}
@@ -1331,6 +1419,7 @@ export function CandidateTestSession({
                   )}
                   <PendingSubmitButton
                     className="w-full sm:w-auto"
+                    disabled={!areSectionForcedChoicesComplete}
                     name="direction"
                     pendingText="Сохраняем ответы..."
                     type="submit"

@@ -378,7 +378,7 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
                             {answer.competencyLabel ? ` / ${answer.competencyLabel}` : ""}
                           </span>
                         </div>
-                        <p className="rounded-md bg-muted/50 p-3">{answer.answer}</p>
+                        <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3">{answer.answer}</p>
                         {answer.pointsAwarded !== null || answer.isCorrect !== null ? (
                           <p className="text-muted-foreground">
                             {answer.pointsAwarded !== null ? `Баллы: ${answer.pointsAwarded}` : ""}

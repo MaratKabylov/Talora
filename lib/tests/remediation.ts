@@ -1,6 +1,7 @@
 import type { QuestionType } from "./builder-constants";
 
 export type QuestionSettings = {
+  mode?: "most_least";
   incorrectFeedback?: string;
   max?: number;
   min?: number;

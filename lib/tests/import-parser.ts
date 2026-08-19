@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
+import { validateForcedChoiceDefinition } from "@/lib/forced-choice";
 import {
   DIFFICULTY_VALUES,
   TEST_COMPETENCIES,
@@ -257,9 +258,6 @@ const competencyEffectsSchema = z
   .record(z.string(), effectValueSchema)
   .superRefine((effects, context) => {
     const keys = Object.keys(effects);
-    if (keys.length > 1) {
-      context.addIssue({ code: "custom", message: "У варианта допускается эффект только одной компетенции." });
-    }
     keys.forEach((key) => {
       if (!competencyKeys.includes(key as TestCompetencyKey)) {
         context.addIssue({
@@ -270,6 +268,11 @@ const competencyEffectsSchema = z
       }
     });
   });
+
+const singleChoiceCompetencyEffectsSchema = competencyEffectsSchema.refine(
+  (effects) => Object.keys(effects).length <= 1,
+  "У варианта допускается эффект только одной компетенции.",
+);
 
 const questionCommonShape = {
   competency_key: z.enum(competencyKeys).nullable(),
@@ -282,7 +285,7 @@ const questionCommonShape = {
 
 const answerOptionSchema = z
   .object({
-    competency_effects: competencyEffectsSchema,
+    competency_effects: singleChoiceCompetencyEffectsSchema,
     explanation: optionalTrimmedText(1000),
     is_correct: z.boolean(),
     key: localKeySchema,
@@ -347,6 +350,66 @@ const singleChoiceQuestionSchema = z
     }
   });
 
+const forcedChoiceModeSchema = z
+  .object({ mode: z.unknown().optional() })
+  .strict()
+  .superRefine((settings, context) => {
+    if (settings.mode === undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "Для Forced Choice укажите mode = most_least.",
+        path: ["mode"],
+      });
+    } else if (settings.mode !== "most_least") {
+      context.addIssue({
+        code: "custom",
+        message: "Поддерживается только Forced Choice mode = most_least.",
+        path: ["mode"],
+      });
+    }
+  })
+  .transform(() => ({ mode: "most_least" as const }));
+
+const forcedChoiceOptionSchema = z
+  .object({
+    competency_effects: competencyEffectsSchema.refine(
+      (effects) => Object.keys(effects).length > 0,
+      "Для каждого утверждения укажите competency_effects.",
+    ),
+    explanation: optionalTrimmedText(1000).optional().default(null),
+    key: localKeySchema,
+    text: trimmedText(1, 1000, "Текст утверждения не может быть пустым."),
+  })
+  .strict();
+
+const forcedChoiceQuestionSchema = z
+  .object({
+    competency_key: z.null().optional().default(null),
+    description: optionalTrimmedText(20000).optional().default(null),
+    difficulty: z.enum(DIFFICULTY_VALUES).nullable(),
+    forced_choice: forcedChoiceModeSchema,
+    key: localKeySchema,
+    options: z
+      .array(forcedChoiceOptionSchema)
+      .min(3, "Для Forced Choice нужно минимум три утверждения.")
+      .max(100),
+    required: z.boolean(),
+    text: trimmedText(2, 4000, "Текст вопроса должен содержать минимум два символа."),
+    type: z.literal("forced_choice"),
+  })
+  .strict()
+  .superRefine((question, context) => {
+    const validation = validateForcedChoiceDefinition({
+      mode: question.forced_choice.mode,
+      options: question.options.map((option) => ({
+        competencyEffects: option.competency_effects,
+      })),
+    });
+    if (!validation.ok) {
+      context.addIssue({ code: "custom", message: validation.error });
+    }
+  });
+
 const scaleQuestionSchema = z
   .object({
     ...questionCommonShape,
@@ -376,6 +439,7 @@ const questionSchema = z.discriminatedUnion("type", [
   singleChoiceQuestionSchema,
   scaleQuestionSchema,
   openTextQuestionSchema,
+  forcedChoiceQuestionSchema,
 ]);
 
 const sectionSchema = z
@@ -415,7 +479,9 @@ export const talviaTestImportDocumentSchema = z
   .superRefine((document, context) => {
     const questions = document.test.sections.flatMap((section) => section.questions);
     const options = questions.flatMap((question) =>
-      question.type === "single_choice" ? question.options : [],
+      question.type === "single_choice" || question.type === "forced_choice"
+        ? question.options
+        : [],
     );
 
     if (questions.length > TALVIA_TEST_IMPORT_MAX_QUESTIONS) {
@@ -458,7 +524,7 @@ export const talviaTestImportDocumentSchema = z
           questionIndex,
           "key",
         ]);
-        if (question.type === "single_choice") {
+        if (question.type === "single_choice" || question.type === "forced_choice") {
           question.options.forEach((option, optionIndex) => {
             registerKey(option.key, [
               "test",
@@ -478,10 +544,13 @@ export const talviaTestImportDocumentSchema = z
     const hasSingleChoice = questions.some((question) => question.type === "single_choice");
     const hasScale = questions.some((question) => question.type === "scale");
     const hasOpenText = questions.some((question) => question.type === "open_text");
+    const hasForcedChoice = questions.some((question) => question.type === "forced_choice");
     let allowedScoringTypes: readonly string[];
     if (hasOpenText) {
-      allowedScoringTypes = hasSingleChoice || hasScale ? ["mixed"] : ["manual"];
-    } else if (hasScale) {
+      allowedScoringTypes = hasSingleChoice || hasScale || hasForcedChoice ? ["mixed"] : ["manual"];
+    } else if (hasForcedChoice && hasSingleChoice) {
+      allowedScoringTypes = ["mixed"];
+    } else if (hasScale || hasForcedChoice) {
       allowedScoringTypes = ["competency_profile"];
     } else {
       allowedScoringTypes = ["points", "competency_profile"];
@@ -557,7 +626,7 @@ export function summarizeTalviaTestImport(
 
   questions.forEach((question) => {
     if (question.competency_key) competencyKeySet.add(question.competency_key);
-    if (question.type === "single_choice") {
+    if (question.type === "single_choice" || question.type === "forced_choice") {
       optionCount += question.options.length;
       question.options.forEach((option) => {
         Object.keys(option.competency_effects).forEach((key) => competencyKeySet.add(key));
@@ -568,6 +637,7 @@ export function summarizeTalviaTestImport(
   return {
     competencyKeys: [...competencyKeySet].sort(),
     durationMinutes: document.test.duration_minutes,
+    forcedChoiceCount: questions.filter((question) => question.type === "forced_choice").length,
     openTextCount: questions.filter((question) => question.type === "open_text").length,
     optionCount,
     requiredQuestionCount: questions.filter((question) => question.required).length,
@@ -588,6 +658,11 @@ export function getTalviaTestImportWarnings(summary: TalviaTestImportSummary) {
   if (summary.openTextCount > 0) {
     warnings.push(
       "Открытые ответы требуют ручной проверки; пока такой тест не участвует в итоговом overall score.",
+    );
+  }
+  if (summary.forcedChoiceCount > 0) {
+    warnings.push(
+      "Forced Choice использует MVP Best-Worst scoring (+1 / -1), а не нормативную IRT-модель.",
     );
   }
   if (summary.competencyKeys.some((key) => key.startsWith("motivation_"))) {

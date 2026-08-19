@@ -91,10 +91,29 @@ const documentQuestionSchema = z
     scaleMin: z.number().int().min(1).max(99),
     text: z.string().trim().min(2).max(4000),
   })
-  .refine(
-    (question) => question.questionType !== "scale" || question.scaleMin < question.scaleMax,
-    "Максимум шкалы должен быть больше минимума.",
-  );
+  .superRefine((question, context) => {
+    if (question.questionType === "scale" && question.scaleMin >= question.scaleMax) {
+      context.addIssue({ code: "custom", message: "Максимум шкалы должен быть больше минимума." });
+    }
+    if (question.questionType !== "forced_choice") return;
+    if (question.options.length < 3) {
+      context.addIssue({
+        code: "custom",
+        message: "Для Forced Choice добавьте минимум три утверждения.",
+        path: ["options"],
+      });
+    }
+    question.options.forEach((option, optionIndex) => {
+      const effects = Object.values(option.competencyEffects);
+      if (effects.length === 0 || effects.some((value) => value <= 0)) {
+        context.addIssue({
+          code: "custom",
+          message: "Для каждого утверждения Forced Choice укажите компетенцию и положительный вес.",
+          path: ["options", optionIndex, "competencyEffects"],
+        });
+      }
+    });
+  });
 
 const builderDocumentSchema = z.object({
   sections: z
@@ -1053,18 +1072,19 @@ export async function saveSystemTestBuilderDocumentAction(input: unknown): Promi
 
   const questions = document.sections.flatMap((section) =>
     section.questions.map((question, orderIndex) => ({
-      competency_key: question.competencyKey,
+      competency_key: question.questionType === "forced_choice" ? null : question.competencyKey,
       description: question.description,
       difficulty: question.difficulty,
       id: question.id,
       order_index: orderIndex + 1,
-      points: question.points,
+      points: question.questionType === "forced_choice" ? 0 : question.points,
       question_type: question.questionType,
       section_id: section.id,
       settings_json: {
         ...(question.questionType === "scale"
           ? { max: question.scaleMax, min: question.scaleMin }
           : {}),
+        ...(question.questionType === "forced_choice" ? { mode: "most_least" } : {}),
         ...(question.remediationQuestionId
           ? {
               incorrectFeedback: question.incorrectFeedback?.trim(),
@@ -1087,9 +1107,9 @@ export async function saveSystemTestBuilderDocumentAction(input: unknown): Promi
         competency_effect_json: option.competencyEffects,
         explanation: option.explanation,
         id: option.id,
-        is_correct: option.isCorrect,
+        is_correct: question.questionType === "forced_choice" ? null : option.isCorrect,
         order_index: orderIndex + 1,
-        points: option.points,
+        points: question.questionType === "forced_choice" ? 0 : option.points,
         question_id: question.id,
         text: option.text,
       })),
