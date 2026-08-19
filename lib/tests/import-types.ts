@@ -12,6 +12,20 @@ export type TalviaTestImportSummary = {
   totalQuestionCount: number;
 };
 
+export type SystemTestImportTargetOption = {
+  category: string | null;
+  hasDraft: boolean;
+  id: string;
+  latestVersionNumber: number;
+  title: string;
+};
+
+export type SystemTestImportTarget = {
+  nextVersionNumber: number;
+  templateId: string;
+  title: string;
+};
+
 export type TalviaTestImportPreviewState =
   | { status: "idle" }
   | { error: string; status: "error" }
@@ -20,6 +34,7 @@ export type TalviaTestImportPreviewState =
       normalizedDocument: string;
       status: "ready";
       summary: TalviaTestImportSummary;
+      target?: SystemTestImportTarget;
       warnings: string[];
     };
 
@@ -30,4 +45,5 @@ export type TalviaTestImportResult =
       templateId: string;
       title: string;
       versionId: string;
+      versionNumber: number;
     };

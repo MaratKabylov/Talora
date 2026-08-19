@@ -164,5 +164,6 @@ export async function confirmTalviaTestImportAction(
     templateId: record.created_template_id,
     title: document.test.title,
     versionId: record.created_version_id,
+    versionNumber: 1,
   };
 }

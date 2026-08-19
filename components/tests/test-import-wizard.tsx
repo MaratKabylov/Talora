@@ -9,6 +9,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import {
   confirmSystemTestImportAction,
   previewSystemTestImportAction,
@@ -18,6 +19,7 @@ import {
   previewTalviaTestImportAction,
 } from "@/lib/tests/import-actions";
 import type {
+  SystemTestImportTargetOption,
   TalviaTestImportPreviewState,
   TalviaTestImportResult,
 } from "@/lib/tests/import-types";
@@ -26,7 +28,13 @@ import { TEST_COMPETENCY_LABELS, type TestCompetencyKey } from "@/lib/tests/buil
 
 const INITIAL_PREVIEW_STATE: TalviaTestImportPreviewState = { status: "idle" };
 
-export function TestImportWizard({ mode = "company" }: { mode?: "company" | "system" }) {
+export function TestImportWizard({
+  mode = "company",
+  systemTargets = [],
+}: {
+  mode?: "company" | "system";
+  systemTargets?: SystemTestImportTargetOption[];
+}) {
   const router = useRouter();
   const isSystemImport = mode === "system";
   const [preview, previewAction, isPreviewing] = useActionState(
@@ -54,7 +62,7 @@ export function TestImportWizard({ mode = "company" }: { mode?: "company" | "sys
           <CardTitle>1. Загрузите JSON-файл</CardTitle>
           <CardDescription>
             Talvia принимает один тест в формате <code>talvia.test.v1</code>. На этом шаге данные
-            только проверяются — {isSystemImport ? "системный тест" : "тест компании"} еще не
+            только проверяются — {isSystemImport ? "новая версия" : "тест компании"} еще не
             создается.
           </CardDescription>
         </CardHeader>
@@ -72,6 +80,25 @@ export function TestImportWizard({ mode = "company" }: { mode?: "company" | "sys
             className="space-y-5"
             onSubmit={() => setResult(null)}
           >
+            {isSystemImport ? (
+              <div className="max-w-xl space-y-2">
+                <Label htmlFor="system-test-import-target">Существующий системный тест</Label>
+                <Select id="system-test-import-target" name="templateId" required>
+                  <option value="">Выберите тест для новой версии</option>
+                  {systemTargets.map((target) => (
+                    <option disabled={target.hasDraft} key={target.id} value={target.id}>
+                      {target.title} · {target.category ?? "без категории"} ·{" "}
+                      {target.hasDraft
+                        ? "уже есть черновик"
+                        : `будет v${target.latestVersionNumber + 1}`}
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Категория выбранного теста должна совпадать с <code>test.category</code> в файле.
+                </p>
+              </div>
+            ) : null}
             <div className="max-w-xl space-y-2">
               <Label htmlFor="test-import-file">Файл .json</Label>
               <Input
@@ -100,9 +127,11 @@ export function TestImportWizard({ mode = "company" }: { mode?: "company" | "sys
           <CardHeader>
             <CardTitle>2. Проверьте будущий тест</CardTitle>
             <CardDescription>
-              Файл: {preview.fileName}. После подтверждения Talvia создаст активный{" "}
-              {isSystemImport ? "системный шаблон" : "шаблон компании"} и черновик версии 1 без
-              автоматической публикации.
+              Файл: {preview.fileName}. После подтверждения Talvia{" "}
+              {isSystemImport
+                ? "добавит новую черновую версию в выбранный системный тест"
+                : "создаст активный шаблон компании и черновик версии 1"}
+              . Автоматической публикации не будет.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
@@ -110,6 +139,15 @@ export function TestImportWizard({ mode = "company" }: { mode?: "company" | "sys
               <p className="text-sm text-muted-foreground">Название</p>
               <p className="mt-1 text-lg font-semibold">{preview.summary.title}</p>
             </div>
+
+            {isSystemImport && preview.target ? (
+              <div className="rounded-lg border p-4">
+                <p className="text-sm text-muted-foreground">Куда будет добавлен черновик</p>
+                <p className="mt-1 font-medium">
+                  {preview.target.title} · версия {preview.target.nextVersionNumber}
+                </p>
+              </div>
+            ) : null}
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <SummaryCard label="Секции" value={preview.summary.sectionCount} />
@@ -161,6 +199,9 @@ export function TestImportWizard({ mode = "company" }: { mode?: "company" | "sys
 
             <form action={confirmImport}>
               <input name="document" type="hidden" value={preview.normalizedDocument} />
+              {isSystemImport && preview.target ? (
+                <input name="templateId" type="hidden" value={preview.target.templateId} />
+              ) : null}
               <Button
                 disabled={isImporting || result?.status === "success"}
                 type="submit"
@@ -186,7 +227,11 @@ export function TestImportWizard({ mode = "company" }: { mode?: "company" | "sys
             {result.status === "success" ? (
               <>
                 <FeedbackMessage
-                  message={`${isSystemImport ? "Системный тест" : "Тест"} «${result.title}» создан. Версия 1 сохранена как черновик.`}
+                  message={
+                    isSystemImport
+                      ? `В системный тест «${result.title}» добавлен черновик v${result.versionNumber}.`
+                      : `Тест «${result.title}» создан. Версия 1 сохранена как черновик.`
+                  }
                 />
                 <div className="flex flex-wrap gap-3">
                   <Link

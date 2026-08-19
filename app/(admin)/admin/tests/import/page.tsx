@@ -5,10 +5,24 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { canManageSystemTests } from "@/lib/admin/constants";
 import { requirePlatformContext } from "@/lib/admin/context";
+import { listAdminSystemTests } from "@/lib/admin/tests-data";
 
 export default async function SystemTestImportPage() {
   const context = await requirePlatformContext();
   const mayImport = canManageSystemTests(context.role);
+  const templates = mayImport ? await listAdminSystemTests() : [];
+  const systemTargets = templates
+    .filter((template) => template.status === "active")
+    .map((template) => ({
+      category: template.category,
+      hasDraft: template.versions.some((version) => version.status === "draft"),
+      id: template.id,
+      latestVersionNumber: Math.max(
+        0,
+        ...template.versions.map((version) => version.versionNumber),
+      ),
+      title: template.title,
+    }));
 
   return (
     <div className="space-y-6">
@@ -22,7 +36,7 @@ export default async function SystemTestImportPage() {
         </Link>
       </div>
 
-      {mayImport ? <TestImportWizard mode="system" /> : null}
+      {mayImport ? <TestImportWizard mode="system" systemTargets={systemTargets} /> : null}
       {!mayImport ? (
         <Card className="border-dashed">
           <CardHeader>
