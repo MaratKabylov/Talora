@@ -115,9 +115,17 @@ export default async function TestsPage({
           <h1 className="text-3xl font-semibold tracking-tight">Библиотека тестов</h1>
         </div>
         {mayCreate ? (
-          <Link className={buttonVariants()} href="/dashboard/tests/new">
-            Создать тест
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              className={buttonVariants({ variant: "outline" })}
+              href="/dashboard/tests/import"
+            >
+              Импортировать JSON
+            </Link>
+            <Link className={buttonVariants()} href="/dashboard/tests/new">
+              Создать тест
+            </Link>
+          </div>
         ) : null}
       </div>
 

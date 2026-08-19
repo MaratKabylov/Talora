@@ -26,9 +26,17 @@ export default async function AdminTestsPage({ searchParams }: { searchParams: S
           <h1 className="text-3xl font-semibold tracking-tight">Системные тесты</h1>
         </div>
         {mayManage ? (
-          <Link className={buttonVariants()} href="/admin/tests/new">
-            Создать системный тест
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              className={buttonVariants({ variant: "outline" })}
+              href="/admin/tests/import"
+            >
+              Импортировать JSON
+            </Link>
+            <Link className={buttonVariants()} href="/admin/tests/new">
+              Создать системный тест
+            </Link>
+          </div>
         ) : null}
       </div>
 

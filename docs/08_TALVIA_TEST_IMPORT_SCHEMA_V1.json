@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:talvia:schema:test-import:v1",
   "title": "Talvia test import format v1",
-  "description": "Формат одного пользовательского теста для импорта в Talvia. Импорт создает черновик; служебные идентификаторы и принадлежность компании назначает Talvia.",
+  "description": "Формат содержимого одного теста для импорта в Talvia. Импорт создает черновик; служебные идентификаторы, принадлежность компании и системный статус назначает Talvia по доверенному контексту загрузчика.",
   "type": "object",
   "additionalProperties": false,
   "required": [
