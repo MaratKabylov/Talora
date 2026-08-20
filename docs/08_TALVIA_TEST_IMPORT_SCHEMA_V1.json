@@ -32,12 +32,16 @@
         "work_result_orientation",
         "work_collaboration",
         "work_adaptability",
-        "motivation_income",
+        "motivation_result",
         "motivation_growth",
-        "motivation_stability",
         "motivation_autonomy",
-        "motivation_structure",
-        "motivation_recognition"
+        "motivation_influence",
+        "motivation_team",
+        "motivation_stability",
+        "motivation_income",
+        "motivation_recognition",
+        "motivation_meaning",
+        "motivation_structure"
       ]
     },
     "nullableCompetencyKey": {

@@ -15,6 +15,7 @@ import {
   type ReportCompetency,
   type ReportIntegrityEventType,
 } from "@/lib/reports/data";
+import { buildMotivation9Profile } from "@/lib/reports/motivation-profile";
 import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
 
 type ReportParams = Promise<{ id: string }>;
@@ -85,6 +86,76 @@ function CompetencyRows({ competencies }: { competencies: ReportCompetency[] }) 
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function MotivationProfile({ competencies }: { competencies: ReportCompetency[] }) {
+  const profile = buildMotivation9Profile(competencies);
+
+  if (!profile) {
+    return (
+      <div className="space-y-5">
+        <CompetencyRows competencies={competencies} />
+        {competencies.length > 0 ? (
+          <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
+            Низкое положение мотиватора не означает недостаток кандидата или отсутствие мотивации.
+            Оно показывает его относительный приоритет по сравнению с другими источниками рабочей
+            мотивации.
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  const rankedKeys = new Set(profile.ranked.map((competency) => competency.key));
+  const additionalCompetencies = competencies.filter(
+    (competency) => !rankedKeys.has(competency.key),
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-lg border bg-primary/5 p-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Мотивационное ядро
+        </p>
+        <p className="mt-2 text-lg font-semibold">
+          {profile.core.map((competency) => competency.label).join(" + ")}
+        </p>
+      </div>
+
+      {profile.groups.map((group) => (
+        <section className="space-y-2" key={group.key}>
+          <h3 className="text-sm font-semibold">{group.label}</h3>
+          <ol className="space-y-2">
+            {group.competencies.map((competency) => (
+              <li
+                className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm"
+                key={competency.key}
+              >
+                <span>
+                  {competency.rank}. <span className="font-medium">{competency.label}</span>
+                </span>
+                <span className="text-muted-foreground">
+                  Индекс: {competency.percentage.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
+
+      {additionalCompetencies.length > 0 ? (
+        <section className="space-y-3 border-t pt-5">
+          <h3 className="text-sm font-semibold">Дополнительные legacy-шкалы</h3>
+          <CompetencyRows competencies={additionalCompetencies} />
+        </section>
+      ) : null}
+
+      <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
+        Низкое положение мотиватора не означает недостаток кандидата или отсутствие мотивации. Оно
+        показывает его относительный приоритет по сравнению с другими источниками рабочей мотивации.
+      </p>
     </div>
   );
 }
@@ -274,7 +345,7 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <CompetencyRows competencies={motivationProfile} />
+            <MotivationProfile competencies={motivationProfile} />
           </CardContent>
         </Card>
       </div>

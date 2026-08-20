@@ -94,12 +94,16 @@
 - `work_result_orientation` — ориентация на результат;
 - `work_collaboration` — сотрудничество;
 - `work_adaptability` — самоконтроль и адаптивность;
-- `motivation_income` — деньги;
-- `motivation_growth` — рост;
+- `motivation_result` — результат;
+- `motivation_growth` — развитие;
+- `motivation_autonomy` — автономия;
+- `motivation_influence` — влияние;
+- `motivation_team` — команда;
 - `motivation_stability` — стабильность;
-- `motivation_autonomy` — самостоятельность;
-- `motivation_structure` — структура/инструкции;
-- `motivation_recognition` — признание.
+- `motivation_income` — вознаграждение;
+- `motivation_recognition` — признание;
+- `motivation_meaning` — смысл;
+- `motivation_structure` — legacy-шкала структуры/инструкций для обратной совместимости.
 
 ## 5. Предустановленные тесты MVP
 
@@ -140,13 +144,17 @@
 
 Шкалы:
 
-- доход;
-- рост;
+- результат;
+- развитие;
+- автономия;
+- влияние;
+- команда;
 - стабильность;
-- самостоятельность;
-- структура;
+- вознаграждение;
 - признание;
-- общение.
+- смысл.
+
+`motivation_structure` поддерживается для старых тестов, но не входит в Motivation-9.
 
 ## 6. Candidate Journey
 

@@ -1,7 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 
 import type { ApplicationStatus } from "@/lib/candidates/constants";
-import { COMPETENCIES, type CompetencyKey } from "@/lib/jobs/constants";
+import {
+  COMPETENCIES,
+  isMotivationCompetencyKey,
+  type CompetencyKey,
+} from "@/lib/jobs/constants";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 
 type Relation<T> = T | T[] | null;
@@ -223,10 +227,6 @@ function related<T>(value: Relation<T>) {
   return Array.isArray(value) ? value[0] ?? null : value;
 }
 
-function isMotivationCompetency(key: CompetencyKey) {
-  return key.startsWith("motivation_");
-}
-
 function stringArray(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
@@ -391,7 +391,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   const competencies = ((summaryResult.data ?? []) as unknown as SummaryRecord[])
     .map((summary) => ({
       isBelowMinimum: summary.is_below_minimum,
-      isMotivation: isMotivationCompetency(summary.competency_key),
+      isMotivation: isMotivationCompetencyKey(summary.competency_key),
       key: summary.competency_key,
       label: COMPETENCY_LABELS.get(summary.competency_key) ?? summary.competency_key,
       percentage: summary.percentage,

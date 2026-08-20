@@ -1,6 +1,11 @@
 import "server-only";
 
-import { COMPETENCIES, type CompetencyKey } from "@/lib/jobs/constants";
+import {
+  COMPETENCIES,
+  isMotivationCompetencyKey,
+  type CompetencyKey,
+} from "@/lib/jobs/constants";
+import { calculateFitScore } from "@/lib/scoring/fit-score";
 import {
   scoreForcedChoiceQuestion,
   validateForcedChoiceAnswer,
@@ -145,10 +150,6 @@ function competencyPercentage(total: CompetencyTotal) {
 
 function isCompetencyKey(value: string): value is CompetencyKey {
   return COMPETENCY_KEYS.has(value as CompetencyKey);
-}
-
-function isMotivationCompetency(key: CompetencyKey) {
-  return key.startsWith("motivation_");
 }
 
 function addCompetency(
@@ -443,7 +444,7 @@ function createInterviewQuestions(
   const questions = summaryRows
     .filter(
       (row) =>
-        !isMotivationCompetency(row.competency_key) &&
+        !isMotivationCompetencyKey(row.competency_key) &&
         row.percentage !== null &&
         (row.is_below_minimum || row.percentage < 65),
     )
@@ -663,7 +664,7 @@ export async function scoreCompletedApplication(applicationId: string) {
     const value = competencyPercentage(total);
     const weight = weightsByCompetency.get(key);
     const isBelowMinimum =
-      !isMotivationCompetency(key) &&
+      !isMotivationCompetencyKey(key) &&
       Boolean(weight?.is_required && weight.minimum_score !== null && value !== null && value < weight.minimum_score);
 
     return {
@@ -711,24 +712,7 @@ export async function scoreCompletedApplication(applicationId: string) {
       : null;
 
   // Motivation needs a job-side target profile before it can fairly influence fit.
-  const fitComponents = summaryRows.filter((row) => {
-    const weight = weightsByCompetency.get(row.competency_key);
-    return !isMotivationCompetency(row.competency_key) && row.percentage !== null && weight && Number(weight.weight) > 0;
-  });
-  const fitWeight = fitComponents.reduce(
-    (sum, row) => sum + Number(weightsByCompetency.get(row.competency_key)!.weight),
-    0,
-  );
-  const fitScore =
-    fitWeight > 0
-      ? round(
-          fitComponents.reduce(
-            (sum, row) =>
-              sum + (row.percentage ?? 0) * Number(weightsByCompetency.get(row.competency_key)!.weight),
-            0,
-          ) / fitWeight,
-        )
-      : null;
+  const fitScore = calculateFitScore(summaryRows, weights);
 
   const riskFlags: Array<{
     application_id: string;
@@ -810,7 +794,7 @@ export async function scoreCompletedApplication(applicationId: string) {
   const strengths = summaryRows
     .filter(
       (row) =>
-        !isMotivationCompetency(row.competency_key) &&
+        !isMotivationCompetencyKey(row.competency_key) &&
         row.percentage !== null &&
         row.percentage >= 75,
     )
@@ -1088,7 +1072,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
     const value = competencyPercentage(total);
     const weight = weightsByCompetency.get(key);
     const isBelowMinimum =
-      !isMotivationCompetency(key) &&
+      !isMotivationCompetencyKey(key) &&
       Boolean(weight?.is_required && weight.minimum_score !== null && value !== null && value < weight.minimum_score);
 
     return {
@@ -1134,24 +1118,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
         )
       : null;
 
-  const fitComponents = summaryRows.filter((row) => {
-    const weight = weightsByCompetency.get(row.competency_key);
-    return !isMotivationCompetency(row.competency_key) && row.percentage !== null && weight && Number(weight.weight) > 0;
-  });
-  const fitWeight = fitComponents.reduce(
-    (sum, row) => sum + Number(weightsByCompetency.get(row.competency_key)!.weight),
-    0,
-  );
-  const fitScore =
-    fitWeight > 0
-      ? round(
-          fitComponents.reduce(
-            (sum, row) =>
-              sum + (row.percentage ?? 0) * Number(weightsByCompetency.get(row.competency_key)!.weight),
-            0,
-          ) / fitWeight,
-        )
-      : overallScore;
+  const fitScore = calculateFitScore(summaryRows, weights) ?? overallScore;
 
   const riskFlags: Array<{
     description: string;
@@ -1233,7 +1200,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
   const strengths = summaryRows
     .filter(
       (row) =>
-        !isMotivationCompetency(row.competency_key) &&
+        !isMotivationCompetencyKey(row.competency_key) &&
         row.percentage !== null &&
         row.percentage >= 75,
     )

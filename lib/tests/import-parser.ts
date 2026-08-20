@@ -10,6 +10,7 @@ import {
   type TestCompetencyKey,
 } from "@/lib/tests/builder-constants";
 import { SCORING_TYPE_VALUES } from "@/lib/tests/constants";
+import { getAllowedImportScoringTypes } from "@/lib/tests/import-scoring";
 import type { TalviaTestImportSummary } from "@/lib/tests/import-types";
 
 export const TALVIA_TEST_IMPORT_MAX_FILE_SIZE = 750 * 1024;
@@ -541,20 +542,9 @@ export const talviaTestImportDocumentSchema = z
       });
     });
 
-    const hasSingleChoice = questions.some((question) => question.type === "single_choice");
-    const hasScale = questions.some((question) => question.type === "scale");
-    const hasOpenText = questions.some((question) => question.type === "open_text");
-    const hasForcedChoice = questions.some((question) => question.type === "forced_choice");
-    let allowedScoringTypes: readonly string[];
-    if (hasOpenText) {
-      allowedScoringTypes = hasSingleChoice || hasScale || hasForcedChoice ? ["mixed"] : ["manual"];
-    } else if (hasForcedChoice && hasSingleChoice) {
-      allowedScoringTypes = ["mixed"];
-    } else if (hasScale || hasForcedChoice) {
-      allowedScoringTypes = ["competency_profile"];
-    } else {
-      allowedScoringTypes = ["points", "competency_profile"];
-    }
+    const allowedScoringTypes = getAllowedImportScoringTypes(
+      questions.map((question) => question.type),
+    );
 
     if (!allowedScoringTypes.includes(document.test.scoring_type)) {
       context.addIssue({

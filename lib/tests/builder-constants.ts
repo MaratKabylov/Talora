@@ -38,12 +38,16 @@ export const TEST_COMPETENCIES = [
   { key: "work_result_orientation", label: "Ориентация на результат" },
   { key: "work_collaboration", label: "Сотрудничество" },
   { key: "work_adaptability", label: "Самоконтроль и адаптивность" },
-  { key: "motivation_income", label: "Мотивация: доход" },
-  { key: "motivation_growth", label: "Мотивация: рост" },
+  { key: "motivation_result", label: "Мотивация: результат" },
+  { key: "motivation_growth", label: "Мотивация: развитие" },
+  { key: "motivation_autonomy", label: "Мотивация: автономия" },
+  { key: "motivation_influence", label: "Мотивация: влияние" },
+  { key: "motivation_team", label: "Мотивация: команда" },
   { key: "motivation_stability", label: "Мотивация: стабильность" },
-  { key: "motivation_autonomy", label: "Мотивация: самостоятельность" },
-  { key: "motivation_structure", label: "Мотивация: структура" },
+  { key: "motivation_income", label: "Мотивация: вознаграждение" },
   { key: "motivation_recognition", label: "Мотивация: признание" },
+  { key: "motivation_meaning", label: "Мотивация: смысл" },
+  { key: "motivation_structure", label: "Мотивация: структура" },
 ] as const;
 
 export type QuestionType = (typeof QUESTION_TYPE_VALUES)[number];
