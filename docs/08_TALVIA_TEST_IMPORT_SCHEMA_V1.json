@@ -562,6 +562,27 @@
             "type": {
               "const": "single_choice"
             },
+            "incorrect_feedback": {
+              "description": "Объяснение, которое кандидат увидит после неверного ответа перед повторным вопросом. Указывается только вместе с remediation_question_key.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 4000,
+              "pattern": "\\S"
+            },
+            "remediation_question_key": {
+              "description": "Локальный key повторного вопроса, расположенного ниже исходного вопроса в той же секции. Указывается только вместе с incorrect_feedback.",
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/localKey"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "options": {
               "type": "array",
               "minItems": 2,

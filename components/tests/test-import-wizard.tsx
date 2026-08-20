@@ -158,6 +158,10 @@ export function TestImportWizard({
               <SummaryCard label="Forced Choice" value={preview.summary.forcedChoiceCount} />
               <SummaryCard label="Шкала" value={preview.summary.scaleCount} />
               <SummaryCard label="Открытый ответ" value={preview.summary.openTextCount} />
+              <SummaryCard
+                label="Повторные вопросы"
+                value={preview.summary.remediationQuestionCount}
+              />
               <SummaryCard label="Варианты ответа" value={preview.summary.optionCount} />
             </div>
 

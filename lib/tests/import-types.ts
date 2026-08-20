@@ -4,6 +4,7 @@ export type TalviaTestImportSummary = {
   forcedChoiceCount: number;
   openTextCount: number;
   optionCount: number;
+  remediationQuestionCount: number;
   requiredQuestionCount: number;
   scaleCount: number;
   scoringType: "points" | "competency_profile" | "manual" | "mixed";

@@ -30,6 +30,9 @@ export function validateRemediationLinks(
     for (const [questionIndex, question] of section.questions.entries()) {
       const targetId = question.remediationQuestionId;
       if (!targetId) {
+        if (question.incorrectFeedback?.trim()) {
+          return "Для объяснения после ошибки выберите повторный вопрос.";
+        }
         continue;
       }
 

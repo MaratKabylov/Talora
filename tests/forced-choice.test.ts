@@ -17,6 +17,7 @@ import { buildMotivation9Profile } from "../lib/reports/motivation-profile.ts";
 import { calculateFitScore } from "../lib/scoring/fit-score.ts";
 import { TEST_COMPETENCIES } from "../lib/tests/builder-constants.ts";
 import { getAllowedImportScoringTypes } from "../lib/tests/import-scoring.ts";
+import { validateRemediationLinks } from "../lib/tests/remediation.ts";
 
 const motivation9Keys = [
   "motivation_result",
@@ -32,7 +33,15 @@ const motivation9Keys = [
 
 const importSchema = JSON.parse(
   readFileSync(new URL("../docs/08_TALVIA_TEST_IMPORT_SCHEMA_V1.json", import.meta.url), "utf8"),
-) as { $defs: { competencyKey: { enum: string[] } }; properties: { schema_version: { const: string } } };
+) as {
+  $defs: {
+    competencyKey: { enum: string[] };
+    singleChoiceQuestion: {
+      allOf: Array<{ properties?: Record<string, unknown> }>;
+    };
+  };
+  properties: { schema_version: { const: string } };
+};
 
 for (const key of [
   "motivation_result",
@@ -58,6 +67,89 @@ test("import: unknown motivation key is rejected by the supported lists", () => 
 
 test("import: schema version remains talvia.test.v1", () => {
   assert.equal(importSchema.properties.schema_version.const, "talvia.test.v1");
+});
+
+test("import: single_choice schema exposes remediation fields", () => {
+  const properties = importSchema.$defs.singleChoiceQuestion.allOf.find(
+    (entry) => entry.properties?.options,
+  )?.properties;
+
+  assert.ok(properties?.incorrect_feedback);
+  assert.ok(properties?.remediation_question_key);
+});
+
+const remediationQuestions = [
+  {
+    id: "q_001",
+    incorrectFeedback: "Сначала примените правило приоритета.",
+    options: [{ isCorrect: true }, { isCorrect: false }],
+    questionType: "single_choice" as const,
+    remediationQuestionId: "q_001_retry",
+  },
+  {
+    id: "q_001_retry",
+    incorrectFeedback: null,
+    options: [{ isCorrect: true }, { isCorrect: false }],
+    questionType: "single_choice" as const,
+    remediationQuestionId: null,
+  },
+];
+
+test("import: valid remediation link points to a later question in the same section", () => {
+  assert.equal(validateRemediationLinks([{ questions: remediationQuestions }]), null);
+});
+
+test("import: remediation link cannot point to an earlier question", () => {
+  const reversed = [remediationQuestions[1], remediationQuestions[0]];
+  assert.match(validateRemediationLinks([{ questions: reversed }]) ?? "", /ниже исходного/);
+});
+
+test("import: remediation link requires feedback", () => {
+  const withoutFeedback = remediationQuestions.map((question, index) =>
+    index === 0 ? { ...question, incorrectFeedback: null } : question,
+  );
+  assert.match(validateRemediationLinks([{ questions: withoutFeedback }]) ?? "", /объяснение/);
+});
+
+test("import: remediation feedback requires a target question", () => {
+  const withoutTarget = remediationQuestions.map((question, index) =>
+    index === 0 ? { ...question, remediationQuestionId: null } : question,
+  );
+  assert.match(
+    validateRemediationLinks([{ questions: withoutTarget }]) ?? "",
+    /выберите повторный вопрос/,
+  );
+});
+
+test("import: remediation target cannot be reused", () => {
+  const duplicateSource = {
+    ...remediationQuestions[0],
+    id: "q_002",
+  };
+  assert.match(
+    validateRemediationLinks([
+      { questions: [remediationQuestions[0], duplicateSource, remediationQuestions[1]] },
+    ]) ?? "",
+    /нельзя привязать к нескольким/,
+  );
+});
+
+test("import: remediation target cannot open another remediation branch", () => {
+  const chainedTarget = {
+    ...remediationQuestions[1],
+    incorrectFeedback: "Попробуйте еще раз.",
+    remediationQuestionId: "q_002_retry",
+  };
+  const finalTarget = {
+    ...remediationQuestions[1],
+    id: "q_002_retry",
+  };
+  assert.match(
+    validateRemediationLinks([
+      { questions: [remediationQuestions[0], chainedTarget, finalTarget] },
+    ]) ?? "",
+    /не может одновременно открывать/,
+  );
 });
 
 const options: Array<{ competencyEffects: Record<string, number>; id: string }> = [

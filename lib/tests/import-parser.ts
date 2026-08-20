@@ -12,6 +12,7 @@ import {
 import { SCORING_TYPE_VALUES } from "@/lib/tests/constants";
 import { getAllowedImportScoringTypes } from "@/lib/tests/import-scoring";
 import type { TalviaTestImportSummary } from "@/lib/tests/import-types";
+import { validateRemediationLinks } from "@/lib/tests/remediation";
 
 export const TALVIA_TEST_IMPORT_MAX_FILE_SIZE = 750 * 1024;
 export const TALVIA_TEST_IMPORT_MAX_SECTIONS = 100;
@@ -298,11 +299,28 @@ const answerOptionSchema = z
 const singleChoiceQuestionSchema = z
   .object({
     ...questionCommonShape,
+    incorrect_feedback: optionalTrimmedText(4000).optional().default(null),
     options: z.array(answerOptionSchema).min(2, "Нужно минимум два варианта ответа.").max(100),
+    remediation_question_key: z.union([localKeySchema, z.null()]).optional().default(null),
     type: z.literal("single_choice"),
   })
   .strict()
   .superRefine((question, context) => {
+    if (question.remediation_question_key && !question.incorrect_feedback) {
+      context.addIssue({
+        code: "custom",
+        message: "Добавьте объяснение, которое кандидат увидит после ошибочного ответа.",
+        path: ["incorrect_feedback"],
+      });
+    }
+    if (!question.remediation_question_key && question.incorrect_feedback) {
+      context.addIssue({
+        code: "custom",
+        message: "Для объяснения после ошибки выберите повторный вопрос.",
+        path: ["remediation_question_key"],
+      });
+    }
+
     const correctOptions = question.options.filter((option) => option.is_correct);
     if (correctOptions.length !== 1) {
       context.addIssue({
@@ -542,6 +560,37 @@ export const talviaTestImportDocumentSchema = z
       });
     });
 
+    const hasIncompleteRemediationLink = questions.some(
+      (question) =>
+        question.type === "single_choice" &&
+        Boolean(question.remediation_question_key) !== Boolean(question.incorrect_feedback),
+    );
+    const remediationValidation = hasIncompleteRemediationLink
+      ? null
+      : validateRemediationLinks(
+          document.test.sections.map((section) => ({
+            questions: section.questions.map((question) => ({
+              id: question.key,
+              incorrectFeedback:
+                question.type === "single_choice" ? question.incorrect_feedback : null,
+              options:
+                question.type === "single_choice"
+                  ? question.options.map((option) => ({ isCorrect: option.is_correct }))
+                  : [],
+              questionType: question.type,
+              remediationQuestionId:
+                question.type === "single_choice" ? question.remediation_question_key : null,
+            })),
+          })),
+        );
+    if (remediationValidation) {
+      context.addIssue({
+        code: "custom",
+        message: remediationValidation,
+        path: ["test", "sections"],
+      });
+    }
+
     const allowedScoringTypes = getAllowedImportScoringTypes(
       questions.map((question) => question.type),
     );
@@ -598,10 +647,18 @@ export function parseTalviaTestImport(source: string): TalviaTestImportDocument 
       sections: result.data.test.sections.map((section) => ({
         ...section,
         description: sanitizeRichTextValue(section.description),
-        questions: section.questions.map((question) => ({
-          ...question,
-          description: sanitizeRichTextValue(question.description),
-        })),
+        questions: section.questions.map((question) =>
+          question.type === "single_choice"
+            ? {
+                ...question,
+                description: sanitizeRichTextValue(question.description),
+                incorrect_feedback: sanitizeRichTextValue(question.incorrect_feedback),
+              }
+            : {
+                ...question,
+                description: sanitizeRichTextValue(question.description),
+              },
+        ),
       })),
     },
   };
@@ -630,6 +687,10 @@ export function summarizeTalviaTestImport(
     forcedChoiceCount: questions.filter((question) => question.type === "forced_choice").length,
     openTextCount: questions.filter((question) => question.type === "open_text").length,
     optionCount,
+    remediationQuestionCount: questions.filter(
+      (question) =>
+        question.type === "single_choice" && Boolean(question.remediation_question_key),
+    ).length,
     requiredQuestionCount: questions.filter((question) => question.required).length,
     scaleCount: questions.filter((question) => question.type === "scale").length,
     scoringType: document.test.scoring_type,
@@ -648,6 +709,11 @@ export function getTalviaTestImportWarnings(summary: TalviaTestImportSummary) {
   if (summary.openTextCount > 0) {
     warnings.push(
       "Открытые ответы требуют ручной проверки; пока такой тест не участвует в итоговом overall score.",
+    );
+  }
+  if (summary.remediationQuestionCount > 0) {
+    warnings.push(
+      "Проверьте объяснения и повторные вопросы: они будут показаны только после неверного ответа на связанный исходный вопрос.",
     );
   }
   if (summary.forcedChoiceCount > 0) {
