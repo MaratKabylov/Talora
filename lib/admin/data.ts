@@ -445,7 +445,7 @@ export async function getAdminApplicationDetail(applicationId: string, reason: A
     admin
       .from("test_sessions")
       .select(
-        "id, status, started_at, completed_at, percentage, test_versions(title), candidate_answers(id, answer_text, answer_json, is_correct, points_awarded, selected_option_id, questions(text, question_type, answer_options(id, text)))",
+        "id, status, started_at, completed_at, percentage, test_versions(title), candidate_answers(id, answer_text, answer_json, is_correct, points_awarded, selected_option_id, questions(text, question_type, answer_options(id, text, match_text, match_target_id, order_index)))",
       )
       .eq("application_id", applicationId)
       .order("created_at"),

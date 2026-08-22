@@ -59,6 +59,8 @@ const QUESTION_PRESETS: Array<{
   { label: "Forced Choice", questionType: "forced_choice", text: "Выберите, что больше и меньше всего похоже на вас." },
   { label: "Шкала", questionType: "scale", text: "Оцените утверждение по шкале." },
   { label: "Развернутый ответ", questionType: "open_text", text: "Опишите ваш подход к ситуации." },
+  { label: "Сортировка", questionType: "ordering", text: "Расположите элементы в правильном порядке." },
+  { label: "Сопоставление", questionType: "matching", text: "Сопоставьте элементы из двух колонок." },
 ];
 
 function uuid() {
@@ -71,6 +73,7 @@ function option(text = "Вариант ответа") {
     explanation: null,
     id: uuid(),
     isCorrect: false,
+    matchText: null,
     orderIndex: 1,
     points: 0,
     text,
@@ -85,13 +88,21 @@ function question(questionType: QuestionType = "single_choice", text = "Новы
     id: uuid(),
     incorrectFeedback: null,
     isRequired: true,
+    isStructured: questionType === "ordering" || questionType === "matching",
+    matchingScoringMode: "per_pair",
     options:
       questionType === "forced_choice"
         ? [option("Утверждение 1"), option("Утверждение 2"), option("Утверждение 3")]
-        : questionType === "single_choice" || questionType === "multiple_choice"
+        : questionType === "single_choice" || questionType === "multiple_choice" || questionType === "ordering"
           ? [option("Вариант 1"), option("Вариант 2")]
+          : questionType === "matching"
+            ? [
+                { ...option("Элемент 1"), matchText: "Соответствие 1" },
+                { ...option("Элемент 2"), matchText: "Соответствие 2" },
+              ]
         : [],
     orderIndex: 1,
+    orderingScoringMode: "pairwise",
     points: questionType === "forced_choice" ? 0 : 1,
     questionType,
     remediationQuestionId: null,
@@ -169,6 +180,7 @@ function editableSections(sections: BuilderSection[]) {
       options: currentQuestion.options.map((currentOption) => ({
         ...currentOption,
         isCorrect: Boolean(currentOption.isCorrect),
+        matchText: nullableText(currentOption.matchText ?? ""),
       })),
       remediationQuestionId: currentQuestion.remediationQuestionId ?? null,
     })),
@@ -229,6 +241,7 @@ export function TestBuilderEditor({
       ),
   );
   const [draggingQuestionId, setDraggingQuestionId] = useState<string | null>(null);
+  const [draggingOptionId, setDraggingOptionId] = useState<string | null>(null);
   const [questionDropTarget, setQuestionDropTarget] = useState<{
     index: number;
     sectionId: string;
@@ -316,16 +329,20 @@ export function TestBuilderEditor({
           id: currentQuestion.id,
           incorrectFeedback: nullableText(currentQuestion.incorrectFeedback ?? ""),
           isRequired: currentQuestion.isRequired,
+          isStructured: currentQuestion.isStructured,
           options: currentQuestion.options.map((currentOption) => ({
             competencyEffects: currentOption.competencyEffects,
             explanation: nullableText(currentOption.explanation ?? ""),
             id: currentOption.id,
             isCorrect: Boolean(currentOption.isCorrect),
+            matchText: nullableText(currentOption.matchText ?? ""),
             points: Number(currentOption.points) || 0,
             text: currentOption.text,
           })),
           points: Number(currentQuestion.points) || 0,
           questionType: currentQuestion.questionType,
+          matchingScoringMode: currentQuestion.matchingScoringMode,
+          orderingScoringMode: currentQuestion.orderingScoringMode,
           remediationQuestionId: currentQuestion.remediationQuestionId,
           scaleMax: Number(currentQuestion.scaleMax) || 5,
           scaleMin: Number(currentQuestion.scaleMin) || 1,
@@ -414,6 +431,27 @@ export function TestBuilderEditor({
             }
           : entry,
       ),
+    );
+  }
+
+  function moveOption(sectionId: string, questionId: string, optionId: string, targetIndex: number) {
+    updateSections((current) =>
+      current.map((entry) => {
+        if (entry.id !== sectionId) return entry;
+        return {
+          ...entry,
+          questions: entry.questions.map((currentQuestion) => {
+            if (currentQuestion.id !== questionId) return currentQuestion;
+            const sourceIndex = currentQuestion.options.findIndex((currentOption) => currentOption.id === optionId);
+            if (sourceIndex < 0) return currentQuestion;
+            const reordered = [...currentQuestion.options];
+            const [moved] = reordered.splice(sourceIndex, 1);
+            const insertionIndex = Math.min(Math.max(targetIndex, 0), reordered.length);
+            reordered.splice(insertionIndex, 0, moved);
+            return { ...currentQuestion, options: reordered };
+          }),
+        };
+      }),
     );
   }
 
@@ -1232,6 +1270,32 @@ export function TestBuilderEditor({
                                 ),
                               ]
                             : null;
+                        const structuredOptions =
+                          questionType === "matching"
+                            ? (currentQuestion.options.length > 0
+                                ? currentQuestion.options
+                                : [option("Элемент 1"), option("Элемент 2")]
+                              ).map((entry, index) => ({
+                                ...entry,
+                                competencyEffects: {},
+                                explanation: null,
+                                isCorrect: false,
+                                matchText: entry.matchText ?? `Соответствие ${index + 1}`,
+                                points: 0,
+                              }))
+                            : questionType === "ordering"
+                              ? (currentQuestion.options.length > 0
+                                  ? currentQuestion.options
+                                  : [option("Элемент 1"), option("Элемент 2")]
+                                ).map((entry) => ({
+                                  ...entry,
+                                  competencyEffects: {},
+                                  explanation: null,
+                                  isCorrect: false,
+                                  matchText: null,
+                                  points: 0,
+                                }))
+                              : null;
                         if (questionType !== "single_choice") {
                           setEnabledRemediationQuestionIds((current) => {
                             const next = new Set(current);
@@ -1244,11 +1308,14 @@ export function TestBuilderEditor({
                             questionType === "forced_choice" ? null : currentQuestion.competencyKey,
                           options:
                             forcedChoiceOptions ??
+                            structuredOptions ??
                             (needsOptions
                               ? [option("Вариант 1"), option("Вариант 2")]
                               : currentQuestion.options),
                           points: questionType === "forced_choice" ? 0 : currentQuestion.points,
                           questionType,
+                          isStructured:
+                            questionType === "ordering" || questionType === "matching",
                           ...(questionType === "single_choice"
                             ? {}
                             : { incorrectFeedback: null, remediationQuestionId: null }),
@@ -1384,6 +1451,221 @@ export function TestBuilderEditor({
                         type="number"
                         value={currentQuestion.scaleMax}
                       />
+                    </div>
+                  ) : currentQuestion.questionType === "ordering" ||
+                    currentQuestion.questionType === "matching" ? (
+                    <div className="mt-4 space-y-3">
+                      {!currentQuestion.isStructured ? (
+                        <div className="flex flex-col gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+                          <span>
+                            Это legacy-вопрос с текстовым ответом. Переведите его в интерактивный формат в текущем черновике.
+                          </span>
+                          <Button
+                            onClick={() =>
+                              patchQuestion(currentSection.id, currentQuestion.id, {
+                                isStructured: true,
+                              })
+                            }
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            Перевести
+                          </Button>
+                        </div>
+                      ) : null}
+                      <div className="grid gap-3 rounded-md border bg-muted/20 p-3 sm:grid-cols-[1fr_16rem] sm:items-end">
+                        <p className="text-sm text-muted-foreground">
+                          {currentQuestion.questionType === "ordering"
+                            ? "Расположите элементы ниже в правильном порядке. Кандидат увидит перемешанный список."
+                            : "Каждая строка задаёт правильную пару. Правые варианты будут перемешаны."}
+                        </p>
+                        <div className="space-y-1">
+                          <Label htmlFor={`builder-question-${currentQuestion.id}-structured-scoring`}>
+                            Начисление баллов
+                          </Label>
+                          <Select
+                            id={`builder-question-${currentQuestion.id}-structured-scoring`}
+                            onChange={(event) =>
+                              currentQuestion.questionType === "ordering"
+                                ? patchQuestion(currentSection.id, currentQuestion.id, {
+                                    orderingScoringMode: event.target.value as BuilderQuestion["orderingScoringMode"],
+                                  })
+                                : patchQuestion(currentSection.id, currentQuestion.id, {
+                                    matchingScoringMode: event.target.value as BuilderQuestion["matchingScoringMode"],
+                                  })
+                            }
+                            value={
+                              currentQuestion.questionType === "ordering"
+                                ? currentQuestion.orderingScoringMode
+                                : currentQuestion.matchingScoringMode
+                            }
+                          >
+                            <option value={currentQuestion.questionType === "ordering" ? "pairwise" : "per_pair"}>
+                              Частичный балл
+                            </option>
+                            <option value="exact">Только полное совпадение</option>
+                          </Select>
+                        </div>
+                      </div>
+                      {currentQuestion.questionType === "matching" ? (
+                        <div className="hidden grid-cols-[2rem_1fr_1fr_auto] gap-2 px-2 text-xs font-medium text-muted-foreground md:grid">
+                          <span />
+                          <span>Левый элемент</span>
+                          <span>Правильное соответствие</span>
+                          <span />
+                        </div>
+                      ) : null}
+                      {currentQuestion.options.map((currentOption, optionIndex) => (
+                        <div
+                          className={`grid gap-2 rounded-md border bg-background p-2 ${
+                            currentQuestion.questionType === "matching"
+                              ? "md:grid-cols-[2rem_1fr_1fr_auto]"
+                              : "md:grid-cols-[2rem_2rem_1fr_auto]"
+                          } ${draggingOptionId === currentOption.id ? "opacity-50" : ""}`}
+                          key={currentOption.id}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            if (draggingOptionId) {
+                              moveOption(
+                                currentSection.id,
+                                currentQuestion.id,
+                                draggingOptionId,
+                                optionIndex,
+                              );
+                            }
+                            setDraggingOptionId(null);
+                          }}
+                        >
+                          <span
+                            aria-label="Перетащить элемент"
+                            className="flex cursor-grab items-center justify-center text-muted-foreground active:cursor-grabbing"
+                            draggable
+                            onDragEnd={() => setDraggingOptionId(null)}
+                            onDragStart={(event) => {
+                              event.dataTransfer.effectAllowed = "move";
+                              event.dataTransfer.setData("text/plain", currentOption.id);
+                              setDraggingOptionId(currentOption.id);
+                            }}
+                            role="button"
+                            tabIndex={0}
+                          >
+                            <GripVertical className="size-4" />
+                          </span>
+                          {currentQuestion.questionType === "ordering" ? (
+                            <span className="flex items-center justify-center text-sm font-semibold text-muted-foreground">
+                              {optionIndex + 1}.
+                            </span>
+                          ) : null}
+                          <Input
+                            aria-label={
+                              currentQuestion.questionType === "matching"
+                                ? `Левый элемент ${optionIndex + 1}`
+                                : `Элемент ${optionIndex + 1}`
+                            }
+                            onChange={(event) =>
+                              patchOption(currentSection.id, currentQuestion.id, currentOption.id, {
+                                text: event.target.value,
+                              })
+                            }
+                            value={currentOption.text}
+                          />
+                          {currentQuestion.questionType === "matching" ? (
+                            <Input
+                              aria-label={`Правильное соответствие ${optionIndex + 1}`}
+                              onChange={(event) =>
+                                patchOption(currentSection.id, currentQuestion.id, currentOption.id, {
+                                  matchText: event.target.value,
+                                })
+                              }
+                              value={currentOption.matchText ?? ""}
+                            />
+                          ) : null}
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              aria-label="Переместить выше"
+                              disabled={optionIndex === 0}
+                              onClick={() =>
+                                moveOption(
+                                  currentSection.id,
+                                  currentQuestion.id,
+                                  currentOption.id,
+                                  optionIndex - 1,
+                                )
+                              }
+                              className="size-8 px-0"
+                              size="sm"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <ArrowUp />
+                            </Button>
+                            <Button
+                              aria-label="Переместить ниже"
+                              disabled={optionIndex === currentQuestion.options.length - 1}
+                              onClick={() =>
+                                moveOption(
+                                  currentSection.id,
+                                  currentQuestion.id,
+                                  currentOption.id,
+                                  optionIndex + 1,
+                                )
+                              }
+                              className="size-8 px-0"
+                              size="sm"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <ArrowDown />
+                            </Button>
+                            <Button
+                              aria-label="Удалить элемент"
+                              disabled={currentQuestion.options.length <= 2}
+                              onClick={() =>
+                                patchQuestion(currentSection.id, currentQuestion.id, {
+                                  options: currentQuestion.options.filter(
+                                    (entryOption) => entryOption.id !== currentOption.id,
+                                  ),
+                                })
+                              }
+                              className="size-8 px-0"
+                              size="sm"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <Trash2 />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      <Button
+                        onClick={() =>
+                          patchQuestion(currentSection.id, currentQuestion.id, {
+                            isStructured: true,
+                            options: [
+                              ...currentQuestion.options,
+                              {
+                                ...option(
+                                  currentQuestion.questionType === "matching"
+                                    ? `Элемент ${currentQuestion.options.length + 1}`
+                                    : `Элемент ${currentQuestion.options.length + 1}`,
+                                ),
+                                matchText:
+                                  currentQuestion.questionType === "matching"
+                                    ? `Соответствие ${currentQuestion.options.length + 1}`
+                                    : null,
+                              },
+                            ],
+                          })
+                        }
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        <Plus />
+                        {currentQuestion.questionType === "matching" ? "Добавить пару" : "Добавить элемент"}
+                      </Button>
                     </div>
                   ) : currentQuestion.questionType !== "open_text" ? (
                     <div className="mt-4 space-y-2">

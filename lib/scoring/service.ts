@@ -13,6 +13,15 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 import type { QuestionSettings } from "@/lib/tests/remediation";
+import {
+  isStructuredQuestion,
+  normalizeMatchingScoringMode,
+  normalizeOrderingScoringMode,
+  scoreMatchingAnswer,
+  scoreOrderingAnswer,
+  validateMatchingAnswer,
+  validateOrderingAnswer,
+} from "@/lib/structured-questions";
 
 type ScoringType = "points" | "competency_profile" | "manual" | "mixed";
 
@@ -74,6 +83,8 @@ type OptionRecord = {
   competency_effect_json: Record<string, number> | null;
   id: string;
   is_correct: boolean | null;
+  match_target_id: string;
+  order_index: number;
   points: number;
 };
 
@@ -386,6 +397,63 @@ function scoreSession(
       continue;
     }
 
+    if (question.question_type === "ordering" && isStructuredQuestion(question.settings_json)) {
+      const canonicalOptions = options.slice().sort((left, right) => left.order_index - right.order_index);
+      const validation = validateOrderingAnswer(
+        { orderedOptionIds: answer?.answer_json?.orderedOptionIds },
+        canonicalOptions.map((option) => option.id),
+      );
+      const accuracy = scoreOrderingAnswer(
+        canonicalOptions.map((option) => option.id),
+        validation.ok ? validation.answer : null,
+        normalizeOrderingScoringMode(question.settings_json?.orderingScoringMode),
+      );
+      const questionMax = Math.max(numberValue(question.points), 0);
+      const pointsAwarded = questionMax * accuracy;
+      rawScore += pointsAwarded;
+      maxScore += questionMax;
+      if (answer) {
+        answerScores.set(answer.id, {
+          isCorrect: validation.ok ? accuracy === 1 : null,
+          pointsAwarded: round(pointsAwarded),
+        });
+      }
+      if (question.competency_key) {
+        addCompetency(competencies, question.competency_key, pointsAwarded, questionMax);
+      }
+      continue;
+    }
+
+    if (question.question_type === "matching" && isStructuredQuestion(question.settings_json)) {
+      const matchingOptions = options.map((option) => ({
+        id: option.id,
+        matchTargetId: option.match_target_id,
+      }));
+      const validation = validateMatchingAnswer(
+        { matches: answer?.answer_json?.matches },
+        matchingOptions,
+      );
+      const accuracy = scoreMatchingAnswer(
+        matchingOptions,
+        validation.ok ? validation.answer : null,
+        normalizeMatchingScoringMode(question.settings_json?.matchingScoringMode),
+      );
+      const questionMax = Math.max(numberValue(question.points), 0);
+      const pointsAwarded = questionMax * accuracy;
+      rawScore += pointsAwarded;
+      maxScore += questionMax;
+      if (answer) {
+        answerScores.set(answer.id, {
+          isCorrect: validation.ok ? accuracy === 1 : null,
+          pointsAwarded: round(pointsAwarded),
+        });
+      }
+      if (question.competency_key) {
+        addCompetency(competencies, question.competency_key, pointsAwarded, questionMax);
+      }
+      continue;
+    }
+
     // Unsupported and free-text responses must be reviewed before they influence a decision.
     requiresReview = true;
     if (answer) {
@@ -520,7 +588,7 @@ export async function scoreCompletedApplication(applicationId: string) {
     admin
       .from("test_sections")
       .select(
-        "test_version_id, questions(id, question_type, points, competency_key, settings_json, answer_options(id, is_correct, points, competency_effect_json))",
+        "test_version_id, questions(id, question_type, points, competency_key, settings_json, answer_options(id, is_correct, points, competency_effect_json, match_target_id, order_index))",
       )
       .in("test_version_id", testVersionIds),
     admin
@@ -925,7 +993,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
     admin
       .from("test_sections")
       .select(
-        "test_version_id, questions(id, question_type, points, competency_key, settings_json, answer_options(id, is_correct, points, competency_effect_json))",
+        "test_version_id, questions(id, question_type, points, competency_key, settings_json, answer_options(id, is_correct, points, competency_effect_json, match_target_id, order_index))",
       )
       .in("test_version_id", testVersionIds),
     admin

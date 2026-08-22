@@ -4,6 +4,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 import { getTestContentBlocks, type TestContentBlock } from "@/lib/tests/content-blocks";
 import type { QuestionSettings } from "@/lib/tests/remediation";
+import {
+  createDeterministicShuffledIds,
+  isStructuredQuestion,
+  normalizeMatchingScoringMode,
+  normalizeOrderingScoringMode,
+  validateOrderingAnswer,
+  type MatchingScoringMode,
+  type OrderingScoringMode,
+} from "@/lib/structured-questions";
 import type { InvitationStatus } from "@/lib/candidates/constants";
 
 type Relation<T> = T | T[] | null;
@@ -66,6 +75,8 @@ type SessionRecord = {
 
 type OptionRecord = {
   id: string;
+  match_target_id: string;
+  match_text: string | null;
   order_index: number;
   text: string;
 };
@@ -152,14 +163,23 @@ export type EmployeeFlowOption = {
   text: string;
 };
 
+export type EmployeeFlowMatchingTarget = {
+  id: string;
+  text: string;
+};
+
 export type EmployeeFlowQuestion = {
   description: string | null;
   id: string;
   incorrectFeedback: string | null;
   isRequired: boolean;
+  isStructured: boolean;
+  matchingScoringMode: MatchingScoringMode;
+  matchingTargets: EmployeeFlowMatchingTarget[];
   forcedChoiceMode: "most_least" | null;
   options: EmployeeFlowOption[];
   orderIndex: number;
+  orderingScoringMode: OrderingScoringMode;
   questionType: QuestionType;
   remediationParentId: string | null;
   remediationQuestionId: string | null;
@@ -418,7 +438,7 @@ export async function getEmployeeAssessmentQuestionPageData(
       admin
         .from("test_sections")
         .select(
-          "id, title, description, order_index, settings_json, questions(id, question_type, text, description, order_index, settings_json, answer_options(id, text, order_index))",
+          "id, title, description, order_index, settings_json, questions(id, question_type, text, description, order_index, settings_json, answer_options(id, text, match_text, match_target_id, order_index))",
         )
         .eq("test_version_id", session.test.versionId),
       admin
@@ -464,6 +484,36 @@ export async function getEmployeeAssessmentQuestionPageData(
               ? settings.remediationQuestionId
               : null;
 
+          const canonicalOptions = (question.answer_options ?? [])
+            .slice()
+            .sort((left, right) => left.order_index - right.order_index);
+          const structured = isStructuredQuestion(settings);
+          const savedOrdering = validateOrderingAnswer(
+            { orderedOptionIds: answer?.answer_json?.orderedOptionIds },
+            canonicalOptions.map((option) => option.id),
+          );
+          const presentedOptionIds =
+            question.question_type === "ordering" && structured
+              ? savedOrdering.ok
+                ? savedOrdering.answer.orderedOptionIds
+                : createDeterministicShuffledIds(
+                    canonicalOptions.map((option) => option.id),
+                    `${session.id}:${question.id}:ordering`,
+                  )
+              : canonicalOptions.map((option) => option.id);
+          const optionById = new Map(canonicalOptions.map((option) => [option.id, option]));
+          const matchingTargetIds = createDeterministicShuffledIds(
+            canonicalOptions.map((option) => option.match_target_id),
+            `${session.id}:${question.id}:matching`,
+          );
+          const targetById = new Map(
+            canonicalOptions.flatMap((option) =>
+              option.match_text
+                ? [[option.match_target_id, { id: option.match_target_id, text: option.match_text }] as const]
+                : [],
+            ),
+          );
+
           return {
             description: sanitizeRichTextValue(question.description),
             id: question.id,
@@ -472,12 +522,19 @@ export async function getEmployeeAssessmentQuestionPageData(
                 ? settings.incorrectFeedback
                 : null,
             isRequired: settings.required ?? true,
+            isStructured: structured,
+            matchingScoringMode: normalizeMatchingScoringMode(settings.matchingScoringMode),
+            matchingTargets: matchingTargetIds.flatMap((id) => {
+              const target = targetById.get(id);
+              return target ? [target] : [];
+            }),
             forcedChoiceMode: settings.mode === "most_least" ? settings.mode : null,
-            options: (question.answer_options ?? [])
-              .slice()
-              .sort((left, right) => left.order_index - right.order_index)
-              .map((option) => ({ id: option.id, text: option.text })),
+            options: presentedOptionIds.flatMap((id) => {
+              const option = optionById.get(id);
+              return option ? [{ id: option.id, text: option.text }] : [];
+            }),
             orderIndex: question.order_index,
+            orderingScoringMode: normalizeOrderingScoringMode(settings.orderingScoringMode),
             questionType: question.question_type,
             remediationParentId: remediationParentByTarget.get(question.id) ?? null,
             remediationQuestionId,

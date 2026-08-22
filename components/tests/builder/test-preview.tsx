@@ -49,8 +49,30 @@ function QuestionInputPreview({ question }: { question: BuilderQuestion }) {
     );
   }
 
+  if (question.questionType === "matching") {
+    return (
+      <div className="overflow-hidden rounded-md border bg-background text-sm">
+        <div className="grid grid-cols-2 bg-muted/50 font-medium text-muted-foreground">
+          <span className="px-3 py-2">Элемент</span>
+          <span className="px-3 py-2">Правильное соответствие</span>
+        </div>
+        {question.options.map((option) => (
+          <div className="grid grid-cols-2 border-t" key={option.id}>
+            <span className="whitespace-pre-wrap px-3 py-3">{option.text}</span>
+            <span className="whitespace-pre-wrap border-l px-3 py-3">
+              {option.matchText ?? "Не заполнено"}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
+      {question.questionType === "ordering" ? (
+        <p className="text-xs font-medium text-muted-foreground">Правильный порядок</p>
+      ) : null}
       {question.options.map((option, index) => (
         <label
           className="flex items-start gap-3 rounded-md border bg-background px-3 py-2 text-sm"

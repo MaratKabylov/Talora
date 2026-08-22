@@ -118,6 +118,33 @@
         }
       }
     },
+    "hasPointQuestion": {
+      "type": "object",
+      "required": ["sections"],
+      "properties": {
+        "sections": {
+          "type": "array",
+          "contains": {
+            "type": "object",
+            "required": ["questions"],
+            "properties": {
+              "questions": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "required": ["type"],
+                  "properties": {
+                    "type": {
+                      "enum": ["single_choice", "ordering", "matching"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "hasScaleQuestion": {
       "type": "object",
       "required": [
@@ -296,7 +323,7 @@
             "if": {
               "anyOf": [
                 {
-                  "$ref": "#/$defs/hasSingleChoiceQuestion"
+                  "$ref": "#/$defs/hasPointQuestion"
                 },
                 {
                   "$ref": "#/$defs/hasScaleQuestion"
@@ -336,7 +363,7 @@
                 "$ref": "#/$defs/hasForcedChoiceQuestion"
               },
               {
-                "$ref": "#/$defs/hasSingleChoiceQuestion"
+                "$ref": "#/$defs/hasPointQuestion"
               }
             ]
           },
@@ -359,7 +386,7 @@
               },
               {
                 "not": {
-                  "$ref": "#/$defs/hasSingleChoiceQuestion"
+                  "$ref": "#/$defs/hasPointQuestion"
                 }
               },
               {
@@ -422,7 +449,7 @@
                 }
               },
               {
-                "$ref": "#/$defs/hasSingleChoiceQuestion"
+                "$ref": "#/$defs/hasPointQuestion"
               }
             ]
           },
@@ -485,6 +512,12 @@
               },
               {
                 "$ref": "#/$defs/forcedChoiceQuestion"
+              },
+              {
+                "$ref": "#/$defs/orderingQuestion"
+              },
+              {
+                "$ref": "#/$defs/matchingQuestion"
               }
             ]
           }
@@ -721,6 +754,64 @@
       ],
       "unevaluatedProperties": false
     },
+    "orderingQuestion": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/questionCommon" },
+        {
+          "type": "object",
+          "required": ["points", "ordering", "items"],
+          "properties": {
+            "type": { "const": "ordering" },
+            "points": { "type": "number", "exclusiveMinimum": 0, "maximum": 10000 },
+            "ordering": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["scoring_mode"],
+              "properties": {
+                "scoring_mode": { "enum": ["pairwise", "exact"] }
+              }
+            },
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 100,
+              "items": { "$ref": "#/$defs/orderingItem" }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "matchingQuestion": {
+      "type": "object",
+      "allOf": [
+        { "$ref": "#/$defs/questionCommon" },
+        {
+          "type": "object",
+          "required": ["points", "matching", "pairs"],
+          "properties": {
+            "type": { "const": "matching" },
+            "points": { "type": "number", "exclusiveMinimum": 0, "maximum": 10000 },
+            "matching": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["scoring_mode"],
+              "properties": {
+                "scoring_mode": { "enum": ["per_pair", "exact"] }
+              }
+            },
+            "pairs": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 100,
+              "items": { "$ref": "#/$defs/matchingPair" }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
     "forcedChoiceQuestion": {
       "type": "object",
       "additionalProperties": false,
@@ -810,6 +901,40 @@
         },
         "explanation": {
           "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "orderingItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "text"],
+      "properties": {
+        "key": { "$ref": "#/$defs/localKey" },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "matchingPair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "left", "right"],
+      "properties": {
+        "key": { "$ref": "#/$defs/localKey" },
+        "left": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "\\S"
+        },
+        "right": {
+          "type": "string",
           "minLength": 1,
           "maxLength": 1000,
           "pattern": "\\S"

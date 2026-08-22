@@ -8,6 +8,11 @@ import {
   validateForcedChoiceAnswer,
 } from "@/lib/forced-choice";
 import { normalizePresentationSettings } from "@/lib/tests/presentation-settings";
+import {
+  isStructuredQuestion,
+  validateMatchingAnswer,
+  validateOrderingAnswer,
+} from "@/lib/structured-questions";
 
 import { completeCandidateSessionAndGetPath } from "./completion";
 import { getAssessmentByToken, getAssessmentQuestionPageData } from "./data";
@@ -30,6 +35,8 @@ export type AssessmentAnswerDraft = {
   answerText?: string | null;
   leastOptionId?: string | null;
   mostOptionId?: string | null;
+  matches?: Array<{ optionId: string; targetId: string }>;
+  orderedOptionIds?: string[];
   scaleValue?: number | null;
   selectedOptionId?: string | null;
   selectedOptionIds?: string[];
@@ -425,7 +432,11 @@ export async function recordCandidateSessionEvent(
 }
 
 type QuestionRecord = {
-  answer_options?: Array<{ id: string; is_correct: boolean | null }> | null;
+  answer_options?: Array<{
+    id: string;
+    is_correct: boolean | null;
+    match_target_id: string;
+  }> | null;
   id: string;
   question_type: string;
   section_id: string;
@@ -436,6 +447,7 @@ type QuestionRecord = {
     min?: number;
     remediationQuestionId?: string;
     required?: boolean;
+    structuredResponseVersion?: number;
   } | null;
 };
 
@@ -447,7 +459,7 @@ async function answerRowForDraft(
 ) {
   const { data: questionData, error: questionError } = await access.admin
     .from("questions")
-    .select("id, section_id, question_type, settings_json, answer_options(id, is_correct)")
+    .select("id, section_id, question_type, settings_json, answer_options(id, is_correct, match_target_id)")
     .eq("id", questionId)
     .maybeSingle();
 
@@ -541,6 +553,35 @@ async function answerRowForDraft(
     return {
       answer_json: { value: draft.scaleValue },
       answer_text: String(draft.scaleValue),
+      selected_option_id: null,
+    };
+  }
+
+  if (question.question_type === "ordering" && isStructuredQuestion(question.settings_json)) {
+    if (!draft.orderedOptionIds?.length) return null;
+    const validation = validateOrderingAnswer(draft, [...optionIds]);
+    if (!validation.ok) throw new Error(validation.error);
+    return {
+      answer_json: validation.answer,
+      answer_text: null,
+      selected_option_id: null,
+    };
+  }
+
+  if (question.question_type === "matching" && isStructuredQuestion(question.settings_json)) {
+    if (!draft.matches?.length) return null;
+    const validation = validateMatchingAnswer(
+      draft,
+      (question.answer_options ?? []).map((option) => ({
+        id: option.id,
+        matchTargetId: option.match_target_id,
+      })),
+      { allowPartial: !requireComplete },
+    );
+    if (!validation.ok) throw new Error(validation.error);
+    return {
+      answer_json: validation.answer,
+      answer_text: null,
       selected_option_id: null,
     };
   }

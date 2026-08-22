@@ -5,6 +5,10 @@ import { z } from "zod";
 
 import { scoreCompletedEmployeeAssessmentParticipant } from "@/lib/scoring/service";
 import { validateForcedChoiceAnswer } from "@/lib/forced-choice";
+import {
+  validateMatchingAnswer,
+  validateOrderingAnswer,
+} from "@/lib/structured-questions";
 import { evaluateRemediationBranches } from "@/lib/assessment/remediation";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -312,6 +316,33 @@ function buildAnswer(question: EmployeeFlowQuestion, formData: FormData, inputPr
     }
 
     return { answer_json: { value: scaleValue }, answer_text: String(scaleValue), selected_option_id: null };
+  }
+
+  if (question.questionType === "ordering" && question.isStructured) {
+    const validation = validateOrderingAnswer(
+      { orderedOptionIds: formData.getAll(field("orderedOptionIds")) },
+      question.options.map((option) => option.id),
+    );
+    return validation.ok
+      ? { answer_json: validation.answer, answer_text: null, selected_option_id: null }
+      : null;
+  }
+
+  if (question.questionType === "matching" && question.isStructured) {
+    const matches = question.options.flatMap((option) => {
+      const targetId = formString(formData, field(`match_${option.id}`));
+      return targetId ? [{ optionId: option.id, targetId }] : [];
+    });
+    const validation = validateMatchingAnswer(
+      { matches },
+      question.options.map((option, index) => ({
+        id: option.id,
+        matchTargetId: question.matchingTargets[index]?.id ?? null,
+      })),
+    );
+    return validation.ok
+      ? { answer_json: validation.answer, answer_text: null, selected_option_id: null }
+      : null;
   }
 
   const answerText = formString(formData, field("answerText")).trim();

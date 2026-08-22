@@ -2,6 +2,7 @@ export type TalviaTestImportSummary = {
   competencyKeys: string[];
   durationMinutes: number;
   forcedChoiceCount: number;
+  matchingCount: number;
   openTextCount: number;
   optionCount: number;
   remediationQuestionCount: number;
@@ -10,6 +11,7 @@ export type TalviaTestImportSummary = {
   scoringType: "points" | "competency_profile" | "manual" | "mixed";
   sectionCount: number;
   singleChoiceCount: number;
+  orderingCount: number;
   title: string;
   totalQuestionCount: number;
 };

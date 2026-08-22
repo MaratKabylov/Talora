@@ -1,6 +1,7 @@
 import type { QuestionType } from "./builder-constants";
+import type { StructuredQuestionSettings } from "../structured-questions";
 
-export type QuestionSettings = {
+export type QuestionSettings = StructuredQuestionSettings & {
   mode?: "most_least";
   incorrectFeedback?: string;
   max?: number;

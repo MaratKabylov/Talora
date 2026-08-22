@@ -44,6 +44,16 @@ const requestSchema = z.discriminatedUnion("operation", [
       answerText: z.string().max(4000).nullable().optional(),
       leastOptionId: z.string().uuid().nullable().optional(),
       mostOptionId: z.string().uuid().nullable().optional(),
+      matches: z
+        .array(
+          z.object({
+            optionId: z.string().uuid(),
+            targetId: z.string().uuid(),
+          }),
+        )
+        .max(100)
+        .optional(),
+      orderedOptionIds: z.array(z.string().uuid()).max(100).optional(),
       scaleValue: z.number().int().nullable().optional(),
       selectedOptionId: z.string().uuid().nullable().optional(),
       selectedOptionIds: z.array(z.string().uuid()).max(100).optional(),

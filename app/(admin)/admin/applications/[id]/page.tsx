@@ -19,10 +19,17 @@ import {
   RISK_LEVEL_LABELS,
 } from "@/lib/candidates/constants";
 import { COMPETENCIES } from "@/lib/jobs/constants";
+import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ reason?: string }>;
-type Option = { id: string; text: string };
+type Option = {
+  id: string;
+  match_target_id: string;
+  match_text: string | null;
+  order_index: number;
+  text: string;
+};
 type Question = {
   answer_options?: Option[] | null;
   question_type: string;
@@ -61,6 +68,14 @@ function renderAnswer(answer: Answer) {
     return { response: "Ответ недоступен", text: "Вопрос" };
   }
   const options = question.answer_options ?? [];
+  const structured = renderStructuredAnswer({
+    answerJson: answer.answer_json,
+    options,
+    questionType: question.question_type,
+  });
+  if (structured !== null) {
+    return { response: structured, text: question.text };
+  }
   if (question.question_type === "single_choice") {
     return {
       response: options.find((option) => option.id === answer.selected_option_id)?.text ?? "Ответ не выбран",

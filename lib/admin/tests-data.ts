@@ -18,6 +18,11 @@ import type { TestTemplate, TestVersion } from "@/lib/tests/data";
 import { getTestContentBlocks } from "@/lib/tests/content-blocks";
 import { normalizePresentationSettings } from "@/lib/tests/presentation-settings";
 import type { QuestionSettings } from "@/lib/tests/remediation";
+import {
+  isStructuredQuestion,
+  normalizeMatchingScoringMode,
+  normalizeOrderingScoringMode,
+} from "@/lib/structured-questions";
 
 import { requirePlatformContext } from "./context";
 
@@ -61,6 +66,7 @@ type OptionRecord = {
   explanation: string | null;
   id: string;
   is_correct: boolean | null;
+  match_text: string | null;
   order_index: number;
   points: number;
   text: string;
@@ -130,6 +136,7 @@ function normalizeOption(option: OptionRecord) {
     explanation: option.explanation,
     id: option.id,
     isCorrect: option.is_correct,
+    matchText: option.match_text,
     orderIndex: option.order_index,
     points: Number(option.points),
     text: option.text,
@@ -147,10 +154,13 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
     incorrectFeedback:
       typeof settings.incorrectFeedback === "string" ? settings.incorrectFeedback : null,
     isRequired: settings.required ?? true,
+    isStructured: isStructuredQuestion(settings),
+    matchingScoringMode: normalizeMatchingScoringMode(settings.matchingScoringMode),
     options: (question.answer_options ?? [])
       .map(normalizeOption)
       .sort((left, right) => left.orderIndex - right.orderIndex),
     orderIndex: question.order_index,
+    orderingScoringMode: normalizeOrderingScoringMode(settings.orderingScoringMode),
     points: Number(question.points),
     questionType: question.question_type,
     remediationQuestionId:
@@ -370,7 +380,7 @@ export async function getAdminSystemTestBuilderData(
   const { data, error } = await admin
     .from("test_sections")
     .select(
-      "id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))",
+      "id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, match_text, order_index, is_correct, points, competency_effect_json, explanation))",
     )
     .eq("test_version_id", version.id);
 
@@ -395,7 +405,7 @@ export async function getAdminSystemBuilderImportSources(
   const { data: templates, error } = await admin
     .from("test_templates")
     .select(
-      "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))))",
+      "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, match_text, order_index, is_correct, points, competency_effect_json, explanation))))",
     )
     .eq("is_system", true)
     .is("company_id", null);

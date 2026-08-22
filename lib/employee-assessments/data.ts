@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
 import type { InvitationStatus, Recommendation, RiskLevel } from "@/lib/candidates/constants";
 import type { CompetencyKey } from "@/lib/jobs/constants";
 import type { QuestionType } from "@/lib/tests/builder-constants";
@@ -97,7 +98,13 @@ type ReportRecord = {
 };
 
 type EmployeeAnswerQuestion = {
-  answer_options?: Array<{ id: string; order_index: number; text: string }> | null;
+  answer_options?: Array<{
+    id: string;
+    match_target_id: string;
+    match_text: string | null;
+    order_index: number;
+    text: string;
+  }> | null;
   order_index: number;
   question_type: QuestionType;
   text: string;
@@ -277,6 +284,12 @@ function renderEmployeeAnswer(
   question: EmployeeAnswerQuestion,
 ) {
   const options = question.answer_options ?? [];
+  const structured = renderStructuredAnswer({
+    answerJson: answer.answer_json,
+    options,
+    questionType: question.question_type,
+  });
+  if (structured !== null) return structured;
   if (question.question_type === "single_choice") {
     return options.find((option) => option.id === answer.selected_option_id)?.text ?? "Ответ не выбран";
   }
@@ -539,7 +552,7 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
   const { data, error } = await supabase
     .from("employee_assessment_participants")
     .select(
-      "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, completed_at, score, percentage, test_versions(id, title), employee_assessment_test_results(id, percentage, raw_score, level, requires_review), employee_assessment_answers(id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, order_index, answer_options(id, text, order_index))))",
+      "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, completed_at, score, percentage, test_versions(id, title), employee_assessment_test_results(id, percentage, raw_score, level, requires_review), employee_assessment_answers(id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, order_index, answer_options(id, text, match_text, match_target_id, order_index))))",
     )
     .eq("company_id", companyId)
     .eq("id", participantId)

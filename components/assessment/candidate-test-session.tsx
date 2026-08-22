@@ -126,6 +126,8 @@ type AnswerDraft = {
   answerText?: string | null;
   leastOptionId?: string | null;
   mostOptionId?: string | null;
+  matches?: Array<{ optionId: string; targetId: string }>;
+  orderedOptionIds?: string[];
   scaleValue?: number | null;
   selectedOptionId?: string | null;
   selectedOptionIds?: string[];
@@ -163,6 +165,25 @@ function draftForQuestion(form: HTMLFormElement, question: FlowQuestion): Answer
     return { scaleValue: parsed !== null && Number.isInteger(parsed) ? parsed : null };
   }
 
+  if (question.questionType === "ordering" && question.isStructured) {
+    return {
+      orderedOptionIds: formData
+        .getAll(`${prefix}orderedOptionIds`)
+        .filter((value): value is string => typeof value === "string" && Boolean(value)),
+    };
+  }
+
+  if (question.questionType === "matching" && question.isStructured) {
+    return {
+      matches: question.options.flatMap((option) => {
+        const targetId = formData.get(`${prefix}match_${option.id}`);
+        return typeof targetId === "string" && targetId
+          ? [{ optionId: option.id, targetId }]
+          : [];
+      }),
+    };
+  }
+
   const value = formData.get(`${prefix}answerText`);
   return { answerText: typeof value === "string" ? value : null };
 }
@@ -183,6 +204,12 @@ function hasDraftAnswer(question: FlowQuestion, answer: AnswerDraft) {
   }
   if (question.questionType === "scale") {
     return answer.scaleValue !== null && answer.scaleValue !== undefined;
+  }
+  if (question.questionType === "ordering" && question.isStructured) {
+    return answer.orderedOptionIds?.length === question.options.length;
+  }
+  if (question.questionType === "matching" && question.isStructured) {
+    return answer.matches?.length === question.options.length;
   }
   return Boolean(answer.answerText?.trim());
 }
@@ -239,6 +266,26 @@ function savedAnswerFromDraft(
         answer.scaleValue === null || answer.scaleValue === undefined
           ? null
           : String(answer.scaleValue),
+      isCorrect,
+      selectedOptionId: null,
+      timeSpentSeconds,
+    };
+  }
+  if (question.questionType === "ordering" && question.isStructured) {
+    return {
+      answerJson: answer.orderedOptionIds?.length
+        ? { orderedOptionIds: answer.orderedOptionIds }
+        : { skipped: true },
+      answerText: null,
+      isCorrect,
+      selectedOptionId: null,
+      timeSpentSeconds,
+    };
+  }
+  if (question.questionType === "matching" && question.isStructured) {
+    return {
+      answerJson: answer.matches?.length ? { matches: answer.matches } : { skipped: true },
+      answerText: null,
       isCorrect,
       selectedOptionId: null,
       timeSpentSeconds,
@@ -1241,6 +1288,7 @@ export function CandidateTestSession({
                         answer={sessionAnswers[activeQuestion.id] ?? null}
                         inputPrefix={`q_${activeQuestion.id}`}
                         key={activeQuestion.id}
+                        onAnswerChange={() => scheduleAutosave(activeQuestion.id, 0)}
                         question={
                           activeQuestion.remediationParentId
                             ? { ...activeQuestion, isRequired: true }
@@ -1382,6 +1430,7 @@ export function CandidateTestSession({
                       <QuestionResponseFields
                         answer={sessionAnswers[question.id] ?? null}
                         inputPrefix={`q_${question.id}`}
+                        onAnswerChange={() => scheduleAutosave(question.id, 0)}
                         question={
                           question.remediationParentId
                             ? { ...question, isRequired: true }

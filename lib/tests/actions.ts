@@ -11,6 +11,10 @@ import { createClient } from "@/lib/supabase/server";
 import { canManageTests, SCORING_TYPE_VALUES, TEST_TEMPLATE_STATUS_VALUES } from "./constants";
 import { canCreateCompanyTests } from "./permissions";
 import { formatTestVersionTitle } from "./version-title";
+import {
+  validateStructuredQuestionsForPublication,
+  type PublicationSection,
+} from "./publication-validation";
 
 const optionalText = (maximum: number) =>
   z.preprocess(
@@ -535,6 +539,20 @@ export async function publishTestVersionAction(formData: FormData) {
 
   if (!draftVersion.duration_minutes) {
     redirectWithFeedback(path, "error", "Перед публикацией укажите длительность теста.");
+  }
+
+  const { data: publicationSections, error: publicationContentError } = await supabase
+    .from("test_sections")
+    .select("questions(question_type, points, settings_json, answer_options(text, match_text))")
+    .eq("test_version_id", versionId.data);
+  if (publicationContentError) {
+    redirectWithFeedback(path, "error", "Не удалось проверить содержание версии перед публикацией.");
+  }
+  const publicationError = validateStructuredQuestionsForPublication(
+    (publicationSections ?? []) as unknown as PublicationSection[],
+  );
+  if (publicationError) {
+    redirectWithFeedback(path, "error", publicationError);
   }
 
   const { data: publishedVersion, error } = await supabase

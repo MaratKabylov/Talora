@@ -155,6 +155,8 @@ export function TestImportWizard({
               <SummaryCard label="Обязательные" value={preview.summary.requiredQuestionCount} />
               <SummaryCard label="Длительность" value={`${preview.summary.durationMinutes} мин`} />
               <SummaryCard label="Один вариант" value={preview.summary.singleChoiceCount} />
+              <SummaryCard label="Сортировка" value={preview.summary.orderingCount} />
+              <SummaryCard label="Сопоставление" value={preview.summary.matchingCount} />
               <SummaryCard label="Forced Choice" value={preview.summary.forcedChoiceCount} />
               <SummaryCard label="Шкала" value={preview.summary.scaleCount} />
               <SummaryCard label="Открытый ответ" value={preview.summary.openTextCount} />

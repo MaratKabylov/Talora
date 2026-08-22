@@ -454,11 +454,95 @@ const openTextQuestionSchema = z
   })
   .strict();
 
+const structuredQuestionPointsSchema = pointsSchema.refine(
+  (points) => points > 0,
+  "Максимальный балл структурированного вопроса должен быть больше нуля.",
+);
+
+const orderingItemSchema = z
+  .object({
+    key: localKeySchema,
+    text: trimmedText(1, 1000, "Текст элемента не может быть пустым."),
+  })
+  .strict();
+
+const orderingQuestionSchema = z
+  .object({
+    ...questionCommonShape,
+    items: z.array(orderingItemSchema).min(2, "Для сортировки нужны минимум два элемента.").max(100),
+    ordering: z
+      .object({ scoring_mode: z.enum(["pairwise", "exact"]) })
+      .strict(),
+    points: structuredQuestionPointsSchema,
+    type: z.literal("ordering"),
+  })
+  .strict()
+  .superRefine((question, context) => {
+    const seen = new Set<string>();
+    question.items.forEach((item, index) => {
+      const normalized = item.text.toLocaleLowerCase("ru");
+      if (seen.has(normalized)) {
+        context.addIssue({
+          code: "custom",
+          message: "Элементы сортировки не должны повторяться.",
+          path: ["items", index, "text"],
+        });
+      }
+      seen.add(normalized);
+    });
+  });
+
+const matchingPairSchema = z
+  .object({
+    key: localKeySchema,
+    left: trimmedText(1, 1000, "Левая часть пары не может быть пустой."),
+    right: trimmedText(1, 1000, "Правая часть пары не может быть пустой."),
+  })
+  .strict();
+
+const matchingQuestionSchema = z
+  .object({
+    ...questionCommonShape,
+    matching: z
+      .object({ scoring_mode: z.enum(["per_pair", "exact"]) })
+      .strict(),
+    pairs: z.array(matchingPairSchema).min(2, "Для сопоставления нужны минимум две пары.").max(100),
+    points: structuredQuestionPointsSchema,
+    type: z.literal("matching"),
+  })
+  .strict()
+  .superRefine((question, context) => {
+    const left = new Set<string>();
+    const right = new Set<string>();
+    question.pairs.forEach((pair, index) => {
+      const normalizedLeft = pair.left.toLocaleLowerCase("ru");
+      const normalizedRight = pair.right.toLocaleLowerCase("ru");
+      if (left.has(normalizedLeft)) {
+        context.addIssue({
+          code: "custom",
+          message: "Левые части пар не должны повторяться.",
+          path: ["pairs", index, "left"],
+        });
+      }
+      if (right.has(normalizedRight)) {
+        context.addIssue({
+          code: "custom",
+          message: "Правые части пар не должны повторяться.",
+          path: ["pairs", index, "right"],
+        });
+      }
+      left.add(normalizedLeft);
+      right.add(normalizedRight);
+    });
+  });
+
 const questionSchema = z.discriminatedUnion("type", [
   singleChoiceQuestionSchema,
   scaleQuestionSchema,
   openTextQuestionSchema,
   forcedChoiceQuestionSchema,
+  orderingQuestionSchema,
+  matchingQuestionSchema,
 ]);
 
 const sectionSchema = z
@@ -497,11 +581,14 @@ export const talviaTestImportDocumentSchema = z
   .strict()
   .superRefine((document, context) => {
     const questions = document.test.sections.flatMap((section) => section.questions);
-    const options = questions.flatMap((question) =>
-      question.type === "single_choice" || question.type === "forced_choice"
-        ? question.options
-        : [],
-    );
+    const optionCount = questions.reduce((count, question) => {
+      if (question.type === "single_choice" || question.type === "forced_choice") {
+        return count + question.options.length;
+      }
+      if (question.type === "ordering") return count + question.items.length;
+      if (question.type === "matching") return count + question.pairs.length;
+      return count;
+    }, 0);
 
     if (questions.length > TALVIA_TEST_IMPORT_MAX_QUESTIONS) {
       context.addIssue({
@@ -510,7 +597,7 @@ export const talviaTestImportDocumentSchema = z
         path: ["test", "sections"],
       });
     }
-    if (options.length > TALVIA_TEST_IMPORT_MAX_OPTIONS) {
+    if (optionCount > TALVIA_TEST_IMPORT_MAX_OPTIONS) {
       context.addIssue({
         code: "custom",
         message: `Во всем тесте допускается не более ${TALVIA_TEST_IMPORT_MAX_OPTIONS} вариантов ответа.`,
@@ -554,6 +641,18 @@ export const talviaTestImportDocumentSchema = z
               "options",
               optionIndex,
               "key",
+            ]);
+          });
+        } else if (question.type === "ordering") {
+          question.items.forEach((item, itemIndex) => {
+            registerKey(item.key, [
+              "test", "sections", sectionIndex, "questions", questionIndex, "items", itemIndex, "key",
+            ]);
+          });
+        } else if (question.type === "matching") {
+          question.pairs.forEach((pair, pairIndex) => {
+            registerKey(pair.key, [
+              "test", "sections", sectionIndex, "questions", questionIndex, "pairs", pairIndex, "key",
             ]);
           });
         }
@@ -678,6 +777,10 @@ export function summarizeTalviaTestImport(
       question.options.forEach((option) => {
         Object.keys(option.competency_effects).forEach((key) => competencyKeySet.add(key));
       });
+    } else if (question.type === "ordering") {
+      optionCount += question.items.length;
+    } else if (question.type === "matching") {
+      optionCount += question.pairs.length;
     }
   });
 
@@ -685,6 +788,7 @@ export function summarizeTalviaTestImport(
     competencyKeys: [...competencyKeySet].sort(),
     durationMinutes: document.test.duration_minutes,
     forcedChoiceCount: questions.filter((question) => question.type === "forced_choice").length,
+    matchingCount: questions.filter((question) => question.type === "matching").length,
     openTextCount: questions.filter((question) => question.type === "open_text").length,
     optionCount,
     remediationQuestionCount: questions.filter(
@@ -696,6 +800,7 @@ export function summarizeTalviaTestImport(
     scoringType: document.test.scoring_type,
     sectionCount: document.test.sections.length,
     singleChoiceCount: questions.filter((question) => question.type === "single_choice").length,
+    orderingCount: questions.filter((question) => question.type === "ordering").length,
     title: document.test.title,
     totalQuestionCount: questions.length,
   };

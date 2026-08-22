@@ -179,6 +179,10 @@ create table if not exists public.answer_options (
   id uuid primary key default gen_random_uuid(),
   question_id uuid not null references public.questions(id) on delete cascade,
   text text not null,
+  match_text text check (
+    match_text is null or char_length(btrim(match_text)) between 1 and 1000
+  ),
+  match_target_id uuid not null default gen_random_uuid(),
   order_index integer not null default 0,
   is_correct boolean,
   points numeric(8,2) not null default 0,
@@ -186,6 +190,9 @@ create table if not exists public.answer_options (
   explanation text,
   created_at timestamptz not null default now()
 );
+
+create unique index if not exists answer_options_match_target_id_key
+  on public.answer_options(match_target_id);
 
 create table if not exists public.assessment_package_tests (
   id uuid primary key default gen_random_uuid(),

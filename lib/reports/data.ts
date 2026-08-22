@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
 
 import type { ApplicationStatus } from "@/lib/candidates/constants";
 import {
@@ -90,6 +91,8 @@ type ResultRecord = {
 
 type OptionRecord = {
   id: string;
+  match_target_id: string;
+  match_text: string | null;
   order_index: number;
   text: string;
 };
@@ -233,6 +236,12 @@ function stringArray(value: unknown) {
 
 function renderAnswer(record: AnswerRecord, question: QuestionRecord) {
   const options = question.answer_options ?? [];
+  const structured = renderStructuredAnswer({
+    answerJson: record.answer_json,
+    options,
+    questionType: question.question_type,
+  });
+  if (structured !== null) return structured;
   if (question.question_type === "single_choice") {
     return options.find((option) => option.id === record.selected_option_id)?.text ?? "Ответ не выбран";
   }
@@ -380,7 +389,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       : await supabase
           .from("candidate_answers")
           .select(
-            "id, session_id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, competency_key, order_index, test_sections(title, order_index), answer_options(id, text, order_index))",
+            "id, session_id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, competency_key, order_index, test_sections(title, order_index), answer_options(id, text, match_text, match_target_id, order_index))",
           )
           .in("session_id", sessionIds);
 

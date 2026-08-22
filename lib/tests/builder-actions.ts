@@ -7,6 +7,11 @@ import { z } from "zod";
 import { requireCompanyContext } from "@/lib/auth/context";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { createClient } from "@/lib/supabase/server";
+import {
+  MATCHING_SCORING_MODES,
+  ORDERING_SCORING_MODES,
+  STRUCTURED_RESPONSE_VERSION,
+} from "@/lib/structured-questions";
 
 import {
   DIFFICULTY_VALUES,
@@ -131,6 +136,7 @@ const documentOptionSchema = z.object({
   explanation: z.string().max(1000).nullable(),
   id: z.string().uuid(),
   isCorrect: z.boolean(),
+  matchText: z.string().trim().min(1).max(1000).nullable(),
   points: z.number().min(0).max(10000),
   text: z.string().trim().min(1).max(1000),
 });
@@ -143,9 +149,12 @@ const documentQuestionSchema = z
     id: z.string().uuid(),
     incorrectFeedback: z.string().trim().max(4000).nullable(),
     isRequired: z.boolean(),
+    isStructured: z.boolean(),
     options: z.array(documentOptionSchema).max(100),
     points: z.number().min(0).max(10000),
     questionType: z.enum(QUESTION_TYPE_VALUES),
+    matchingScoringMode: z.enum(MATCHING_SCORING_MODES),
+    orderingScoringMode: z.enum(ORDERING_SCORING_MODES),
     remediationQuestionId: z.string().uuid().nullable(),
     scaleMax: z.number().int().min(2).max(100),
     scaleMin: z.number().int().min(1).max(99),
@@ -154,6 +163,50 @@ const documentQuestionSchema = z
   .superRefine((question, context) => {
     if (question.questionType === "scale" && question.scaleMin >= question.scaleMax) {
       context.addIssue({ code: "custom", message: "Максимум шкалы должен быть больше минимума." });
+    }
+    if (
+      question.isStructured &&
+      (question.questionType === "ordering" || question.questionType === "matching")
+    ) {
+      if (question.options.length < 2) {
+        context.addIssue({
+          code: "custom",
+          message: "Для сортировки и сопоставления добавьте минимум два элемента.",
+          path: ["options"],
+        });
+      }
+      if (question.points <= 0) {
+        context.addIssue({
+          code: "custom",
+          message: "Для автоматически оцениваемого вопроса укажите максимальный балл больше нуля.",
+          path: ["points"],
+        });
+      }
+      const normalizedTexts = question.options.map((option) => option.text.trim().toLocaleLowerCase("ru"));
+      if (new Set(normalizedTexts).size !== normalizedTexts.length) {
+        context.addIssue({
+          code: "custom",
+          message: "Элементы вопроса не должны повторяться.",
+          path: ["options"],
+        });
+      }
+    }
+    if (question.isStructured && question.questionType === "matching") {
+      if (question.options.some((option) => !option.matchText?.trim())) {
+        context.addIssue({
+          code: "custom",
+          message: "Для каждой строки сопоставления заполните правую часть пары.",
+          path: ["options"],
+        });
+      }
+      const normalizedTargets = question.options.map((option) => option.matchText?.trim().toLocaleLowerCase("ru"));
+      if (new Set(normalizedTargets).size !== normalizedTargets.length) {
+        context.addIssue({
+          code: "custom",
+          message: "Правые части сопоставления не должны повторяться.",
+          path: ["options"],
+        });
+      }
     }
     if (question.questionType !== "forced_choice") return;
     if (question.options.length < 3) {
@@ -552,6 +605,18 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
           ? { max: question.scaleMax, min: question.scaleMin }
           : {}),
         ...(question.questionType === "forced_choice" ? { mode: "most_least" } : {}),
+        ...(question.isStructured && question.questionType === "ordering"
+          ? {
+              orderingScoringMode: question.orderingScoringMode,
+              structuredResponseVersion: STRUCTURED_RESPONSE_VERSION,
+            }
+          : {}),
+        ...(question.isStructured && question.questionType === "matching"
+          ? {
+              matchingScoringMode: question.matchingScoringMode,
+              structuredResponseVersion: STRUCTURED_RESPONSE_VERSION,
+            }
+          : {}),
         ...(question.remediationQuestionId
           ? {
               incorrectFeedback: question.incorrectFeedback?.trim(),
@@ -571,12 +636,32 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
   const options = document.sections.flatMap((section) =>
     section.questions.flatMap((question) =>
       question.options.map((option, orderIndex) => ({
-        competency_effect_json: option.competencyEffects,
-        explanation: option.explanation,
+        competency_effect_json:
+          question.isStructured &&
+          (question.questionType === "ordering" || question.questionType === "matching")
+            ? {}
+            : option.competencyEffects,
+        explanation:
+          question.isStructured &&
+          (question.questionType === "ordering" || question.questionType === "matching")
+            ? null
+            : option.explanation,
         id: option.id,
-        is_correct: question.questionType === "forced_choice" ? null : option.isCorrect,
+        is_correct:
+          question.questionType === "forced_choice" ||
+          (question.isStructured &&
+            (question.questionType === "ordering" || question.questionType === "matching"))
+            ? null
+            : option.isCorrect,
+        match_text:
+          question.isStructured && question.questionType === "matching" ? option.matchText : null,
         order_index: orderIndex + 1,
-        points: question.questionType === "forced_choice" ? 0 : option.points,
+        points:
+          question.questionType === "forced_choice" ||
+          (question.isStructured &&
+            (question.questionType === "ordering" || question.questionType === "matching"))
+            ? 0
+            : option.points,
         question_id: question.id,
         text: option.text,
       })),
@@ -924,7 +1009,7 @@ export async function createDraftFromPublishedVersionAction(formData: FormData) 
   const { data: sourceSections, error: contentError } = await supabase
     .from("test_sections")
     .select(
-      "title, description, order_index, time_limit_minutes, settings_json, questions(question_type, text, description, media_url, order_index, points, competency_key, difficulty, settings_json, answer_options(text, order_index, is_correct, points, competency_effect_json, explanation))",
+      "title, description, order_index, time_limit_minutes, settings_json, questions(question_type, text, description, media_url, order_index, points, competency_key, difficulty, settings_json, answer_options(text, match_text, order_index, is_correct, points, competency_effect_json, explanation))",
     )
     .eq("test_version_id", versionId.data)
     .order("order_index");
@@ -940,6 +1025,7 @@ export async function createDraftFromPublishedVersionAction(formData: FormData) 
         competency_effect_json: Record<string, number>;
         explanation: string | null;
         is_correct: boolean | null;
+        match_text: string | null;
         order_index: number;
         points: number;
         text: string;
@@ -997,6 +1083,7 @@ export async function createDraftFromPublishedVersionAction(formData: FormData) 
           competency_effect_json: option.competency_effect_json,
           explanation: option.explanation,
           is_correct: option.is_correct,
+          match_text: option.match_text,
           order_index: option.order_index,
           points: option.points,
           question_id: copiedQuestion.id,

@@ -6,12 +6,20 @@ import { getTestTemplatePageData } from "./data";
 import type { QuestionDifficulty, QuestionType, TestCompetencyKey } from "./builder-constants";
 import { getTestContentBlocks, type TestContentBlock } from "./content-blocks";
 import type { QuestionSettings } from "./remediation";
+import {
+  isStructuredQuestion,
+  normalizeMatchingScoringMode,
+  normalizeOrderingScoringMode,
+  type MatchingScoringMode,
+  type OrderingScoringMode,
+} from "../structured-questions";
 
 type OptionRecord = {
   competency_effect_json: Record<string, number> | null;
   explanation: string | null;
   id: string;
   is_correct: boolean | null;
+  match_text: string | null;
   order_index: number;
   points: number;
   text: string;
@@ -49,6 +57,7 @@ export type BuilderOption = {
   explanation: string | null;
   id: string;
   isCorrect: boolean | null;
+  matchText: string | null;
   orderIndex: number;
   points: number;
   text: string;
@@ -61,8 +70,11 @@ export type BuilderQuestion = {
   id: string;
   incorrectFeedback: string | null;
   isRequired: boolean;
+  isStructured: boolean;
+  matchingScoringMode: MatchingScoringMode;
   options: BuilderOption[];
   orderIndex: number;
+  orderingScoringMode: OrderingScoringMode;
   points: number;
   questionType: QuestionType;
   remediationQuestionId: string | null;
@@ -102,6 +114,7 @@ function normalizeOption(option: OptionRecord): BuilderOption {
     explanation: option.explanation,
     id: option.id,
     isCorrect: option.is_correct,
+    matchText: option.match_text,
     orderIndex: option.order_index,
     points: Number(option.points),
     text: option.text,
@@ -119,10 +132,13 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
     incorrectFeedback:
       typeof settings.incorrectFeedback === "string" ? settings.incorrectFeedback : null,
     isRequired: settings.required ?? true,
+    isStructured: isStructuredQuestion(settings),
+    matchingScoringMode: normalizeMatchingScoringMode(settings.matchingScoringMode),
     options: (question.answer_options ?? [])
       .map(normalizeOption)
       .sort((left, right) => left.orderIndex - right.orderIndex),
     orderIndex: question.order_index,
+    orderingScoringMode: normalizeOrderingScoringMode(settings.orderingScoringMode),
     points: Number(question.points),
     questionType: question.question_type,
     remediationQuestionId:
@@ -169,7 +185,7 @@ async function listGrantedSystemTemplateIds(
 }
 
 function importSourceSelect() {
-  return "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))))";
+  return "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, match_text, order_index, is_correct, points, competency_effect_json, explanation))))";
 }
 
 export async function getTestBuilderData(
@@ -196,7 +212,7 @@ export async function getTestBuilderData(
   const { data, error } = await supabase
     .from("test_sections")
     .select(
-      "id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, order_index, is_correct, points, competency_effect_json, explanation))",
+      "id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, match_text, order_index, is_correct, points, competency_effect_json, explanation))",
     )
     .eq("test_version_id", version.id);
 
