@@ -7,6 +7,14 @@ import {
 } from "@/lib/jobs/constants";
 import { calculateFitScore } from "@/lib/scoring/fit-score";
 import {
+  isMultipleChoiceV1,
+  scoreMultipleChoiceQuestion,
+  validateMultipleChoiceAnswer,
+  validateMultipleChoiceDefinition,
+  type MultipleChoiceScoreResult,
+  type NormalizedMultipleChoiceDefinition,
+} from "@/lib/answers/multiple-choice";
+import {
   scoreForcedChoiceQuestion,
   validateForcedChoiceAnswer,
 } from "@/lib/forced-choice";
@@ -242,6 +250,66 @@ function recommendationFromScore(value: number | null) {
   return "not_recommended";
 }
 
+function getStoredMultipleChoiceScore(
+  question: QuestionRecord,
+  answer: AnswerRecord | undefined,
+  options: OptionRecord[],
+): {
+  definition: NormalizedMultipleChoiceDefinition;
+  score: MultipleChoiceScoreResult | null;
+  skipped: boolean;
+} {
+  const definitionValidation = validateMultipleChoiceDefinition({
+    competencyKey: question.competency_key,
+    maxPoints: numberValue(question.points),
+    options: options.map((option) => ({
+      competencyEffects: option.competency_effect_json,
+      id: option.id,
+      isCorrect: option.is_correct,
+      points: numberValue(option.points),
+    })),
+    required: question.settings_json?.required ?? true,
+    settings: question.settings_json,
+  });
+  if (!definitionValidation.ok) {
+    throw new Error(
+      `Invalid published multiple_choice definition for question ${question.id}: ${definitionValidation.errors.join("; ")}`,
+    );
+  }
+
+  if (!answer) {
+    return { definition: definitionValidation.definition, score: null, skipped: false };
+  }
+
+  const answerValidation = validateMultipleChoiceAnswer(
+    answer.answer_json,
+    options.map((option) => option.id),
+    {
+      maxSelections: definitionValidation.definition.maxSelections,
+      minSelections: definitionValidation.definition.minSelections,
+      required: definitionValidation.definition.required,
+    },
+    { rejectDuplicates: true, requireUuid: true },
+  );
+  if (!answerValidation.ok) {
+    throw new Error(
+      `Invalid stored multiple_choice answer for question ${question.id}: ${answerValidation.error}`,
+    );
+  }
+  if ("skipped" in answerValidation.answer) {
+    return { definition: definitionValidation.definition, score: null, skipped: true };
+  }
+
+  return {
+    definition: definitionValidation.definition,
+    score: scoreMultipleChoiceQuestion({
+      definition: definitionValidation.definition,
+      selectedOptionIds: answerValidation.answer.selectedOptionIds,
+    }),
+    skipped: false,
+  };
+}
+
 function scoreSession(
   session: SessionRecord,
   packageTest: PackageTestRecord,
@@ -263,7 +331,14 @@ function scoreSession(
     }
   }
   const competencies = new Map<CompetencyKey, CompetencyTotal>();
-  const answerScores = new Map<string, { isCorrect: boolean | null; pointsAwarded: number | null }>();
+  const answerScores = new Map<
+    string,
+    {
+      isCorrect: boolean | null;
+      pointsAwarded: number | null;
+      rawScore: number | null;
+    }
+  >();
   let rawScore = 0;
   let maxScore = 0;
   let hasForcedChoice = false;
@@ -274,15 +349,25 @@ function scoreSession(
     if (remediationParentId) {
       const parent = questionsById.get(remediationParentId);
       const parentAnswer = answersByQuestion.get(remediationParentId);
-      const selectedParentOption = (parent?.answer_options ?? []).find(
+      const parentOptions = parent?.answer_options ?? [];
+      const selectedParentOption = parentOptions.find(
         (option) => option.id === parentAnswer?.selected_option_id,
       );
-      if (selectedParentOption?.is_correct !== false) {
+      const multipleChoiceParentIsIncorrect =
+        parent?.question_type === "multiple_choice" &&
+        isMultipleChoiceV1(parent.settings_json) &&
+        getStoredMultipleChoiceScore(parent, parentAnswer, parentOptions).score
+          ?.isCorrect === false;
+      if (
+        selectedParentOption?.is_correct !== false &&
+        !multipleChoiceParentIsIncorrect
+      ) {
         const inactiveAnswer = answersByQuestion.get(question.id);
         if (inactiveAnswer) {
           answerScores.set(inactiveAnswer.id, {
             isCorrect: null,
             pointsAwarded: null,
+            rawScore: null,
           });
         }
         continue;
@@ -322,7 +407,74 @@ function scoreSession(
         }
       }
       if (answer) {
-        answerScores.set(answer.id, { isCorrect: null, pointsAwarded: null });
+        answerScores.set(answer.id, { isCorrect: null, pointsAwarded: null, rawScore: null });
+      }
+      continue;
+    }
+
+    if (question.question_type === "multiple_choice") {
+      if (!isMultipleChoiceV1(question.settings_json)) {
+        requiresReview = true;
+        if (answer) {
+          answerScores.set(answer.id, {
+            isCorrect: null,
+            pointsAwarded: null,
+            rawScore: null,
+          });
+        }
+        continue;
+      }
+
+      const multipleChoice = getStoredMultipleChoiceScore(question, answer, options);
+      maxScore += multipleChoice.definition.maxPoints;
+      const pointsAwarded = multipleChoice.score?.pointsAwarded ?? 0;
+      rawScore += pointsAwarded;
+
+      if (answer) {
+        answerScores.set(answer.id, {
+          isCorrect: multipleChoice.skipped
+            ? null
+            : (multipleChoice.score?.isCorrect ?? null),
+          pointsAwarded: multipleChoice.skipped ? 0 : pointsAwarded,
+          rawScore: multipleChoice.skipped
+            ? 0
+            : (multipleChoice.score?.rawScore ?? 0),
+        });
+      }
+
+      const effectKeys = new Set(
+        options.flatMap((option) =>
+          Object.keys(option.competency_effect_json ?? {}),
+        ),
+      );
+      if (effectKeys.size > 0) {
+        const selectedIds = new Set(
+          multipleChoice.score?.selectedOptionIds ?? [],
+        );
+        for (const key of effectKeys) {
+          if (!isCompetencyKey(key)) continue;
+          const selectedEffect = options
+            .filter((option) => selectedIds.has(option.id))
+            .reduce(
+              (sum, option) =>
+                sum + numberValue(option.competency_effect_json?.[key]),
+              0,
+            );
+          const effectMax = options
+            .map((option) => numberValue(option.competency_effect_json?.[key]))
+            .filter((value) => value > 0)
+            .sort((left, right) => right - left)
+            .slice(0, multipleChoice.definition.maxSelections)
+            .reduce((sum, value) => sum + value, 0);
+          addCompetency(competencies, key, selectedEffect, effectMax);
+        }
+      } else if (question.competency_key) {
+        addCompetency(
+          competencies,
+          question.competency_key,
+          pointsAwarded,
+          multipleChoice.definition.maxPoints,
+        );
       }
       continue;
     }
@@ -343,6 +495,7 @@ function scoreSession(
         answerScores.set(answer.id, {
           isCorrect: selectedOption?.is_correct ?? null,
           pointsAwarded: round(pointsAwarded),
+          rawScore: round(pointsAwarded),
         });
       }
 
@@ -387,6 +540,7 @@ function scoreSession(
         answerScores.set(answer.id, {
           isCorrect: null,
           pointsAwarded: round(boundedValue),
+          rawScore: round(boundedValue),
         });
       }
 
@@ -416,6 +570,7 @@ function scoreSession(
         answerScores.set(answer.id, {
           isCorrect: validation.ok ? accuracy === 1 : null,
           pointsAwarded: round(pointsAwarded),
+          rawScore: round(pointsAwarded),
         });
       }
       if (question.competency_key) {
@@ -446,6 +601,7 @@ function scoreSession(
         answerScores.set(answer.id, {
           isCorrect: validation.ok ? accuracy === 1 : null,
           pointsAwarded: round(pointsAwarded),
+          rawScore: round(pointsAwarded),
         });
       }
       if (question.competency_key) {
@@ -457,7 +613,7 @@ function scoreSession(
     // Unsupported and free-text responses must be reviewed before they influence a decision.
     requiresReview = true;
     if (answer) {
-      answerScores.set(answer.id, { isCorrect: null, pointsAwarded: null });
+      answerScores.set(answer.id, { isCorrect: null, pointsAwarded: null, rawScore: null });
     }
   }
 
@@ -634,6 +790,7 @@ export async function scoreCompletedApplication(applicationId: string) {
         .update({
           is_correct: scoredAnswer.isCorrect,
           points_awarded: scoredAnswer.pointsAwarded,
+          raw_score: scoredAnswer.rawScore,
         })
         .eq("id", answerId),
     ),
@@ -1039,6 +1196,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
         .update({
           is_correct: scoredAnswer.isCorrect,
           points_awarded: scoredAnswer.pointsAwarded,
+          raw_score: scoredAnswer.rawScore,
         })
         .eq("id", answerId),
     ),

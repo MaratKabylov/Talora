@@ -135,7 +135,7 @@
                   "required": ["type"],
                   "properties": {
                     "type": {
-                      "enum": ["single_choice", "ordering", "matching"]
+                      "enum": ["single_choice", "multiple_choice", "ordering", "matching"]
                     }
                   }
                 }
@@ -505,6 +505,9 @@
                 "$ref": "#/$defs/singleChoiceQuestion"
               },
               {
+                "$ref": "#/$defs/multipleChoiceQuestion"
+              },
+              {
                 "$ref": "#/$defs/scaleQuestion"
               },
               {
@@ -709,6 +712,115 @@
         }
       ],
       "unevaluatedProperties": false
+    },
+    "multipleChoiceQuestion": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/questionCommon"
+        },
+        {
+          "type": "object",
+          "required": ["selection", "scoring", "options"],
+          "properties": {
+            "type": {
+              "const": "multiple_choice"
+            },
+            "selection": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["min", "max"],
+              "properties": {
+                "min": { "type": "integer", "minimum": 0, "maximum": 100 },
+                "max": { "type": "integer", "minimum": 1, "maximum": 100 }
+              }
+            },
+            "scoring": {
+              "oneOf": [
+                { "$ref": "#/$defs/multipleChoiceExactScoring" },
+                { "$ref": "#/$defs/multipleChoicePartialScoring" },
+                { "$ref": "#/$defs/multipleChoiceOptionPointsScoring" }
+              ]
+            },
+            "correct_feedback": {
+              "type": ["string", "null"],
+              "minLength": 1,
+              "maxLength": 4000,
+              "pattern": "\\S"
+            },
+            "incorrect_feedback": {
+              "type": ["string", "null"],
+              "minLength": 1,
+              "maxLength": 4000,
+              "pattern": "\\S"
+            },
+            "remediation_question_key": {
+              "oneOf": [
+                { "$ref": "#/$defs/localKey" },
+                { "type": "null" }
+              ]
+            },
+            "options": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 100,
+              "items": { "$ref": "#/$defs/multipleChoiceOption" }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "multipleChoiceExactScoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "max_points", "min_points"],
+      "properties": {
+        "mode": { "const": "exact_match" },
+        "max_points": { "type": "number", "exclusiveMinimum": 0, "maximum": 10000, "multipleOf": 0.01 },
+        "min_points": { "type": "number", "minimum": -10000, "maximum": 0, "multipleOf": 0.01 }
+      }
+    },
+    "multipleChoicePartialScoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "max_points", "min_points", "correct_option_points", "penalty_mode", "incorrect_option_penalty"],
+      "properties": {
+        "mode": { "const": "partial_credit" },
+        "max_points": { "type": "number", "exclusiveMinimum": 0, "maximum": 10000, "multipleOf": 0.01 },
+        "min_points": { "type": "number", "minimum": -10000, "maximum": 0, "multipleOf": 0.01 },
+        "correct_option_points": { "type": "number", "exclusiveMinimum": 0, "maximum": 10000, "multipleOf": 0.01 },
+        "penalty_mode": { "enum": ["none", "subtract"] },
+        "incorrect_option_penalty": { "type": "number", "minimum": 0, "maximum": 10000, "multipleOf": 0.01 }
+      }
+    },
+    "multipleChoiceOptionPointsScoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "max_points", "min_points", "correctness_threshold"],
+      "properties": {
+        "mode": { "const": "option_points" },
+        "max_points": { "type": "number", "exclusiveMinimum": 0, "maximum": 10000, "multipleOf": 0.01 },
+        "min_points": { "type": "number", "minimum": -10000, "maximum": 0, "multipleOf": 0.01 },
+        "correctness_threshold": { "type": "number", "minimum": -10000, "maximum": 10000, "multipleOf": 0.01 }
+      }
+    },
+    "multipleChoiceOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "text", "is_correct", "points", "competency_effects", "explanation"],
+      "properties": {
+        "key": { "$ref": "#/$defs/localKey" },
+        "text": { "type": "string", "minLength": 1, "maxLength": 1000, "pattern": "\\S" },
+        "is_correct": { "type": ["boolean", "null"] },
+        "points": { "type": "number", "minimum": -10000, "maximum": 10000, "multipleOf": 0.01 },
+        "competency_effects": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/competencyKey" },
+          "additionalProperties": { "type": "number", "exclusiveMinimum": 0, "maximum": 10000, "multipleOf": 0.01 }
+        },
+        "explanation": { "type": ["string", "null"], "minLength": 1, "maxLength": 1000, "pattern": "\\S" }
+      }
     },
     "scaleQuestion": {
       "type": "object",

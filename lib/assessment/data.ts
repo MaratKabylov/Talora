@@ -202,6 +202,8 @@ export type FlowQuestion = {
   isStructured: boolean;
   matchingScoringMode: MatchingScoringMode;
   matchingTargets: FlowMatchingTarget[];
+  maxSelections: number;
+  minSelections: number;
   forcedChoiceMode: "most_least" | null;
   options: FlowOption[];
   orderIndex: number;
@@ -548,6 +550,16 @@ export async function getAssessmentQuestionPageData(
                 ? settings.incorrectFeedback
                 : null,
             isRequired: settings.required ?? true,
+            maxSelections:
+              typeof settings.maxSelections === "number"
+                ? settings.maxSelections
+                : canonicalOptions.length,
+            minSelections:
+              typeof settings.minSelections === "number"
+                ? settings.minSelections
+                : settings.required === false
+                  ? 0
+                  : 1,
             isStructured: structured,
             matchingScoringMode: normalizeMatchingScoringMode(settings.matchingScoringMode),
             matchingTargets: matchingTargetIds.flatMap((id) => {

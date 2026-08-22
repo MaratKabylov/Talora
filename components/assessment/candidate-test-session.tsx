@@ -200,7 +200,8 @@ function hasDraftAnswer(question: FlowQuestion, answer: AnswerDraft) {
     return Boolean(answer.selectedOptionId);
   }
   if (question.questionType === "multiple_choice") {
-    return Boolean(answer.selectedOptionIds?.length);
+    const count = new Set(answer.selectedOptionIds ?? []).size;
+    return count >= question.minSelections && count <= question.maxSelections;
   }
   if (question.questionType === "scale") {
     return answer.scaleValue !== null && answer.scaleValue !== undefined;

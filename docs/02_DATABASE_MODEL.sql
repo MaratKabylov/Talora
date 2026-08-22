@@ -251,6 +251,7 @@ create table if not exists public.candidate_answers (
   answer_text text,
   answer_json jsonb not null default '{}'::jsonb,
   is_correct boolean,
+  raw_score numeric(12,2),
   points_awarded numeric(8,2),
   time_spent_seconds integer,
   created_at timestamptz not null default now(),

@@ -66,7 +66,7 @@
 - все локальные key должны быть уникальными во всем файле;
 - key пиши латиницей в нижнем регистре, например section_1, q_001, q_001_a;
 - category оформи как короткий английский ключ в нижнем регистре, например sales_basics;
-- выбери scoring_type строго по составу вопросов: только open_text — manual; open_text вместе с другими типами — mixed; forced_choice вместе с single_choice, ordering или matching без open_text — mixed; scale и/или forced_choice без сочетания forced_choice с балльными вопросами и без open_text — competency_profile; только single_choice, ordering и/или matching — points или competency_profile;
+- выбери scoring_type строго по составу вопросов: только open_text — manual; open_text вместе с другими типами — mixed; forced_choice вместе с single_choice, multiple_choice, ordering или matching без open_text — mixed; scale и/или forced_choice без сочетания forced_choice с балльными вопросами и без open_text — competency_profile; только single_choice, multiple_choice, ordering и/или matching — points или competency_profile;
 - для single_choice создай от 2 до 6 содержательных вариантов ответа;
 - для single_choice отметь ровно один лучший вариант как is_correct: true;
 - правильный вариант должен быть единственным вариантом с максимальным количеством points;
@@ -116,9 +116,19 @@
 
 Не смешивайте эти способы в одном вопросе. Если хотя бы у одного варианта заполнен `competency_effects`, Talvia использует эффекты вариантов вместо `competency_key` вопроса.
 
+### `multiple_choice`
+
+Несколько вариантов ответа. Укажите `selection.min`, `selection.max` и одну из трех стратегий:
+
+- `exact_match`: полный балл получает только набор, точно совпавший с вариантами `is_correct: true`; веса вариантов равны нулю;
+- `partial_credit`: каждый правильный выбор добавляет `correct_option_points`, а неверный при `penalty_mode: "subtract"` вычитает `incorrect_option_penalty`; итог ограничивается `min_points` и `max_points`;
+- `option_points`: итог — сумма signed `points` выбранных вариантов с floor/cap; бинарный feedback определяется только `correctness_threshold`, а `is_correct` у вариантов всегда `null`.
+
+`required: true` требует `selection.min >= 1`, для необязательного вопроса `selection.min` равен нулю. `selection.max` задаёт автор и не раскрывает количество правильных вариантов. Полный пример всех режимов находится в `docs/11_MULTIPLE_CHOICE_EXAMPLES.json`.
+
 ### Повторный вопрос после ошибки
 
-Ветка после ошибки поддерживается только у исходного вопроса `single_choice`. Для нее укажите вместе два поля:
+Ветка после ошибки поддерживается у исходного вопроса `single_choice` или `multiple_choice`. Для нее укажите вместе два поля:
 
 - `incorrect_feedback` — понятное объяснение ошибки без раскрытия лишних служебных данных;
 - `remediation_question_key` — локальный `key` вопроса, который кандидат должен пройти после неверного ответа.
@@ -295,7 +305,7 @@ Talvia применяет MVP Best–Worst scoring: выбранное как «
 
 `competency_key` у `open_text` используется только как метка для HR и не создает числовой результат по компетенции.
 
-Тип `multiple_choice` пока не входит в импорт `talvia.test.v1` и остается legacy-типом без завершенного автоматического скоринга.
+Новые `multiple_choice` импортируются с явной стратегией scoring version 1. Уже опубликованные legacy-вопросы без этого marker не пересчитываются автоматически и остаются `requires_review`.
 
 ## Влияние `scoring_type` на результат
 

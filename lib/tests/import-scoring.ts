@@ -1,5 +1,6 @@
 export type ImportQuestionType =
   | "single_choice"
+  | "multiple_choice"
   | "scale"
   | "open_text"
   | "forced_choice"
@@ -12,11 +13,12 @@ export function getAllowedImportScoringTypes(
   questionTypes: readonly ImportQuestionType[],
 ): readonly ImportScoringType[] {
   const hasSingleChoice = questionTypes.includes("single_choice");
+  const hasMultipleChoice = questionTypes.includes("multiple_choice");
   const hasScale = questionTypes.includes("scale");
   const hasOpenText = questionTypes.includes("open_text");
   const hasForcedChoice = questionTypes.includes("forced_choice");
   const hasPointQuestion =
-    hasSingleChoice || questionTypes.includes("ordering") || questionTypes.includes("matching");
+    hasSingleChoice || hasMultipleChoice || questionTypes.includes("ordering") || questionTypes.includes("matching");
 
   if (hasOpenText) {
     return hasPointQuestion || hasScale || hasForcedChoice

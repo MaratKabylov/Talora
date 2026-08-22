@@ -5,6 +5,10 @@ import { z } from "zod";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { validateForcedChoiceDefinition } from "@/lib/forced-choice";
 import {
+  MULTIPLE_CHOICE_SCORING_VERSION,
+  validateMultipleChoiceDefinition,
+} from "@/lib/answers/multiple-choice";
+import {
   DIFFICULTY_VALUES,
   TEST_COMPETENCIES,
   type TestCompetencyKey,
@@ -250,6 +254,12 @@ const pointsSchema = z
   .max(10000, "Слишком большое число баллов.")
   .refine(hasAtMostTwoDecimalPlaces, "Допускается не более двух знаков после запятой.");
 
+const signedPointsSchema = z
+  .number()
+  .min(-10000, "Слишком маленькое число баллов.")
+  .max(10000, "Слишком большое число баллов.")
+  .refine(hasAtMostTwoDecimalPlaces, "Допускается не более двух знаков после запятой.");
+
 const effectValueSchema = z
   .number()
   .positive("Эффект компетенции должен быть больше нуля.")
@@ -365,6 +375,119 @@ const singleChoiceQuestionSchema = z
         code: "custom",
         message: "Укажите competency_key вопроса или эффект хотя бы у одного варианта.",
         path: ["competency_key"],
+      });
+    }
+  });
+
+const multipleChoiceOptionSchema = z
+  .object({
+    competency_effects: competencyEffectsSchema,
+    explanation: optionalTrimmedText(1000),
+    is_correct: z.boolean().nullable(),
+    key: localKeySchema,
+    points: signedPointsSchema,
+    text: trimmedText(1, 1000, "Текст варианта ответа не может быть пустым."),
+  })
+  .strict();
+
+const positiveQuestionPointsSchema = pointsSchema.refine(
+  (value) => value > 0,
+  "Максимальный балл должен быть больше нуля.",
+);
+
+const nonPositivePointsSchema = signedPointsSchema.refine(
+  (value) => value <= 0,
+  "Минимальный балл должен быть не больше нуля.",
+);
+
+const multipleChoiceScoringSchema = z.discriminatedUnion("mode", [
+  z
+    .object({
+      max_points: positiveQuestionPointsSchema,
+      min_points: nonPositivePointsSchema,
+      mode: z.literal("exact_match"),
+    })
+    .strict(),
+  z
+    .object({
+      correct_option_points: positiveQuestionPointsSchema,
+      incorrect_option_penalty: pointsSchema,
+      max_points: positiveQuestionPointsSchema,
+      min_points: nonPositivePointsSchema,
+      mode: z.literal("partial_credit"),
+      penalty_mode: z.enum(["none", "subtract"]),
+    })
+    .strict(),
+  z
+    .object({
+      correctness_threshold: signedPointsSchema,
+      max_points: positiveQuestionPointsSchema,
+      min_points: nonPositivePointsSchema,
+      mode: z.literal("option_points"),
+    })
+    .strict(),
+]);
+
+const multipleChoiceQuestionSchema = z
+  .object({
+    ...questionCommonShape,
+    correct_feedback: optionalTrimmedText(4000).optional().default(null),
+    incorrect_feedback: optionalTrimmedText(4000).optional().default(null),
+    options: z.array(multipleChoiceOptionSchema).min(2, "Нужно минимум два варианта ответа.").max(100),
+    remediation_question_key: z.union([localKeySchema, z.null()]).optional().default(null),
+    scoring: multipleChoiceScoringSchema,
+    selection: z
+      .object({
+        max: z.number().int().min(1).max(100),
+        min: z.number().int().min(0).max(100),
+      })
+      .strict(),
+    type: z.literal("multiple_choice"),
+  })
+  .strict()
+  .superRefine((question, context) => {
+    if (Boolean(question.remediation_question_key) !== Boolean(question.incorrect_feedback)) {
+      context.addIssue({
+        code: "custom",
+        message: question.remediation_question_key
+          ? "Добавьте объяснение, которое кандидат увидит после ошибочного ответа."
+          : "Для объяснения после ошибки выберите повторный вопрос.",
+        path: question.remediation_question_key
+          ? ["incorrect_feedback"]
+          : ["remediation_question_key"],
+      });
+    }
+
+    const scoring = question.scoring;
+    const validation = validateMultipleChoiceDefinition({
+      competencyKey: question.competency_key,
+      maxPoints: scoring.max_points,
+      options: question.options.map((answerOption) => ({
+        competencyEffects: answerOption.competency_effects,
+        id: answerOption.key,
+        isCorrect: answerOption.is_correct,
+        points: answerOption.points,
+      })),
+      required: question.required,
+      settings: {
+        correctOptionPoints:
+          scoring.mode === "partial_credit" ? scoring.correct_option_points : 0,
+        correctnessThreshold:
+          scoring.mode === "option_points" ? scoring.correctness_threshold : undefined,
+        incorrectOptionPenalty:
+          scoring.mode === "partial_credit" ? scoring.incorrect_option_penalty : 0,
+        maxSelections: question.selection.max,
+        minPoints: scoring.min_points,
+        minSelections: question.selection.min,
+        multipleChoiceScoringVersion: MULTIPLE_CHOICE_SCORING_VERSION,
+        penaltyMode:
+          scoring.mode === "partial_credit" ? scoring.penalty_mode : "none",
+        scoringMode: scoring.mode,
+      },
+    });
+    if (!validation.ok) {
+      validation.errors.forEach((message) => {
+        context.addIssue({ code: "custom", message });
       });
     }
   });
@@ -538,6 +661,7 @@ const matchingQuestionSchema = z
 
 const questionSchema = z.discriminatedUnion("type", [
   singleChoiceQuestionSchema,
+  multipleChoiceQuestionSchema,
   scaleQuestionSchema,
   openTextQuestionSchema,
   forcedChoiceQuestionSchema,
@@ -582,7 +706,11 @@ export const talviaTestImportDocumentSchema = z
   .superRefine((document, context) => {
     const questions = document.test.sections.flatMap((section) => section.questions);
     const optionCount = questions.reduce((count, question) => {
-      if (question.type === "single_choice" || question.type === "forced_choice") {
+      if (
+        question.type === "single_choice" ||
+        question.type === "multiple_choice" ||
+        question.type === "forced_choice"
+      ) {
         return count + question.options.length;
       }
       if (question.type === "ordering") return count + question.items.length;
@@ -630,7 +758,11 @@ export const talviaTestImportDocumentSchema = z
           questionIndex,
           "key",
         ]);
-        if (question.type === "single_choice" || question.type === "forced_choice") {
+        if (
+          question.type === "single_choice" ||
+          question.type === "multiple_choice" ||
+          question.type === "forced_choice"
+        ) {
           question.options.forEach((option, optionIndex) => {
             registerKey(option.key, [
               "test",
@@ -661,7 +793,7 @@ export const talviaTestImportDocumentSchema = z
 
     const hasIncompleteRemediationLink = questions.some(
       (question) =>
-        question.type === "single_choice" &&
+        (question.type === "single_choice" || question.type === "multiple_choice") &&
         Boolean(question.remediation_question_key) !== Boolean(question.incorrect_feedback),
     );
     const remediationValidation = hasIncompleteRemediationLink
@@ -671,14 +803,18 @@ export const talviaTestImportDocumentSchema = z
             questions: section.questions.map((question) => ({
               id: question.key,
               incorrectFeedback:
-                question.type === "single_choice" ? question.incorrect_feedback : null,
+                question.type === "single_choice" || question.type === "multiple_choice"
+                  ? question.incorrect_feedback
+                  : null,
               options:
-                question.type === "single_choice"
+                question.type === "single_choice" || question.type === "multiple_choice"
                   ? question.options.map((option) => ({ isCorrect: option.is_correct }))
                   : [],
               questionType: question.type,
               remediationQuestionId:
-                question.type === "single_choice" ? question.remediation_question_key : null,
+                question.type === "single_choice" || question.type === "multiple_choice"
+                  ? question.remediation_question_key
+                  : null,
             })),
           })),
         );
@@ -747,9 +883,14 @@ export function parseTalviaTestImport(source: string): TalviaTestImportDocument 
         ...section,
         description: sanitizeRichTextValue(section.description),
         questions: section.questions.map((question) =>
-          question.type === "single_choice"
+          question.type === "single_choice" || question.type === "multiple_choice"
             ? {
                 ...question,
+                ...(question.type === "multiple_choice"
+                  ? {
+                      correct_feedback: sanitizeRichTextValue(question.correct_feedback),
+                    }
+                  : {}),
                 description: sanitizeRichTextValue(question.description),
                 incorrect_feedback: sanitizeRichTextValue(question.incorrect_feedback),
               }
@@ -772,7 +913,11 @@ export function summarizeTalviaTestImport(
 
   questions.forEach((question) => {
     if (question.competency_key) competencyKeySet.add(question.competency_key);
-    if (question.type === "single_choice" || question.type === "forced_choice") {
+    if (
+      question.type === "single_choice" ||
+      question.type === "multiple_choice" ||
+      question.type === "forced_choice"
+    ) {
       optionCount += question.options.length;
       question.options.forEach((option) => {
         Object.keys(option.competency_effects).forEach((key) => competencyKeySet.add(key));
@@ -789,11 +934,13 @@ export function summarizeTalviaTestImport(
     durationMinutes: document.test.duration_minutes,
     forcedChoiceCount: questions.filter((question) => question.type === "forced_choice").length,
     matchingCount: questions.filter((question) => question.type === "matching").length,
+    multipleChoiceCount: questions.filter((question) => question.type === "multiple_choice").length,
     openTextCount: questions.filter((question) => question.type === "open_text").length,
     optionCount,
     remediationQuestionCount: questions.filter(
       (question) =>
-        question.type === "single_choice" && Boolean(question.remediation_question_key),
+        (question.type === "single_choice" || question.type === "multiple_choice") &&
+        Boolean(question.remediation_question_key),
     ).length,
     requiredQuestionCount: questions.filter((question) => question.required).length,
     scaleCount: questions.filter((question) => question.type === "scale").length,
@@ -819,6 +966,11 @@ export function getTalviaTestImportWarnings(summary: TalviaTestImportSummary) {
   if (summary.remediationQuestionCount > 0) {
     warnings.push(
       "Проверьте объяснения и повторные вопросы: они будут показаны только после неверного ответа на связанный исходный вопрос.",
+    );
+  }
+  if (summary.multipleChoiceCount > 0) {
+    warnings.push(
+      "Проверьте режим оценки, ограничения выбора, баллы и порог каждого вопроса с несколькими вариантами.",
     );
   }
   if (summary.forcedChoiceCount > 0) {

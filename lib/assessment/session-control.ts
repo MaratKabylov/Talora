@@ -7,6 +7,10 @@ import {
   ForcedChoiceAnswerValidationError,
   validateForcedChoiceAnswer,
 } from "@/lib/forced-choice";
+import {
+  MultipleChoiceAnswerValidationError,
+  validateMultipleChoiceAnswer,
+} from "@/lib/answers/multiple-choice";
 import { normalizePresentationSettings } from "@/lib/tests/presentation-settings";
 import {
   isStructuredQuestion,
@@ -443,8 +447,10 @@ type QuestionRecord = {
   settings_json: {
     incorrectFeedback?: string;
     max?: number;
+    maxSelections?: number;
     mode?: string;
     min?: number;
+    minSelections?: number;
     remediationQuestionId?: string;
     required?: boolean;
     structuredResponseVersion?: number;
@@ -525,13 +531,31 @@ async function answerRowForDraft(
   if (question.question_type === "multiple_choice") {
     const selectedIds = [...new Set(draft.selectedOptionIds ?? [])];
     if (selectedIds.length === 0) {
-      return null;
+      if (!requireComplete) return null;
+      if (question.settings_json?.required !== false) {
+        throw new MultipleChoiceAnswerValidationError(
+          `Выберите от ${question.settings_json?.minSelections ?? 1} до ${question.settings_json?.maxSelections ?? optionIds.size} вариантов.`,
+        );
+      }
     }
-    if (selectedIds.some((id) => !optionIds.has(id))) {
-      throw new Error("Invalid answer options.");
+    const required = question.settings_json?.required ?? true;
+    const validation = validateMultipleChoiceAnswer(
+      selectedIds.length === 0 && !required
+        ? { skipped: true }
+        : { selectedOptionIds: selectedIds },
+      optionIds,
+      {
+        maxSelections: question.settings_json?.maxSelections ?? optionIds.size,
+        minSelections: question.settings_json?.minSelections ?? (required ? 1 : 0),
+        required,
+      },
+      { requireUuid: true },
+    );
+    if (!validation.ok) {
+      throw new MultipleChoiceAnswerValidationError(validation.error);
     }
     return {
-      answer_json: { selectedOptionIds: selectedIds },
+      answer_json: validation.answer,
       answer_text: null,
       selected_option_id: null,
     };

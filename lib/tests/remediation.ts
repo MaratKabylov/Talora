@@ -1,8 +1,10 @@
 import type { QuestionType } from "./builder-constants";
 import type { StructuredQuestionSettings } from "../structured-questions";
+import type { MultipleChoiceQuestionSettings } from "../answers/multiple-choice";
 
-export type QuestionSettings = StructuredQuestionSettings & {
+export type QuestionSettings = StructuredQuestionSettings & MultipleChoiceQuestionSettings & {
   mode?: "most_least";
+  correctFeedback?: string;
   incorrectFeedback?: string;
   max?: number;
   min?: number;
@@ -13,7 +15,7 @@ export type QuestionSettings = StructuredQuestionSettings & {
 export type RemediationQuestionInput = {
   id: string;
   incorrectFeedback: string | null;
-  options: Array<{ isCorrect: boolean }>;
+  options: Array<{ isCorrect: boolean | null }>;
   questionType: QuestionType;
   remediationQuestionId: string | null;
 };
@@ -37,19 +39,28 @@ export function validateRemediationLinks(
         continue;
       }
 
-      if (question.questionType !== "single_choice") {
-        return "Ветка «Если допущена ошибка» доступна только для вопроса с одним вариантом ответа.";
+      if (
+        question.questionType !== "single_choice" &&
+        question.questionType !== "multiple_choice"
+      ) {
+        return "Ветка «Если допущена ошибка» доступна только для вопросов с вариантами ответа.";
       }
 
       if (!question.incorrectFeedback?.trim()) {
         return "Добавьте объяснение, которое кандидат увидит после ошибочного ответа.";
       }
 
-      if (!question.options.some((option) => option.isCorrect)) {
+      if (
+        question.questionType === "single_choice" &&
+        !question.options.some((option) => option.isCorrect)
+      ) {
         return "Для исходного вопроса отметьте правильный вариант ответа.";
       }
 
-      if (!question.options.some((option) => !option.isCorrect)) {
+      if (
+        question.questionType === "single_choice" &&
+        !question.options.some((option) => option.isCorrect === false)
+      ) {
         return "Для ветки после ошибки нужен хотя бы один неверный вариант ответа.";
       }
 

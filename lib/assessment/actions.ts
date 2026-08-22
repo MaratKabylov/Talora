@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateForcedChoiceAnswer } from "@/lib/forced-choice";
+import { validateMultipleChoiceAnswer } from "@/lib/answers/multiple-choice";
 import {
   validateMatchingAnswer,
   validateOrderingAnswer,
@@ -279,13 +280,21 @@ function buildAnswer(question: FlowQuestion, formData: FormData, inputPrefix = "
     const optionIds = formData
       .getAll(field("optionIds"))
       .filter((value): value is string => typeof value === "string");
-    const allowedIds = new Set(question.options.map((option) => option.id));
-
-    if (optionIds.length === 0 || optionIds.some((id) => !allowedIds.has(id))) {
-      return null;
-    }
-
-    return { answer_json: { selectedOptionIds: optionIds }, answer_text: null, selected_option_id: null };
+    const validation = validateMultipleChoiceAnswer(
+      optionIds.length === 0 && !question.isRequired
+        ? { skipped: true }
+        : { selectedOptionIds: optionIds },
+      question.options.map((option) => option.id),
+      {
+        maxSelections: question.maxSelections,
+        minSelections: question.minSelections,
+        required: question.isRequired,
+      },
+      { requireUuid: true },
+    );
+    return validation.ok
+      ? { answer_json: validation.answer, answer_text: null, selected_option_id: null }
+      : null;
   }
 
   if (question.questionType === "scale") {

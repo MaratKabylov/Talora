@@ -1,0 +1,98 @@
+{
+  "schema_version": "talvia.test.v1",
+  "test": {
+    "title": "Примеры Multiple Choice",
+    "category": "multiple_choice_examples",
+    "description": "Три канонических стратегии оценки вопросов с несколькими вариантами.",
+    "instructions": "Выберите варианты согласно правилу каждого вопроса.",
+    "duration_minutes": 10,
+    "scoring_type": "points",
+    "presentation": {
+      "mode": "one_question",
+      "allow_back": true,
+      "capture_question_time": true
+    },
+    "sections": [
+      {
+        "key": "section_001",
+        "title": "Стратегии оценки",
+        "description": null,
+        "questions": [
+          {
+            "key": "q_exact",
+            "type": "multiple_choice",
+            "text": "Какие утверждения верны?",
+            "description": null,
+            "required": true,
+            "difficulty": "medium",
+            "competency_key": "logical_reasoning",
+            "selection": { "min": 1, "max": 3 },
+            "scoring": {
+              "mode": "exact_match",
+              "max_points": 2,
+              "min_points": 0
+            },
+            "correct_feedback": "Выбран полный правильный набор.",
+            "incorrect_feedback": null,
+            "remediation_question_key": null,
+            "options": [
+              { "key": "q_exact_a", "text": "Вариант A", "is_correct": true, "points": 0, "competency_effects": {}, "explanation": null },
+              { "key": "q_exact_b", "text": "Вариант B", "is_correct": false, "points": 0, "competency_effects": {}, "explanation": null },
+              { "key": "q_exact_c", "text": "Вариант C", "is_correct": true, "points": 0, "competency_effects": {}, "explanation": null }
+            ]
+          },
+          {
+            "key": "q_partial",
+            "type": "multiple_choice",
+            "text": "Выберите все подходящие действия.",
+            "description": null,
+            "required": true,
+            "difficulty": "medium",
+            "competency_key": "responsibility",
+            "selection": { "min": 1, "max": 3 },
+            "scoring": {
+              "mode": "partial_credit",
+              "max_points": 3,
+              "min_points": 0,
+              "correct_option_points": 1.5,
+              "penalty_mode": "subtract",
+              "incorrect_option_penalty": 1
+            },
+            "correct_feedback": null,
+            "incorrect_feedback": null,
+            "remediation_question_key": null,
+            "options": [
+              { "key": "q_partial_a", "text": "Уточнить критерии", "is_correct": true, "points": 0, "competency_effects": {}, "explanation": null },
+              { "key": "q_partial_b", "text": "Игнорировать риск", "is_correct": false, "points": 0, "competency_effects": {}, "explanation": null },
+              { "key": "q_partial_c", "text": "Зафиксировать договоренности", "is_correct": true, "points": 0, "competency_effects": {}, "explanation": null }
+            ]
+          },
+          {
+            "key": "q_weighted",
+            "type": "multiple_choice",
+            "text": "Какие действия вы предпримете?",
+            "description": null,
+            "required": false,
+            "difficulty": "hard",
+            "competency_key": "work_behavior",
+            "selection": { "min": 0, "max": 3 },
+            "scoring": {
+              "mode": "option_points",
+              "max_points": 5,
+              "min_points": -2,
+              "correctness_threshold": 4
+            },
+            "correct_feedback": null,
+            "incorrect_feedback": null,
+            "remediation_question_key": null,
+            "options": [
+              { "key": "q_weighted_a", "text": "Согласовать приоритеты", "is_correct": null, "points": 4, "competency_effects": {}, "explanation": null },
+              { "key": "q_weighted_b", "text": "Скрыть проблему", "is_correct": null, "points": -3, "competency_effects": {}, "explanation": null },
+              { "key": "q_weighted_c", "text": "Предложить план", "is_correct": null, "points": 2, "competency_effects": {}, "explanation": null }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

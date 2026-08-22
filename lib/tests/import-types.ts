@@ -3,6 +3,7 @@ export type TalviaTestImportSummary = {
   durationMinutes: number;
   forcedChoiceCount: number;
   matchingCount: number;
+  multipleChoiceCount: number;
   openTextCount: number;
   optionCount: number;
   remediationQuestionCount: number;

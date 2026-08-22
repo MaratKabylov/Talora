@@ -176,6 +176,8 @@ export type EmployeeFlowQuestion = {
   isStructured: boolean;
   matchingScoringMode: MatchingScoringMode;
   matchingTargets: EmployeeFlowMatchingTarget[];
+  maxSelections: number;
+  minSelections: number;
   forcedChoiceMode: "most_least" | null;
   options: EmployeeFlowOption[];
   orderIndex: number;
@@ -522,6 +524,16 @@ export async function getEmployeeAssessmentQuestionPageData(
                 ? settings.incorrectFeedback
                 : null,
             isRequired: settings.required ?? true,
+            maxSelections:
+              typeof settings.maxSelections === "number"
+                ? settings.maxSelections
+                : canonicalOptions.length,
+            minSelections:
+              typeof settings.minSelections === "number"
+                ? settings.minSelections
+                : settings.required === false
+                  ? 0
+                  : 1,
             isStructured: structured,
             matchingScoringMode: normalizeMatchingScoringMode(settings.matchingScoringMode),
             matchingTargets: matchingTargetIds.flatMap((id) => {

@@ -58,6 +58,10 @@ export function QuestionResponseFields({
     ),
   );
   const [draggingOptionId, setDraggingOptionId] = useState<string | null>(null);
+  const savedMultipleChoiceIds = Array.isArray(answer?.answerJson.selectedOptionIds)
+    ? answer.answerJson.selectedOptionIds.filter((id): id is string => typeof id === "string")
+    : [];
+  const [multipleChoiceIds, setMultipleChoiceIds] = useState(savedMultipleChoiceIds);
 
   function commitOrdering(next: string[]) {
     setOrderedOptionIds(next);
@@ -262,28 +266,41 @@ export function QuestionResponseFields({
   }
 
   if (question.questionType === "multiple_choice") {
-    const selectedIds = Array.isArray(answer?.answerJson.selectedOptionIds)
-      ? answer.answerJson.selectedOptionIds
-      : [];
-
     return (
-      <div className="space-y-3">
+      <fieldset className="space-y-3">
+        <legend className="sr-only">Выберите несколько вариантов ответа</legend>
+        <p aria-live="polite" className="text-sm text-muted-foreground">
+          Выбрано {multipleChoiceIds.length}; требуется от {question.minSelections} до{" "}
+          {question.maxSelections}.
+        </p>
         {question.options.map((option) => (
           <label
             className="flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors has-checked:border-primary has-checked:bg-primary/5"
             key={option.id}
           >
             <input
+              checked={multipleChoiceIds.includes(option.id)}
               className="mt-0.5 size-5 shrink-0 accent-primary"
-              defaultChecked={selectedIds.includes(option.id)}
+              disabled={
+                !multipleChoiceIds.includes(option.id) &&
+                multipleChoiceIds.length >= question.maxSelections
+              }
               name={`${prefix}optionIds`}
+              onChange={(event) => {
+                setMultipleChoiceIds((current) =>
+                  event.target.checked
+                    ? [...new Set([...current, option.id])]
+                    : current.filter((id) => id !== option.id),
+                );
+                onAnswerChange?.();
+              }}
               type="checkbox"
               value={option.id}
             />
             <span className="whitespace-pre-wrap">{option.text}</span>
           </label>
         ))}
-      </div>
+      </fieldset>
     );
   }
 

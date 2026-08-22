@@ -11,6 +11,7 @@ import {
   recordCandidateSessionEvent,
 } from "@/lib/assessment/session-control";
 import { ForcedChoiceAnswerValidationError } from "@/lib/forced-choice";
+import { MultipleChoiceAnswerValidationError } from "@/lib/answers/multiple-choice";
 
 const identityShape = {
   clientId: z.string().uuid(),
@@ -117,7 +118,10 @@ export async function POST(request: NextRequest) {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
-    if (error instanceof ForcedChoiceAnswerValidationError) {
+    if (
+      error instanceof ForcedChoiceAnswerValidationError ||
+      error instanceof MultipleChoiceAnswerValidationError
+    ) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     return NextResponse.json(

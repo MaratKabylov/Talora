@@ -26,7 +26,7 @@ import {
 } from "@/lib/tests/presentation-settings";
 import { validateRemediationLinks } from "@/lib/tests/remediation";
 import {
-  validateStructuredQuestionsForPublication,
+  validateQuestionsForPublication,
   type PublicationSection,
 } from "@/lib/tests/publication-validation";
 import { formatTestVersionTitle } from "@/lib/tests/version-title";
@@ -691,12 +691,12 @@ export async function publishSystemTestVersionAction(formData: FormData) {
 
   const { data: publicationSections, error: publicationContentError } = await admin
     .from("test_sections")
-    .select("questions(question_type, points, settings_json, answer_options(text, match_text))")
+    .select("questions(question_type, points, competency_key, settings_json, answer_options(id, text, match_text, is_correct, points, competency_effect_json))")
     .eq("test_version_id", versionId.data);
   if (publicationContentError) {
     redirectWithFeedback(path, "error", "Не удалось проверить содержание версии перед публикацией.");
   }
-  const publicationError = validateStructuredQuestionsForPublication(
+  const publicationError = validateQuestionsForPublication(
     (publicationSections ?? []) as unknown as PublicationSection[],
   );
   if (publicationError) {

@@ -12,7 +12,7 @@ import { canManageTests, SCORING_TYPE_VALUES, TEST_TEMPLATE_STATUS_VALUES } from
 import { canCreateCompanyTests } from "./permissions";
 import { formatTestVersionTitle } from "./version-title";
 import {
-  validateStructuredQuestionsForPublication,
+  validateQuestionsForPublication,
   type PublicationSection,
 } from "./publication-validation";
 
@@ -543,12 +543,12 @@ export async function publishTestVersionAction(formData: FormData) {
 
   const { data: publicationSections, error: publicationContentError } = await supabase
     .from("test_sections")
-    .select("questions(question_type, points, settings_json, answer_options(text, match_text))")
+    .select("questions(question_type, points, competency_key, settings_json, answer_options(id, text, match_text, is_correct, points, competency_effect_json))")
     .eq("test_version_id", versionId.data);
   if (publicationContentError) {
     redirectWithFeedback(path, "error", "Не удалось проверить содержание версии перед публикацией.");
   }
-  const publicationError = validateStructuredQuestionsForPublication(
+  const publicationError = validateQuestionsForPublication(
     (publicationSections ?? []) as unknown as PublicationSection[],
   );
   if (publicationError) {
