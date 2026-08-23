@@ -159,6 +159,13 @@ function recommendationFromScore(value: number | null) {
 }
 
 function getV2MetricsSummary(result: ScoringResultV2 | null) {
+  if (result?.assessmentDomain === "sjt") {
+    const dimensions = result.scaleScores
+      .filter((score) => score.status === "ok" && score.normalized_score !== null)
+      .map((score) => `${score.id}: ${score.normalized_score}%`)
+      .join(", ");
+    return `Situational score: ${result.overallScore === null ? "нет данных" : `${result.overallScore}%`}.${dimensions ? ` Dimensions: ${dimensions}.` : ""}`;
+  }
   const attention = result?.metrics.attention;
   if (attention) {
     const accuracy = attention.accuracy === null

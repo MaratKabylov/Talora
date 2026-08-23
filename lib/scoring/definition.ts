@@ -159,6 +159,36 @@ export const forcedChoiceScoringConfigSchema = z
   })
   .strict();
 
+export const sjtScoringConfigSchema = z
+  .object({
+    maxPoints: z.number().finite(),
+    minPoints: z.number().finite(),
+    options: z.array(z.object({
+      dimensionEffects: z.array(z.object({
+        effect: z.number().finite(),
+        scaleId: stableKeySchema,
+      }).strict()),
+      optionId: entityIdSchema,
+      points: z.number().finite(),
+    }).strict()).min(2),
+  })
+  .strict()
+  .superRefine((config, context) => {
+    if (config.minPoints >= config.maxPoints) {
+      context.addIssue({
+        code: "custom",
+        message: "maxPoints must be greater than minPoints.",
+        path: ["maxPoints"],
+      });
+    }
+    findSchemaDuplicates(
+      config.options.map((option) => option.optionId),
+      context,
+      "Duplicate SJT optionId.",
+      ["options"],
+    );
+  });
+
 export const scoringItemDefinitionSchema = z.discriminatedUnion("scoringModel", [
   z
     .object({
@@ -180,6 +210,14 @@ export const scoringItemDefinitionSchema = z.discriminatedUnion("scoringModel", 
       id: entityIdSchema,
       questionType: z.literal("scale"),
       scoringModel: z.literal("scale"),
+    })
+    .strict(),
+  z
+    .object({
+      config: sjtScoringConfigSchema,
+      id: entityIdSchema,
+      questionType: z.enum(["single_choice", "multiple_choice"]),
+      scoringModel: z.literal("sjt"),
     })
     .strict(),
   z
@@ -427,8 +465,29 @@ export function validateScoringDefinitionV2(input: {
   const compositeIds = new Set(definition.composites.map((composite) => composite.id));
   const criterionIds = new Set([
     ...(input.criterionScoreIds ?? []),
-    ...items.filter((item) => item.scoringModel === "criterion").map((item) => item.id),
+    ...items
+      .filter((item) => item.scoringModel === "criterion" || item.scoringModel === "sjt")
+      .map((item) => item.id),
   ]);
+  const scaleItemIds = new Set(
+    items
+      .filter((item) => item.scoringModel === "scale")
+      .flatMap((item) => item.config.bindings.map((binding) => binding.scaleId)),
+  );
+  const sjtDimensionIds = new Set(
+    items
+      .filter((item) => item.scoringModel === "sjt")
+      .flatMap((item) => item.config.options)
+      .flatMap((option) => option.dimensionEffects.map((effect) => effect.scaleId)),
+  );
+  const overlappingDimension = [...sjtDimensionIds].find((id) => scaleItemIds.has(id));
+  if (overlappingDimension) {
+    issues.push(issue(
+      "INVALID_SCORING_DEFINITION",
+      `Dimension '${overlappingDimension}' cannot mix scale and SJT item contributions in one version.`,
+      "items",
+    ));
+  }
 
   if (
     definition.assessmentDomain === "learning" &&
@@ -437,6 +496,21 @@ export function validateScoringDefinitionV2(input: {
     issues.push(issue(
       "INVALID_SCORING_DEFINITION",
       "Learning assessments currently support criterion and open-text items only.",
+      "items",
+    ));
+  }
+  if (
+    definition.assessmentDomain === "sjt" &&
+    (
+      definition.resultShape !== "hybrid" ||
+      definition.overallScore?.sourceType !== "criterion" ||
+      definition.overallScore.sourceId !== "sjt_total" ||
+      items.some((item) => item.scoringModel !== "sjt" && item.scoringModel !== null)
+    )
+  ) {
+    issues.push(issue(
+      "INVALID_SCORING_DEFINITION",
+      "SJT assessments require hybrid results, sjt_total overallScore, and SJT/open-text items only.",
       "items",
     ));
   }
@@ -480,6 +554,19 @@ export function validateScoringDefinitionV2(input: {
             `items.${itemIndex}.config.bindings.${bindingIndex}.scaleId`,
           ));
         }
+      });
+    }
+    if (item.scoringModel === "sjt") {
+      item.config.options.forEach((option, optionIndex) => {
+        option.dimensionEffects.forEach((effect, effectIndex) => {
+          if (!scaleIds.has(effect.scaleId)) {
+            issues.push(issue(
+              "INVALID_SCORING_DEFINITION",
+              `Unknown SJT dimension '${effect.scaleId}'.`,
+              `items.${itemIndex}.config.options.${optionIndex}.dimensionEffects.${effectIndex}.scaleId`,
+            ));
+          }
+        });
       });
     }
     if (item.scoringModel === "forced_choice") {
@@ -564,6 +651,17 @@ export function validateScoringDefinitionV2(input: {
   return issues.length > 0
     ? { issues, ok: false, warnings }
     : { definition, items, issues: [], ok: true, warnings };
+}
+
+function findSchemaDuplicates(
+  values: string[],
+  context: z.RefinementCtx,
+  message: string,
+  path: PropertyKey[],
+) {
+  if (new Set(values).size !== values.length) {
+    context.addIssue({ code: "custom", message, path });
+  }
 }
 
 function hasCompositeCycle(definition: ScoringDefinitionV2) {

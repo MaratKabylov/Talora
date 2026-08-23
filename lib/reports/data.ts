@@ -12,6 +12,7 @@ import {
   normalizeAssessmentCompositeResult,
   type AssessmentCompositeResult,
 } from "@/lib/scoring/models/assessment-composite";
+import { scoringResultV2Schema } from "@/lib/scoring/result";
 
 type Relation<T> = T | T[] | null;
 
@@ -93,6 +94,7 @@ type ResultRecord = {
   percentage: number | null;
   raw_score: number | null;
   requires_review: boolean;
+  scoring_result_json: unknown;
   session_id: string;
   summary: string | null;
 };
@@ -165,6 +167,12 @@ export type ReportTest = {
   answers: ReportAnswer[];
   completedAt: string | null;
   id: string;
+  dimensions: Array<{
+    id: string;
+    normalizedScore: number | null;
+    rawScore: number | null;
+    status: "ok" | "insufficient_data" | "not_applicable";
+  }>;
   level: string | null;
   percentage: number | null;
   rawScore: number | null;
@@ -363,7 +371,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
         .order("created_at"),
       supabase
         .from("test_results")
-        .select("session_id, raw_score, max_score, percentage, level, summary, requires_review")
+        .select("session_id, raw_score, max_score, percentage, level, summary, requires_review, scoring_result_json")
         .eq("application_id", applicationId),
       supabase
         .from("candidate_reports")
@@ -439,6 +447,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   const tests = sessions.map((session) => {
     const version = related(session.test_versions);
     const result = resultsBySession.get(session.id);
+    const scoringResult = scoringResultV2Schema.safeParse(result?.scoring_result_json);
     const answers = (answersBySession.get(session.id) ?? [])
       .flatMap((answer) => {
         const question = related(answer.questions);
@@ -475,6 +484,14 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     return {
       answers,
       completedAt: session.completed_at,
+      dimensions: scoringResult.success
+        ? scoringResult.data.scaleScores.map((dimension) => ({
+            id: dimension.id,
+            normalizedScore: dimension.normalized_score,
+            rawScore: dimension.raw_score,
+            status: dimension.status,
+          }))
+        : [],
       id: session.id,
       level: result?.level ?? null,
       maxScore: result?.max_score ?? null,

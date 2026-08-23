@@ -489,6 +489,20 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
                   {test.summary ? <p className="mt-2 text-sm text-muted-foreground">{test.summary}</p> : null}
                 </summary>
                 <div className="mt-4 space-y-4 border-t pt-4">
+                  {test.dimensions.length > 0 ? (
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {test.dimensions.map((dimension) => (
+                        <div className="rounded-md bg-muted/50 p-3 text-sm" key={dimension.id}>
+                          <p className="font-medium">{dimension.id}</p>
+                          <p className="mt-1 text-muted-foreground">
+                            {dimension.status === "ok"
+                              ? score(dimension.normalizedScore)
+                              : "Недостаточно данных"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                   {test.answers.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Ответы отсутствуют.</p>
                   ) : (

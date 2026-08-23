@@ -136,9 +136,36 @@ const forcedChoiceItemSchema = z
   })
   .strict();
 
+const sjtItemSchema = z
+  .object({
+    max_points: z.number().finite(),
+    min_points: z.number().finite(),
+    options: z.array(z.object({
+      dimension_effects: z.array(z.object({
+        dimension_key: stableKeySchema,
+        effect: z.number().finite(),
+      }).strict()),
+      option_key: stableKeySchema,
+      points: z.number().finite(),
+    }).strict()).min(2),
+    question_key: stableKeySchema,
+    scoring_model: z.literal("sjt"),
+  })
+  .strict()
+  .superRefine((item, context) => {
+    if (item.min_points >= item.max_points) {
+      context.addIssue({
+        code: "custom",
+        message: "max_points must be greater than min_points.",
+        path: ["max_points"],
+      });
+    }
+  });
+
 const scoringItemSchema = z.discriminatedUnion("scoring_model", [
   criterionItemSchema,
   scaleItemSchema,
+  sjtItemSchema,
   forcedChoiceItemSchema,
 ]);
 
@@ -408,6 +435,25 @@ export function buildScoringItemsFromImportV2(
         scoringModel: "scale",
       };
     }
+    if (item.scoring_model === "sjt") {
+      return {
+        config: {
+          maxPoints: item.max_points,
+          minPoints: item.min_points,
+          options: item.options.map((option) => ({
+            dimensionEffects: option.dimension_effects.map((effect) => ({
+              effect: effect.effect,
+              scaleId: effect.dimension_key,
+            })),
+            optionId: option.option_key,
+            points: option.points,
+          })),
+        },
+        id: item.question_key,
+        questionType: questionType as "single_choice" | "multiple_choice",
+        scoringModel: "sjt",
+      };
+    }
     return {
       config: {
         centering: item.centering,
@@ -452,6 +498,7 @@ function validateV2CrossReferences(document: TalviaTestImportDocumentV2) {
       (item.scoring_model === "criterion" &&
         ["single_choice", "multiple_choice", "scale", "ordering", "matching"].includes(question.type)) ||
       (item.scoring_model === "scale" && question.type === "scale") ||
+      (item.scoring_model === "sjt" && ["single_choice", "multiple_choice"].includes(question.type)) ||
       (item.scoring_model === "forced_choice" && question.type === "forced_choice");
     if (!compatible) {
       throw new JsonDocumentError(
@@ -470,6 +517,23 @@ function validateV2CrossReferences(document: TalviaTestImportDocumentV2) {
       ) {
         throw new JsonDocumentError(
           `Forced-choice scoring for '${item.question_key}' must map every option exactly once.`,
+        );
+      }
+    }
+    if (item.scoring_model === "sjt") {
+      const optionKeys = new Set(
+        question.type === "single_choice" || question.type === "multiple_choice"
+          ? question.options.map((option) => option.key)
+          : [],
+      );
+      const configuredKeys = item.options.map((option) => option.option_key);
+      if (
+        configuredKeys.length !== optionKeys.size ||
+        new Set(configuredKeys).size !== configuredKeys.length ||
+        configuredKeys.some((key) => !optionKeys.has(key))
+      ) {
+        throw new JsonDocumentError(
+          `SJT scoring for '${item.question_key}' must map every option exactly once.`,
         );
       }
     }
@@ -579,6 +643,19 @@ function validateV2CrossReferences(document: TalviaTestImportDocumentV2) {
         "Attention assessments cannot contain remediation branches.",
       );
     }
+  }
+
+  if (
+    document.scoring.assessment_domain === "sjt" &&
+    (
+      document.scoring.result_shape !== "hybrid" ||
+      document.scoring.overall_score?.source_type !== "criterion" ||
+      document.scoring.overall_score.source_key !== "sjt_total"
+    )
+  ) {
+    throw new JsonDocumentError(
+      "An SJT assessment requires hybrid result_shape and criterion overall_score 'sjt_total'.",
+    );
   }
 
   const validation = validateScoringDefinitionV2({

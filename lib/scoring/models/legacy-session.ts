@@ -69,7 +69,7 @@ export type LegacyQuestionRecord = {
   points: number;
   question_type: QuestionType;
   scoring_config_json?: unknown;
-  scoring_model?: "criterion" | "scale" | "forced_choice" | null;
+  scoring_model?: "criterion" | "scale" | "sjt" | "forced_choice" | null;
   settings_json: QuestionSettings | null;
 };
 

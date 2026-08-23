@@ -49,10 +49,10 @@ function answer(
 }
 
 function v2Session(input: {
-  assessmentDomain: "attention" | "knowledge" | "learning" | "personality";
+  assessmentDomain: "attention" | "knowledge" | "learning" | "personality" | "sjt";
   definition: Record<string, unknown>;
-  resultShape: "score" | "profile";
-  scoringType: "points" | "competency_profile";
+  resultShape: "score" | "profile" | "hybrid";
+  scoringType: "points" | "competency_profile" | "mixed";
 }): LegacySessionRecord {
   return {
     id: "session-v2",
@@ -292,6 +292,87 @@ test("v2 attention uses accuracy as overall and preserves observed time", () => 
   assert.equal(metrics?.speed_percentile, null);
   assert.equal(result.score.percentage, 50);
   assert.equal(result.score.scoringResult?.status, "partial");
+});
+
+test("v2 SJT produces situational overall and dimensions without correctness", () => {
+  const questions: LegacyQuestionRecord[] = [{
+    answer_options: [
+      option("avoid", { is_correct: false, points: 0 }),
+      option("coach", { is_correct: true, points: 3 }),
+    ],
+    competency_key: "work_behavior",
+    id: "situation",
+    points: 3,
+    question_type: "single_choice",
+    scoring_config_json: {
+      maxPoints: 3,
+      minPoints: 0,
+      options: [
+        { dimensionEffects: [], optionId: "avoid", points: 0 },
+        {
+          dimensionEffects: [
+            { effect: 2, scaleId: "leadership" },
+            { effect: 1, scaleId: "communication" },
+          ],
+          optionId: "coach",
+          points: 3,
+        },
+      ],
+    },
+    scoring_model: "sjt",
+    settings_json: null,
+  }];
+  const result = scoreSession(
+    v2Session({
+      assessmentDomain: "sjt",
+      definition: {
+        composites: [],
+        normAssignments: [],
+        overallScore: { sourceId: "sjt_total", sourceType: "criterion" },
+        scales: [
+          {
+            aggregation: "sum",
+            code: "leadership",
+            displayOrder: 0,
+            id: "leadership",
+            missingPolicy: "insufficient",
+            theoreticalMax: 2,
+            theoreticalMin: 0,
+            title: "Leadership",
+          },
+          {
+            aggregation: "sum",
+            code: "communication",
+            displayOrder: 1,
+            id: "communication",
+            missingPolicy: "insufficient",
+            theoreticalMax: 2,
+            theoreticalMin: 0,
+            title: "Communication",
+          },
+        ],
+      },
+      resultShape: "hybrid",
+      scoringType: "mixed",
+    }),
+    packageTest,
+    questions,
+    [answer("sjt-answer", "situation", { selected_option_id: "coach" })],
+  );
+
+  assert.equal(result.score.percentage, 100);
+  assert.equal(result.score.rawScore, 3);
+  assert.equal(result.score.maxScore, 3);
+  assert.equal(result.answerScores.get("sjt-answer")?.isCorrect, null);
+  assert.equal(result.answerScores.get("sjt-answer")?.pointsAwarded, 3);
+  assert.equal(
+    result.score.scoringResult?.scaleScores.find((score) => score.id === "leadership")?.normalized_score,
+    100,
+  );
+  assert.equal(
+    result.score.scoringResult?.scaleScores.find((score) => score.id === "communication")?.normalized_score,
+    50,
+  );
 });
 
 test("versions without the v2 marker always stay on the frozen legacy path", () => {

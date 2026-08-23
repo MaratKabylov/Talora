@@ -226,6 +226,77 @@
                 "required": [
                   "question_key",
                   "scoring_model",
+                  "min_points",
+                  "max_points",
+                  "options"
+                ],
+                "properties": {
+                  "question_key": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,159}$",
+                    "maxLength": 160
+                  },
+                  "scoring_model": {
+                    "const": "sjt"
+                  },
+                  "min_points": {
+                    "type": "number"
+                  },
+                  "max_points": {
+                    "type": "number"
+                  },
+                  "options": {
+                    "type": "array",
+                    "minItems": 2,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "option_key",
+                        "points",
+                        "dimension_effects"
+                      ],
+                      "properties": {
+                        "option_key": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,159}$",
+                          "maxLength": 160
+                        },
+                        "points": {
+                          "type": "number"
+                        },
+                        "dimension_effects": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "dimension_key",
+                              "effect"
+                            ],
+                            "properties": {
+                              "dimension_key": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,159}$",
+                                "maxLength": 160
+                              },
+                              "effect": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "question_key",
+                  "scoring_model",
                   "response_min",
                   "response_max",
                   "dimension_effects"

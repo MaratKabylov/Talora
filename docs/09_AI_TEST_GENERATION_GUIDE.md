@@ -25,6 +25,7 @@
 - Не выдавайте normalized score за percentile, sten или norm score. `norm_assignments` допустимы только при наличии реального опубликованного набора норм точной версии.
 - Для learning обязательно сохраняйте связь исходного `single_choice` с feedback и recovery-вопросом через `remediation_question_key`, задавайте `assessment_domain: "learning"`, `learning_scoring` и направляйте `overall_score` на criterion `learning_final`. Веса `initial_weight` и `recovery_weight` должны суммироваться в 1.
 - Для attention используйте объективные criterion items без remediation и направляйте `overall_score` на criterion `attention_accuracy`. Время ответа сохраняется как наблюдаемая метрика; не создавайте формулу, превращающую миллисекунды в score или percentile.
+- Для SJT используйте существующие `single_choice` или `multiple_choice` вместе с `scoring_model: "sjt"`. В trusted scoring-конфигурации сопоставьте каждый `option_key`, задайте ему situational `points` и массив `dimension_effects`; один вариант может влиять на несколько dimensions. Используйте `result_shape: "hybrid"` и направляйте `overall_score` на criterion `sjt_total`. Не интерпретируйте SJT-ответ как `correct / incorrect`.
 
 Каждый автоматически оцениваемый вопрос V2 должен иметь ровно один элемент `scoring.items` с тем же `question_key`; `open_text` не должен иметь автоматический scoring item. Все ссылки на dimensions, composites и option keys проверяются до записи в базу.
 

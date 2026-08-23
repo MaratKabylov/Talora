@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+
 const publicSchema = JSON.parse(
   readFileSync(
     new URL("../docs/13_TALVIA_TEST_IMPORT_SCHEMA_V2.json", import.meta.url),
@@ -19,6 +20,10 @@ const publicSchema = JSON.parse(
 
 const migration = readFileSync(
   new URL("../supabase/migrations/20260823170000_scoring_v2_import.sql", import.meta.url),
+  "utf8",
+);
+const sjtMigration = readFileSync(
+  new URL("../supabase/migrations/20260823210000_sjt_scoring_model.sql", import.meta.url),
   "utf8",
 );
 
@@ -44,6 +49,7 @@ test("talvia.test.v2 exposes explicit item models and score interpretation", () 
   assert.match(serialized, /item_weight/);
   assert.match(serialized, /dimension_effects/);
   assert.match(serialized, /forced_choice/);
+  assert.match(serialized, /sjt/);
   assert.match(
     JSON.stringify(publicSchema.properties.scoring.properties.assessment_domain),
     /learning/,
@@ -61,4 +67,7 @@ test("v2 database import wraps v1 atomically and maps option keys to stored UUID
   assert.match(migration, /statementId', option_row\.id::text/);
   assert.match(migration, /'thresholds', thresholds_json/);
   assert.match(migration, /scoring_schema_version = '2\.0'/);
+  assert.match(sjtMigration, /apply_talvia_scoring_v2_pre_sjt/);
+  assert.match(sjtMigration, /'optionId', option_row\.id::text/);
+  assert.match(sjtMigration, /set scoring_model = 'sjt'/);
 });

@@ -230,6 +230,36 @@ begin
           'responseMax', (item_data ->> 'response_max')::numeric,
           'responseMin', (item_data ->> 'response_min')::numeric
         );
+      elsif item_data ->> 'scoring_model' = 'sjt' then
+        item_config := jsonb_build_object(
+          'maxPoints', (item_data ->> 'max_points')::numeric,
+          'minPoints', (item_data ->> 'min_points')::numeric,
+          'options', (
+            select jsonb_agg(jsonb_build_object(
+              'dimensionEffects', (
+                select coalesce(jsonb_agg(jsonb_build_object(
+                  'effect', (effect.value ->> 'effect')::numeric,
+                  'scaleId', effect.value ->> 'dimension_key'
+                ) order by effect.ordinality), '[]'::jsonb)
+                from jsonb_array_elements(coalesce(option_config.value -> 'dimension_effects', '[]'::jsonb))
+                  with ordinality as effect(value, ordinality)
+              ),
+              'optionId', option_row.id::text,
+              'points', (option_config.value ->> 'points')::numeric
+            ) order by option_config.ordinality)
+            from jsonb_array_elements(item_data -> 'options')
+              with ordinality as option_config(value, ordinality)
+            join lateral (
+              select source_option.ordinality
+              from jsonb_array_elements(question_entry.value -> 'options')
+                with ordinality as source_option(value, ordinality)
+              where source_option.value ->> 'key' = option_config.value ->> 'option_key'
+            ) source_match on true
+            join public.answer_options option_row
+              on option_row.question_id = created_question_id
+             and option_row.order_index = source_match.ordinality::integer
+          )
+        );
       elsif item_data ->> 'scoring_model' = 'forced_choice' then
         item_config := jsonb_build_object(
           'centering', item_data ->> 'centering',

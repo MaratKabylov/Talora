@@ -21,6 +21,7 @@ import { scoreScales, type ScaleItemResponse } from "./models/scale.ts";
 import { normalizeScore, roundOutput } from "./normalization.ts";
 import { scoreAttention, type AttentionItemInput } from "./models/attention.ts";
 import { scoreLearning, type LearningItemInput } from "./models/learning.ts";
+import { scoreSjt, type SjtItemResponse } from "./models/sjt.ts";
 import {
   DERIVED_CRITERION_SCORE_IDS,
   ScoringDomainError,
@@ -96,8 +97,11 @@ function scoreV2Session(
   const answerByQuestion = new Map(answers.map((answer) => [answer.question_id, answer]));
   const questionById = new Map(questions.map((question) => [question.id, question]));
   const criterionItems = items.filter((item) => item.scoringModel === "criterion");
+  const primaryScoredItems = items.filter(
+    (item) => item.scoringModel === "criterion" || item.scoringModel === "sjt",
+  );
   if (
-    criterionItems.some((item) =>
+    primaryScoredItems.some((item) =>
       DERIVED_CRITERION_SCORE_IDS.includes(
         item.id as (typeof DERIVED_CRITERION_SCORE_IDS)[number],
       ),
@@ -152,6 +156,38 @@ function scoreV2Session(
     criterionScores.push(...attentionResult.scores);
   }
 
+  const sjtItems: SjtItemResponse[] = items.flatMap((item) => {
+    if (item.scoringModel !== "sjt") return [];
+    const answer = answerByQuestion.get(item.id);
+    const selectedOptionIds = item.questionType === "single_choice"
+      ? answer?.selected_option_id
+        ? [answer.selected_option_id]
+        : null
+      : Array.isArray(answer?.answer_json?.selectedOptionIds)
+        ? answer.answer_json.selectedOptionIds.filter(
+            (optionId): optionId is string => typeof optionId === "string",
+          )
+        : null;
+    return [{
+      config: item.config,
+      itemId: item.id,
+      questionType: item.questionType,
+      selectedOptionIds,
+    }];
+  });
+  const sjtScaleIds = new Set(
+    sjtItems.flatMap((item) =>
+      item.config.options.flatMap((option) =>
+        option.dimensionEffects.map((effect) => effect.scaleId),
+      ),
+    ),
+  );
+  const sjtResult = scoreSjt(
+    definition.scales.filter((scale) => sjtScaleIds.has(scale.id)),
+    sjtItems,
+  );
+  criterionScores.push(...sjtResult.situationalScores);
+
   const scaleItems: ScaleItemResponse[] = items.flatMap((item) => {
     if (item.scoringModel !== "scale") return [];
     const response = answerByQuestion.get(item.id)?.answer_json?.value;
@@ -161,7 +197,10 @@ function scoreV2Session(
       response: typeof response === "number" && Number.isFinite(response) ? response : null,
     }];
   });
-  const scaleResult = scoreScales(definition.scales, scaleItems);
+  const scaleResult = scoreScales(
+    definition.scales.filter((scale) => !sjtScaleIds.has(scale.id)),
+    scaleItems,
+  );
 
   const forcedChoiceBlocks: ForcedChoiceBlockResponse[] = items.flatMap((item) => {
     if (item.scoringModel !== "forced_choice") return [];
@@ -182,9 +221,19 @@ function scoreV2Session(
     forcedChoiceBlocks,
   );
 
+  for (const itemScore of sjtResult.itemScores) {
+    const answer = answerByQuestion.get(itemScore.itemId);
+    if (!answer) continue;
+    answerScores.set(answer.id, {
+      isCorrect: null,
+      pointsAwarded: itemScore.points,
+      rawScore: itemScore.points,
+    });
+  }
+
   for (const item of items) {
     const answer = answerByQuestion.get(item.id);
-    if (!answer || item.scoringModel === "criterion") continue;
+    if (!answer || item.scoringModel === "criterion" || item.scoringModel === "sjt") continue;
     if (item.scoringModel === "scale") {
       const value = answer.answer_json?.value;
       const numeric = typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -207,6 +256,7 @@ function scoreV2Session(
     ...(attentionResult?.warnings ?? []),
     ...(learningResult?.warnings ?? []),
     ...scaleResult.warnings,
+    ...sjtResult.warnings,
     ...forcedChoiceResult.warnings,
   ];
   const requiresReview = openTextItems.length > 0;
@@ -224,7 +274,7 @@ function scoreV2Session(
     definitionVersionId: session.test_version_id,
     forcedChoiceScores: forcedChoiceResult.scores,
     learningMetrics: learningResult?.metrics,
-    scaleScores: scaleResult.scores,
+    scaleScores: [...scaleResult.scores, ...sjtResult.dimensionScores],
     status: requiresReview
       ? "requires_review"
       : learningResult?.warnings.length || attentionResult?.warnings.length
@@ -235,15 +285,19 @@ function scoreV2Session(
   const competencies = buildCompatibilityCompetencies(
     legacyCriterion.score.competencies,
     definition,
-    scaleResult.scores,
+    [...scaleResult.scores, ...sjtResult.dimensionScores],
     forcedChoiceResult.scores,
   );
   const criterionTotal =
     definition.assessmentDomain === "learning" ||
     definition.assessmentDomain === "attention"
     ? null
-    : criterionScores.find((score) => score.id === "criterion_total");
-  const criterionMax = criterionItems.reduce((sum, item) => sum + item.config.maxPoints, 0);
+    : criterionScores.find((score) =>
+        score.id === (definition.assessmentDomain === "sjt" ? "sjt_total" : "criterion_total"),
+      );
+  const criterionMax = definition.assessmentDomain === "sjt"
+    ? sjtItems.reduce((sum, item) => sum + item.config.maxPoints, 0)
+    : criterionItems.reduce((sum, item) => sum + item.config.maxPoints, 0);
   const rawScore = criterionTotal?.raw_score ?? scoringResult.overallScore ?? 0;
   const maxScore = criterionTotal ? criterionMax : scoringResult.overallScore === null ? 0 : 100;
 

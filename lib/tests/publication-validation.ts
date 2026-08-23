@@ -30,7 +30,7 @@ type PublicationQuestion = {
   points: number;
   question_type: QuestionType;
   scoring_config_json?: unknown;
-  scoring_model?: "criterion" | "scale" | "forced_choice" | null;
+  scoring_model?: "criterion" | "scale" | "sjt" | "forced_choice" | null;
   settings_json: QuestionSettings | null;
 };
 
@@ -56,13 +56,19 @@ export function validateQuestionsForPublication(
   for (const question of sections.flatMap((section) => section.questions ?? [])) {
     const options = question.answer_options ?? [];
     if (question.question_type === "single_choice") {
-      if (options.filter((option) => option.is_correct === true).length !== 1) {
+      if (
+        question.scoring_model !== "sjt" &&
+        options.filter((option) => option.is_correct === true).length !== 1
+      ) {
         return "Для вопроса с одним вариантом ответа отметьте ровно один правильный вариант.";
       }
       continue;
     }
 
     if (question.question_type === "multiple_choice") {
+      if (question.scoring_model === "sjt") {
+        continue;
+      }
       const settings = question.settings_json ?? {};
       if (!isMultipleChoiceV1(settings)) {
         return "Настройте режим оценки для legacy-вопроса «Несколько вариантов» перед публикацией.";
@@ -145,6 +151,22 @@ export function validateQuestionsForPublication(
     if (!validation.ok) {
       const first = validation.issues[0];
       return `${first.path || "scoring"}: ${first.message}`;
+    }
+    for (const item of validation.items) {
+      if (item.scoringModel !== "sjt") continue;
+      const question = sections
+        .flatMap((section) => section.questions ?? [])
+        .find((candidate) => candidate.id === item.id);
+      const storedOptionIds = new Set(
+        (question?.answer_options ?? []).map((option) => option.id),
+      );
+      const configuredOptionIds = item.config.options.map((option) => option.optionId);
+      if (
+        configuredOptionIds.length !== storedOptionIds.size ||
+        configuredOptionIds.some((optionId) => !storedOptionIds.has(optionId))
+      ) {
+        return `SJT item '${item.id}' must map every stored answer option exactly once.`;
+      }
     }
     if (definition.assessmentDomain === "learning") {
       const questions = sections.flatMap((section) => section.questions ?? []);

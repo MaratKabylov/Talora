@@ -15,7 +15,7 @@ export const ASSESSMENT_DOMAINS = [
 ] as const;
 
 export const RESULT_SHAPES = ["score", "profile", "hybrid"] as const;
-export const SCORING_MODELS = ["criterion", "scale", "forced_choice", "composite"] as const;
+export const SCORING_MODELS = ["criterion", "scale", "sjt", "forced_choice", "composite"] as const;
 export const FORCED_CHOICE_METHODS = ["ipsative", "thurstonian_irt"] as const;
 export const CRITERION_STRATEGIES = [
   "single_choice_points",
@@ -30,6 +30,7 @@ export const DERIVED_CRITERION_SCORE_IDS = [
   "learning_recovery",
   "learning_final",
   "attention_accuracy",
+  "sjt_total",
 ] as const;
 
 export type AssessmentDomain = (typeof ASSESSMENT_DOMAINS)[number];
@@ -88,6 +89,19 @@ export type ForcedChoiceScoringConfig = {
   }>;
 };
 
+export type SjtScoringConfig = {
+  maxPoints: number;
+  minPoints: number;
+  options: Array<{
+    dimensionEffects: Array<{
+      effect: number;
+      scaleId: string;
+    }>;
+    optionId: string;
+    points: number;
+  }>;
+};
+
 export type ScoringItemDefinition =
   | {
       config: CriterionScoringConfig;
@@ -105,6 +119,12 @@ export type ScoringItemDefinition =
       id: string;
       questionType: "scale";
       scoringModel: "scale";
+    }
+  | {
+      config: SjtScoringConfig;
+      id: string;
+      questionType: "single_choice" | "multiple_choice";
+      scoringModel: "sjt";
     }
   | {
       config: ForcedChoiceScoringConfig;
