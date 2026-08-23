@@ -24,6 +24,7 @@ declare
   norms_json jsonb;
   overall_json jsonb;
   thresholds_json jsonb;
+  learning_json jsonb;
 begin
   if import_document is null
      or jsonb_typeof(import_document) <> 'object'
@@ -119,6 +120,15 @@ begin
     )
   end;
 
+  learning_json := case
+    when scoring_data -> 'learning_scoring' is null
+      or scoring_data -> 'learning_scoring' = 'null'::jsonb then null
+    else jsonb_build_object(
+      'initialWeight', (scoring_data -> 'learning_scoring' ->> 'initial_weight')::numeric,
+      'recoveryWeight', (scoring_data -> 'learning_scoring' ->> 'recovery_weight')::numeric
+    )
+  end;
+
   select coalesce(
     jsonb_agg(jsonb_build_object(
       'code', threshold.value ->> 'code',
@@ -139,6 +149,7 @@ begin
       scoring_config_json = jsonb_build_object(
         'assessmentDomain', scoring_data ->> 'assessment_domain',
         'composites', composites_json,
+        'learningScoring', learning_json,
         'normAssignments', norms_json,
         'overallScore', overall_json,
         'resultShape', scoring_data ->> 'result_shape',

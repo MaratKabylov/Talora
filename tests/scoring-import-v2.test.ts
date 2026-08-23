@@ -35,6 +35,7 @@ test("talvia.test.v2 exposes explicit item models and score interpretation", () 
     "composites",
     "norm_assignments",
     "overall_score",
+    "learning_scoring",
   ]) {
     assert.ok(property in publicSchema.properties.scoring.properties, property);
   }
@@ -43,6 +44,10 @@ test("talvia.test.v2 exposes explicit item models and score interpretation", () 
   assert.match(serialized, /item_weight/);
   assert.match(serialized, /dimension_effects/);
   assert.match(serialized, /forced_choice/);
+  assert.match(
+    JSON.stringify(publicSchema.properties.scoring.properties.assessment_domain),
+    /learning/,
+  );
 });
 
 test("v2 database import wraps v1 atomically and maps option keys to stored UUIDs", () => {

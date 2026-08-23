@@ -19,7 +19,9 @@ import {
 } from "./models/forced-choice.ts";
 import { scoreScales, type ScaleItemResponse } from "./models/scale.ts";
 import { normalizeScore, roundOutput } from "./normalization.ts";
+import { scoreLearning, type LearningItemInput } from "./models/learning.ts";
 import {
+  DERIVED_CRITERION_SCORE_IDS,
   ScoringDomainError,
   type ForcedChoiceScoreValue,
   type ScoreValue,
@@ -80,7 +82,7 @@ function scoreV2Session(
     scoringModel: question.scoring_model ?? null,
   }));
   const validation = validateScoringDefinitionV2({
-    criterionScoreIds: ["criterion_total"],
+    criterionScoreIds: DERIVED_CRITERION_SCORE_IDS,
     definition,
     items: rawItems,
   });
@@ -93,10 +95,16 @@ function scoreV2Session(
   const answerByQuestion = new Map(answers.map((answer) => [answer.question_id, answer]));
   const questionById = new Map(questions.map((question) => [question.id, question]));
   const criterionItems = items.filter((item) => item.scoringModel === "criterion");
-  if (criterionItems.some((item) => item.id === "criterion_total")) {
+  if (
+    criterionItems.some((item) =>
+      DERIVED_CRITERION_SCORE_IDS.includes(
+        item.id as (typeof DERIVED_CRITERION_SCORE_IDS)[number],
+      ),
+    )
+  ) {
     throw new ScoringDomainError(
       "INVALID_SCORING_DEFINITION",
-      "The score ID 'criterion_total' is reserved for the aggregate criterion result.",
+      "Derived criterion score IDs are reserved and cannot be used as question IDs.",
     );
   }
 
@@ -115,6 +123,20 @@ function scoreV2Session(
     answerByQuestion,
     answerScores,
   );
+  const learningResult = definition.assessmentDomain === "learning"
+    ? scoreLearning(
+        definition.learningScoring!,
+        buildLearningItems(
+          criterionItems,
+          questionById,
+          answerByQuestion,
+          answerScores,
+        ),
+      )
+    : null;
+  if (learningResult) {
+    criterionScores.push(...learningResult.scores);
+  }
 
   const scaleItems: ScaleItemResponse[] = items.flatMap((item) => {
     if (item.scoringModel !== "scale") return [];
@@ -168,6 +190,7 @@ function scoreV2Session(
 
   const openTextItems = items.filter((item) => item.scoringModel === null);
   const warnings: ScoringWarning[] = [
+    ...(learningResult?.warnings ?? []),
     ...scaleResult.warnings,
     ...forcedChoiceResult.warnings,
   ];
@@ -184,8 +207,13 @@ function scoreV2Session(
     definition,
     definitionVersionId: session.test_version_id,
     forcedChoiceScores: forcedChoiceResult.scores,
+    learningMetrics: learningResult?.metrics,
     scaleScores: scaleResult.scores,
-    status: requiresReview ? "requires_review" : undefined,
+    status: requiresReview
+      ? "requires_review"
+      : learningResult?.warnings.length
+        ? "partial"
+        : undefined,
     warnings,
   });
   const competencies = buildCompatibilityCompetencies(
@@ -194,7 +222,9 @@ function scoreV2Session(
     scaleResult.scores,
     forcedChoiceResult.scores,
   );
-  const criterionTotal = criterionScores.find((score) => score.id === "criterion_total");
+  const criterionTotal = definition.assessmentDomain === "learning"
+    ? null
+    : criterionScores.find((score) => score.id === "criterion_total");
   const criterionMax = criterionItems.reduce((sum, item) => sum + item.config.maxPoints, 0);
   const rawScore = criterionTotal?.raw_score ?? scoringResult.overallScore ?? 0;
   const maxScore = criterionTotal ? criterionMax : scoringResult.overallScore === null ? 0 : 100;
@@ -219,6 +249,64 @@ function scoreV2Session(
       session,
     },
   };
+}
+
+function buildLearningItems(
+  items: Extract<ReturnType<typeof validateScoringDefinitionV2>, { ok: true }>["items"],
+  questionById: Map<string, LegacyQuestionRecord>,
+  answerByQuestion: Map<string, LegacyAnswerRecord>,
+  answerScores: Map<string, LegacyAnswerScore>,
+): LearningItemInput[] {
+  const criterionItems = items.filter((item) => item.scoringModel === "criterion");
+  const criterionById = new Map(criterionItems.map((item) => [item.id, item]));
+  const recoveryIds = new Set<string>();
+  for (const item of criterionItems) {
+    const recoveryId = questionById.get(item.id)?.settings_json?.remediationQuestionId;
+    if (typeof recoveryId === "string") recoveryIds.add(recoveryId);
+  }
+
+  return criterionItems
+    .filter((item) => !recoveryIds.has(item.id))
+    .map((item) => {
+      const question = questionById.get(item.id);
+      const recoveryQuestionId = typeof question?.settings_json?.remediationQuestionId === "string"
+        ? question.settings_json.remediationQuestionId
+        : null;
+      const recoveryItem = recoveryQuestionId
+        ? criterionById.get(recoveryQuestionId)
+        : null;
+      if (recoveryQuestionId && !recoveryItem) {
+        throw new ScoringDomainError(
+          "INVALID_SCORING_DEFINITION",
+          `Learning recovery question '${recoveryQuestionId}' must use criterion scoring.`,
+          `items.${item.id}`,
+        );
+      }
+      const initialAnswer = answerByQuestion.get(item.id);
+      const initialScore = initialAnswer ? answerScores.get(initialAnswer.id) : null;
+      const recoveryAnswer = recoveryQuestionId
+        ? answerByQuestion.get(recoveryQuestionId)
+        : null;
+      const recoveryScore = recoveryAnswer ? answerScores.get(recoveryAnswer.id) : null;
+      return {
+        initial: {
+          answered: Boolean(initialAnswer),
+          isCorrect: initialScore?.isCorrect ?? null,
+          maxPoints: item.config.maxPoints,
+          pointsAwarded: initialScore?.pointsAwarded ?? null,
+        },
+        initialQuestionId: item.id,
+        recovery: recoveryItem
+          ? {
+              answered: Boolean(recoveryAnswer),
+              isCorrect: recoveryScore?.isCorrect ?? null,
+              maxPoints: recoveryItem.config.maxPoints,
+              pointsAwarded: recoveryScore?.pointsAwarded ?? null,
+            }
+          : null,
+        recoveryQuestionId,
+      };
+    });
 }
 
 function hydrateDefinition(

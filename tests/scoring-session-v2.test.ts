@@ -49,7 +49,7 @@ function answer(
 }
 
 function v2Session(input: {
-  assessmentDomain: "knowledge" | "personality";
+  assessmentDomain: "knowledge" | "learning" | "personality";
   definition: Record<string, unknown>;
   resultShape: "score" | "profile";
   scoringType: "points" | "competency_profile";
@@ -189,6 +189,61 @@ test("v2 profile uses direct and reverse scale bindings without manufacturing ov
     minScore: 1,
     score: 5,
   });
+});
+
+test("v2 learning keeps initial and recovery performance separate", () => {
+  const question = (
+    id: string,
+    remediationQuestionId: string | null = null,
+  ): LegacyQuestionRecord => ({
+    answer_options: [
+      option(`${id}-wrong`, { is_correct: false, points: 0 }),
+      option(`${id}-correct`, { is_correct: true, points: 1 }),
+    ],
+    competency_key: "learning_ability",
+    id,
+    points: 1,
+    question_type: "single_choice",
+    scoring_config_json: {
+      maxPoints: 1,
+      minPoints: 0,
+      strategy: "single_choice_points",
+    },
+    scoring_model: "criterion",
+    settings_json: remediationQuestionId
+      ? { incorrectFeedback: "Review the rule.", remediationQuestionId }
+      : null,
+  });
+  const result = scoreSession(
+    v2Session({
+      assessmentDomain: "learning",
+      definition: {
+        composites: [],
+        learningScoring: { initialWeight: 0.4, recoveryWeight: 0.6 },
+        normAssignments: [],
+        overallScore: { sourceId: "learning_final", sourceType: "criterion" },
+        scales: [],
+      },
+      resultShape: "score",
+      scoringType: "points",
+    }),
+    packageTest,
+    [question("initial", "recovery"), question("recovery"), question("initial_2")],
+    [
+      answer("a-initial", "initial", { selected_option_id: "initial-wrong" }),
+      answer("a-recovery", "recovery", { selected_option_id: "recovery-correct" }),
+      answer("a-initial-2", "initial_2", { selected_option_id: "initial_2-correct" }),
+    ],
+  );
+
+  const metrics = result.score.scoringResult?.metrics.learning;
+  assert.equal(metrics?.initial_score, 50);
+  assert.equal(metrics?.recovery_rate, 100);
+  assert.equal(metrics?.learning_gain, 50);
+  assert.equal(metrics?.final_score, 80);
+  assert.equal(result.score.percentage, 80);
+  assert.equal(result.score.rawScore, 80);
+  assert.equal(result.score.maxScore, 100);
 });
 
 test("versions without the v2 marker always stay on the frozen legacy path", () => {

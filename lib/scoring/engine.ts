@@ -6,6 +6,7 @@ import {
   SCORING_SCHEMA_VERSION,
   ScoringDomainError,
   type ForcedChoiceScoreValue,
+  type LearningMetrics,
   type ScoreValue,
   type ScoringDefinitionV2,
   type ScoringResultV2,
@@ -17,6 +18,7 @@ export type BuildScoringResultInput = {
   definition: ScoringDefinitionV2;
   definitionVersionId: string;
   forcedChoiceScores?: readonly ForcedChoiceScoreValue[];
+  learningMetrics?: LearningMetrics | null;
   scaleScores: readonly ScoreValue[];
   scoredAt?: string;
   status?: ScoringResultV2["status"];
@@ -67,6 +69,7 @@ export function buildScoringResultV2(input: BuildScoringResultInput): ScoringRes
     engineVersion: SCORING_ENGINE_VERSION,
     forcedChoiceScores: [...(input.forcedChoiceScores ?? [])],
     interpretation: interpretScore(overallScore, input.definition.thresholds),
+    metrics: { learning: input.learningMetrics ?? null },
     overallScore,
     resultShape: input.definition.resultShape,
     scaleScores: [...input.scaleScores],

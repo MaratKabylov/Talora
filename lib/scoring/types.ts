@@ -7,6 +7,9 @@ export const ASSESSMENT_DOMAINS = [
   "personality",
   "motivation",
   "behavior",
+  "learning",
+  "attention",
+  "sjt",
   "mixed",
   "other",
 ] as const;
@@ -20,6 +23,12 @@ export const CRITERION_STRATEGIES = [
   "scale_value",
   "ordering",
   "matching",
+] as const;
+export const DERIVED_CRITERION_SCORE_IDS = [
+  "criterion_total",
+  "learning_initial",
+  "learning_recovery",
+  "learning_final",
 ] as const;
 
 export type AssessmentDomain = (typeof ASSESSMENT_DOMAINS)[number];
@@ -148,9 +157,36 @@ export type ScoreThreshold = {
   min: number;
 };
 
+export type LearningScoringConfig = {
+  initialWeight: number;
+  recoveryWeight: number;
+};
+
+export type LearningItemResult = {
+  initial_correct: boolean | null;
+  initial_points: number | null;
+  initial_question_id: string;
+  recovered: boolean | null;
+  recovery_points: number | null;
+  recovery_question_id: string | null;
+};
+
+export type LearningMetrics = {
+  eligible_failed_items: number;
+  final_score: number | null;
+  initial_score: number | null;
+  learning_gain: number | null;
+  post_feedback_score: number | null;
+  recovered_items: number;
+  recovery_rate: number | null;
+  remediation_answered_items: number;
+  items: LearningItemResult[];
+};
+
 export type ScoringDefinitionV2 = {
   assessmentDomain: AssessmentDomain;
   composites: CompositeDefinition[];
+  learningScoring?: LearningScoringConfig | null;
   normAssignments: NormAssignment[];
   overallScore?: OverallScoreMapping | null;
   resultShape: ResultShape;
@@ -225,6 +261,9 @@ export type ScoringResultV2 = {
   engineVersion: string;
   forcedChoiceScores: ForcedChoiceScoreValue[];
   interpretation: ScoreThreshold | null;
+  metrics: {
+    learning: LearningMetrics | null;
+  };
   overallScore: number | null;
   resultShape: ResultShape;
   scaleScores: ScaleScoreValue[];

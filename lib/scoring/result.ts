@@ -119,6 +119,31 @@ const scoreThresholdSchema = z
   })
   .strict();
 
+const learningItemResultSchema = z
+  .object({
+    initial_correct: z.boolean().nullable(),
+    initial_points: z.number().finite().nullable(),
+    initial_question_id: z.string().min(1),
+    recovered: z.boolean().nullable(),
+    recovery_points: z.number().finite().nullable(),
+    recovery_question_id: z.string().min(1).nullable(),
+  })
+  .strict();
+
+const learningMetricsSchema = z
+  .object({
+    eligible_failed_items: z.number().int().min(0),
+    final_score: z.number().finite().min(0).max(100).nullable(),
+    initial_score: z.number().finite().min(0).max(100).nullable(),
+    items: z.array(learningItemResultSchema),
+    learning_gain: z.number().finite().nullable(),
+    post_feedback_score: z.number().finite().min(0).max(100).nullable(),
+    recovered_items: z.number().int().min(0),
+    recovery_rate: z.number().finite().min(0).max(100).nullable(),
+    remediation_answered_items: z.number().int().min(0),
+  })
+  .strict();
+
 export const scoringResultV2Schema = z
   .object({
     assessmentDomain: z.enum(ASSESSMENT_DOMAINS),
@@ -128,6 +153,11 @@ export const scoringResultV2Schema = z
     engineVersion: z.string().min(1),
     forcedChoiceScores: z.array(forcedChoiceScoreSchema),
     interpretation: scoreThresholdSchema.nullable().optional().default(null),
+    metrics: z
+      .object({ learning: learningMetricsSchema.nullable() })
+      .strict()
+      .optional()
+      .default({ learning: null }),
     overallScore: z.number().finite().min(0).max(100).nullable(),
     resultShape: z.enum(RESULT_SHAPES),
     scaleScores: z.array(scoreValueSchema),

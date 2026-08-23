@@ -23,7 +23,7 @@
 - Для Forced Choice используйте существующий формат вопроса, а в V2 явно сопоставьте каждый `option_key` со шкалой в `statements`. Модель `ipsative` сохраняет расчет MOST минус LEAST; `thurstonian_irt` зарезервирован и не публикуется.
 - Для knowledge-уровней задавайте полный упорядоченный массив `thresholds`, покрывающий 0–100 без пересечений. Если он отсутствует, применяются legacy-уровни совместимости.
 - Не выдавайте normalized score за percentile, sten или norm score. `norm_assignments` допустимы только при наличии реального опубликованного набора норм точной версии.
-- Для learning обязательно сохраняйте связь исходного вопроса с feedback и recovery-вопросом через `remediation_question_key`. Специализированные learning-метрики не следует выдумывать в JSON, пока их поля не появились в публичной схеме.
+- Для learning обязательно сохраняйте связь исходного `single_choice` с feedback и recovery-вопросом через `remediation_question_key`, задавайте `assessment_domain: "learning"`, `learning_scoring` и направляйте `overall_score` на criterion `learning_final`. Веса `initial_weight` и `recovery_weight` должны суммироваться в 1.
 
 Каждый автоматически оцениваемый вопрос V2 должен иметь ровно один элемент `scoring.items` с тем же `question_key`; `open_text` не должен иметь автоматический scoring item. Все ссылки на dimensions, composites и option keys проверяются до записи в базу.
 
@@ -81,6 +81,7 @@
 - если задаешь thresholds, полностью покрой 0..100 упорядоченными непересекающимися диапазонами;
 - не генерируй percentile, sten или нормативы без предоставленного опубликованного norm set;
 - для Forced Choice сопоставь каждый option_key ровно один раз и используй method "ipsative";
+- для learning используй criterion items с min_points 0, добавь минимум одну remediation-пару и установи overall_score в {"source_type":"criterion","source_key":"learning_final"};
 - все key должны быть уникальными, стабильными и машиночитаемыми;
 - не используй чувствительные признаки кандидата в вопросах или scoring.
 ```

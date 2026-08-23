@@ -9,6 +9,7 @@ import {
 } from "@/lib/answers/multiple-choice";
 import { validateScoringDefinitionV2 } from "@/lib/scoring/definition";
 import type { ScoringDefinitionV2 } from "@/lib/scoring/types";
+import { DERIVED_CRITERION_SCORE_IDS } from "@/lib/scoring/types";
 
 import type { QuestionType } from "./builder-constants";
 import type { QuestionSettings } from "./remediation";
@@ -136,7 +137,7 @@ export function validateQuestionsForPublication(
       scoringModel: question.scoring_model ?? null,
     }));
     const validation = validateScoringDefinitionV2({
-      criterionScoreIds: ["criterion_total"],
+      criterionScoreIds: DERIVED_CRITERION_SCORE_IDS,
       definition,
       forPublication: true,
       items,
@@ -144,6 +145,30 @@ export function validateQuestionsForPublication(
     if (!validation.ok) {
       const first = validation.issues[0];
       return `${first.path || "scoring"}: ${first.message}`;
+    }
+    if (definition.assessmentDomain === "learning") {
+      const questions = sections.flatMap((section) => section.questions ?? []);
+      const remediationParents = questions.filter(
+        (question) =>
+          question.question_type === "single_choice" &&
+          typeof question.settings_json?.remediationQuestionId === "string",
+      );
+      if (remediationParents.length === 0) {
+        return "Learning assessment requires at least one remediation question pair.";
+      }
+      if (
+        definition.overallScore?.sourceType !== "criterion" ||
+        definition.overallScore.sourceId !== "learning_final"
+      ) {
+        return "Learning assessment overallScore must reference criterion 'learning_final'.";
+      }
+      if (
+        validation.items.some(
+          (item) => item.scoringModel === "criterion" && (item.config.minPoints ?? 0) !== 0,
+        )
+      ) {
+        return "Learning criterion items must use minPoints equal to 0.";
+      }
     }
   }
 

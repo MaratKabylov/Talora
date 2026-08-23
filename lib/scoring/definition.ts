@@ -39,6 +39,22 @@ export const scoreThresholdSchema = z
     }
   });
 
+export const learningScoringConfigSchema = z
+  .object({
+    initialWeight: z.number().finite().min(0).max(1),
+    recoveryWeight: z.number().finite().min(0).max(1),
+  })
+  .strict()
+  .superRefine((config, context) => {
+    if (Math.abs(config.initialWeight + config.recoveryWeight - 1) > 1e-9) {
+      context.addIssue({
+        code: "custom",
+        message: "initialWeight and recoveryWeight must sum to 1.",
+        path: ["recoveryWeight"],
+      });
+    }
+  });
+
 export const scaleDefinitionSchema = z
   .object({
     aggregation: z.enum(["sum", "mean"]),
@@ -239,6 +255,7 @@ export const scoringDefinitionV2Schema = z
   .object({
     assessmentDomain: z.enum(ASSESSMENT_DOMAINS),
     composites: z.array(compositeDefinitionSchema),
+    learningScoring: learningScoringConfigSchema.nullable().optional(),
     normAssignments: z.array(
       z
         .object({
@@ -299,7 +316,23 @@ export const scoringDefinitionV2Schema = z
         });
       }),
   })
-  .strict();
+  .strict()
+  .superRefine((definition, context) => {
+    if (definition.assessmentDomain === "learning" && !definition.learningScoring) {
+      context.addIssue({
+        code: "custom",
+        message: "Learning assessments require learningScoring weights.",
+        path: ["learningScoring"],
+      });
+    }
+    if (definition.assessmentDomain !== "learning" && definition.learningScoring) {
+      context.addIssue({
+        code: "custom",
+        message: "learningScoring is only valid for the learning assessment domain.",
+        path: ["learningScoring"],
+      });
+    }
+  });
 
 export type DefinitionValidationIssue = {
   code: ScoringErrorCode;
@@ -372,6 +405,17 @@ export function validateScoringDefinitionV2(input: {
     ...(input.criterionScoreIds ?? []),
     ...items.filter((item) => item.scoringModel === "criterion").map((item) => item.id),
   ]);
+
+  if (
+    definition.assessmentDomain === "learning" &&
+    items.some((item) => item.scoringModel !== "criterion" && item.scoringModel !== null)
+  ) {
+    issues.push(issue(
+      "INVALID_SCORING_DEFINITION",
+      "Learning assessments currently support criterion and open-text items only.",
+      "items",
+    ));
+  }
 
   items.forEach((item, itemIndex) => {
     if (item.scoringModel === "criterion") {

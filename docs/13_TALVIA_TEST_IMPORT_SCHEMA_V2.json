@@ -20,6 +20,30 @@
     "scoring": {
       "type": "object",
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "assessment_domain": {
+                "const": "learning"
+              }
+            },
+            "required": [
+              "assessment_domain"
+            ]
+          },
+          "then": {
+            "required": [
+              "learning_scoring"
+            ],
+            "properties": {
+              "learning_scoring": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      ],
       "required": [
         "scoring_version",
         "assessment_domain",
@@ -38,6 +62,9 @@
             "personality",
             "motivation",
             "behavior",
+            "learning",
+            "attention",
+            "sjt",
             "mixed",
             "other"
           ]
@@ -329,6 +356,31 @@
                 }
               }
             ]
+          }
+        },
+        "learning_scoring": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "default": null,
+          "description": "Required when assessment_domain is learning. Weights are validated to sum to 1.",
+          "additionalProperties": false,
+          "required": [
+            "initial_weight",
+            "recovery_weight"
+          ],
+          "properties": {
+            "initial_weight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "recovery_weight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
           }
         },
         "composites": {

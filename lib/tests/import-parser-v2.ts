@@ -6,6 +6,7 @@ import { validateScoringDefinitionV2 } from "@/lib/scoring/definition";
 import {
   ASSESSMENT_DOMAINS,
   CRITERION_STRATEGIES,
+  DERIVED_CRITERION_SCORE_IDS,
   FORCED_CHOICE_METHODS,
   RESULT_SHAPES,
   type ScoringDefinitionV2,
@@ -188,12 +189,29 @@ const thresholdSchema = z
   })
   .strict();
 
+const learningScoringSchema = z
+  .object({
+    initial_weight: z.number().finite().min(0).max(1),
+    recovery_weight: z.number().finite().min(0).max(1),
+  })
+  .strict()
+  .superRefine((config, context) => {
+    if (Math.abs(config.initial_weight + config.recovery_weight - 1) > 1e-9) {
+      context.addIssue({
+        code: "custom",
+        message: "initial_weight and recovery_weight must sum to 1.",
+        path: ["recovery_weight"],
+      });
+    }
+  });
+
 const scoringSchema = z
   .object({
     assessment_domain: z.enum(ASSESSMENT_DOMAINS),
     composites: z.array(compositeSchema).optional().default([]),
     dimensions: z.array(dimensionSchema).max(200).optional().default([]),
     items: z.array(scoringItemSchema).max(300),
+    learning_scoring: learningScoringSchema.nullable().optional().default(null),
     norm_assignments: z.array(normAssignmentSchema).optional().default([]),
     overall_score: z
       .object({
@@ -208,7 +226,23 @@ const scoringSchema = z
     scoring_version: z.literal("2.0"),
     thresholds: z.array(thresholdSchema).optional().default([]),
   })
-  .strict();
+  .strict()
+  .superRefine((scoring, context) => {
+    if (scoring.assessment_domain === "learning" && !scoring.learning_scoring) {
+      context.addIssue({
+        code: "custom",
+        message: "learning_scoring is required for the learning domain.",
+        path: ["learning_scoring"],
+      });
+    }
+    if (scoring.assessment_domain !== "learning" && scoring.learning_scoring) {
+      context.addIssue({
+        code: "custom",
+        message: "learning_scoring is only valid for the learning domain.",
+        path: ["learning_scoring"],
+      });
+    }
+  });
 
 const v2EnvelopeSchema = z
   .object({
@@ -290,6 +324,12 @@ export function buildScoringDefinitionFromImportV2(
       outputRange: composite.output_range,
       title: composite.title,
     })),
+    learningScoring: document.scoring.learning_scoring
+      ? {
+          initialWeight: document.scoring.learning_scoring.initial_weight,
+          recoveryWeight: document.scoring.learning_scoring.recovery_weight,
+        }
+      : null,
     normAssignments: document.scoring.norm_assignments.map((assignment) => ({
       normScaleCode: assignment.norm_scale_code,
       normSetId: assignment.norm_set_id,
@@ -458,23 +498,58 @@ function validateV2CrossReferences(document: TalviaTestImportDocumentV2) {
   for (const composite of document.scoring.composites) {
     if (
       composite.inputs.some(
-        (input) => input.source === "criterion" && input.score_key !== "criterion_total",
+        (input) =>
+          input.source === "criterion" &&
+          !DERIVED_CRITERION_SCORE_IDS.includes(
+            input.score_key as (typeof DERIVED_CRITERION_SCORE_IDS)[number],
+          ),
       )
     ) {
       throw new JsonDocumentError(
-        "Imported composites may reference criterion_total, dimensions, or other composites; per-question criterion IDs are assigned by the database.",
+        "Imported composites may reference derived criterion totals, dimensions, or other composites; per-question criterion IDs are assigned by the database.",
       );
     }
   }
   if (
     document.scoring.overall_score?.source_type === "criterion" &&
-    document.scoring.overall_score.source_key !== "criterion_total"
+      !DERIVED_CRITERION_SCORE_IDS.includes(
+        document.scoring.overall_score.source_key as (typeof DERIVED_CRITERION_SCORE_IDS)[number],
+      )
   ) {
-    throw new JsonDocumentError("Criterion overall_score must reference 'criterion_total'.");
+    throw new JsonDocumentError("Criterion overall_score must reference a supported derived criterion score.");
+  }
+
+  if (document.scoring.assessment_domain === "learning") {
+    const remediationParents = questions.filter(
+      (question) =>
+        question.type === "single_choice" && Boolean(question.remediation_question_key),
+    );
+    if (remediationParents.length === 0) {
+      throw new JsonDocumentError(
+        "A learning assessment must contain at least one single_choice remediation link.",
+      );
+    }
+    if (
+      document.scoring.overall_score?.source_type !== "criterion" ||
+      document.scoring.overall_score.source_key !== "learning_final"
+    ) {
+      throw new JsonDocumentError(
+        "A learning assessment overall_score must reference criterion 'learning_final'.",
+      );
+    }
+    if (
+      document.scoring.items.some(
+        (item) => item.scoring_model !== "criterion" || item.min_points !== 0,
+      )
+    ) {
+      throw new JsonDocumentError(
+        "Learning assessments currently require criterion items with min_points equal to 0.",
+      );
+    }
   }
 
   const validation = validateScoringDefinitionV2({
-    criterionScoreIds: ["criterion_total"],
+    criterionScoreIds: DERIVED_CRITERION_SCORE_IDS,
     definition: buildScoringDefinitionFromImportV2(document),
     forPublication: true,
     items: buildScoringItemsFromImportV2(document),
