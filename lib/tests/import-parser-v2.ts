@@ -547,6 +547,39 @@ function validateV2CrossReferences(document: TalviaTestImportDocumentV2) {
       );
     }
   }
+  if (document.scoring.assessment_domain === "attention") {
+    if (
+      document.scoring.overall_score?.source_type !== "criterion" ||
+      document.scoring.overall_score.source_key !== "attention_accuracy"
+    ) {
+      throw new JsonDocumentError(
+        "An attention assessment overall_score must reference criterion 'attention_accuracy'.",
+      );
+    }
+    if (
+      document.scoring.items.some(
+        (item) =>
+          item.scoring_model !== "criterion" ||
+          item.strategy === "scale_value" ||
+          item.min_points !== 0,
+      )
+    ) {
+      throw new JsonDocumentError(
+        "Attention assessments require objective criterion items with min_points equal to 0.",
+      );
+    }
+    if (
+      questions.some(
+        (question) =>
+          "remediation_question_key" in question &&
+          Boolean(question.remediation_question_key),
+      )
+    ) {
+      throw new JsonDocumentError(
+        "Attention assessments cannot contain remediation branches.",
+      );
+    }
+  }
 
   const validation = validateScoringDefinitionV2({
     criterionScoreIds: DERIVED_CRITERION_SCORE_IDS,

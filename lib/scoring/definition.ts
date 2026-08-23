@@ -325,6 +325,30 @@ export const scoringDefinitionV2Schema = z
         path: ["learningScoring"],
       });
     }
+    if (
+      definition.assessmentDomain === "learning" &&
+      (definition.resultShape !== "score" ||
+        definition.overallScore?.sourceType !== "criterion" ||
+        definition.overallScore.sourceId !== "learning_final")
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Learning assessments require score resultShape and learning_final overallScore.",
+        path: ["overallScore"],
+      });
+    }
+    if (
+      definition.assessmentDomain === "attention" &&
+      (definition.resultShape !== "score" ||
+        definition.overallScore?.sourceType !== "criterion" ||
+        definition.overallScore.sourceId !== "attention_accuracy")
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Attention assessments require score resultShape and attention_accuracy overallScore.",
+        path: ["overallScore"],
+      });
+    }
     if (definition.assessmentDomain !== "learning" && definition.learningScoring) {
       context.addIssue({
         code: "custom",
@@ -413,6 +437,19 @@ export function validateScoringDefinitionV2(input: {
     issues.push(issue(
       "INVALID_SCORING_DEFINITION",
       "Learning assessments currently support criterion and open-text items only.",
+      "items",
+    ));
+  }
+  if (
+    definition.assessmentDomain === "attention" &&
+    items.some(
+      (item) =>
+        item.scoringModel !== "criterion" || item.questionType === "scale",
+    )
+  ) {
+    issues.push(issue(
+      "INVALID_SCORING_DEFINITION",
+      "Attention assessments currently require objective criterion items.",
       "items",
     ));
   }

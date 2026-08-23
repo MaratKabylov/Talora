@@ -144,6 +144,24 @@ const learningMetricsSchema = z
   })
   .strict();
 
+const attentionMetricsSchema = z
+  .object({
+    accuracy: z.number().finite().min(0).max(100).nullable(),
+    answered_count: z.number().int().min(0),
+    completion_rate: z.number().finite().min(0).max(100).nullable(),
+    correct_count: z.number().int().min(0),
+    false_negative_count: z.number().int().min(0).nullable(),
+    false_positive_count: z.number().int().min(0).nullable(),
+    incorrect_count: z.number().int().min(0),
+    mean_response_time_ms: z.number().finite().min(0).nullable(),
+    median_response_time_ms: z.number().finite().min(0).nullable(),
+    omitted_count: z.number().int().min(0),
+    speed_percentile: z.null(),
+    timed_items: z.number().int().min(0),
+    total_items: z.number().int().min(0),
+  })
+  .strict();
+
 export const scoringResultV2Schema = z
   .object({
     assessmentDomain: z.enum(ASSESSMENT_DOMAINS),
@@ -154,10 +172,13 @@ export const scoringResultV2Schema = z
     forcedChoiceScores: z.array(forcedChoiceScoreSchema),
     interpretation: scoreThresholdSchema.nullable().optional().default(null),
     metrics: z
-      .object({ learning: learningMetricsSchema.nullable() })
+      .object({
+        attention: attentionMetricsSchema.nullable().optional().default(null),
+        learning: learningMetricsSchema.nullable().optional().default(null),
+      })
       .strict()
       .optional()
-      .default({ learning: null }),
+      .default({ attention: null, learning: null }),
     overallScore: z.number().finite().min(0).max(100).nullable(),
     resultShape: z.enum(RESULT_SHAPES),
     scaleScores: z.array(scoreValueSchema),

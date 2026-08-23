@@ -48,6 +48,10 @@ test("talvia.test.v2 exposes explicit item models and score interpretation", () 
     JSON.stringify(publicSchema.properties.scoring.properties.assessment_domain),
     /learning/,
   );
+  assert.match(
+    JSON.stringify(publicSchema.properties.scoring.properties.assessment_domain),
+    /attention/,
+  );
 });
 
 test("v2 database import wraps v1 atomically and maps option keys to stored UUIDs", () => {

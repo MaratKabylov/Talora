@@ -85,6 +85,7 @@ export type LegacyAnswerRecord = {
   question_id: string;
   selected_option_id: string | null;
   session_id: string;
+  time_spent_seconds?: number | null;
 };
 
 export type LegacyCompetencyTotal = {

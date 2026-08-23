@@ -5,6 +5,7 @@ import {
   SCORING_ENGINE_VERSION,
   SCORING_SCHEMA_VERSION,
   ScoringDomainError,
+  type AttentionMetrics,
   type ForcedChoiceScoreValue,
   type LearningMetrics,
   type ScoreValue,
@@ -14,6 +15,7 @@ import {
 } from "./types.ts";
 
 export type BuildScoringResultInput = {
+  attentionMetrics?: AttentionMetrics | null;
   criterionScores: readonly ScoreValue[];
   definition: ScoringDefinitionV2;
   definitionVersionId: string;
@@ -69,7 +71,10 @@ export function buildScoringResultV2(input: BuildScoringResultInput): ScoringRes
     engineVersion: SCORING_ENGINE_VERSION,
     forcedChoiceScores: [...(input.forcedChoiceScores ?? [])],
     interpretation: interpretScore(overallScore, input.definition.thresholds),
-    metrics: { learning: input.learningMetrics ?? null },
+    metrics: {
+      attention: input.attentionMetrics ?? null,
+      learning: input.learningMetrics ?? null,
+    },
     overallScore,
     resultShape: input.definition.resultShape,
     scaleScores: [...input.scaleScores],

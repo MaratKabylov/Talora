@@ -19,6 +19,7 @@ import {
 } from "./models/forced-choice.ts";
 import { scoreScales, type ScaleItemResponse } from "./models/scale.ts";
 import { normalizeScore, roundOutput } from "./normalization.ts";
+import { scoreAttention, type AttentionItemInput } from "./models/attention.ts";
 import { scoreLearning, type LearningItemInput } from "./models/learning.ts";
 import {
   DERIVED_CRITERION_SCORE_IDS,
@@ -137,6 +138,19 @@ function scoreV2Session(
   if (learningResult) {
     criterionScores.push(...learningResult.scores);
   }
+  const attentionResult = definition.assessmentDomain === "attention"
+    ? scoreAttention(
+        buildAttentionItems(
+          criterionItems,
+          questionById,
+          answerByQuestion,
+          answerScores,
+        ),
+      )
+    : null;
+  if (attentionResult) {
+    criterionScores.push(...attentionResult.scores);
+  }
 
   const scaleItems: ScaleItemResponse[] = items.flatMap((item) => {
     if (item.scoringModel !== "scale") return [];
@@ -190,6 +204,7 @@ function scoreV2Session(
 
   const openTextItems = items.filter((item) => item.scoringModel === null);
   const warnings: ScoringWarning[] = [
+    ...(attentionResult?.warnings ?? []),
     ...(learningResult?.warnings ?? []),
     ...scaleResult.warnings,
     ...forcedChoiceResult.warnings,
@@ -203,6 +218,7 @@ function scoreV2Session(
   }
 
   const scoringResult = buildScoringResultV2({
+    attentionMetrics: attentionResult?.metrics,
     criterionScores,
     definition,
     definitionVersionId: session.test_version_id,
@@ -211,7 +227,7 @@ function scoreV2Session(
     scaleScores: scaleResult.scores,
     status: requiresReview
       ? "requires_review"
-      : learningResult?.warnings.length
+      : learningResult?.warnings.length || attentionResult?.warnings.length
         ? "partial"
         : undefined,
     warnings,
@@ -222,7 +238,9 @@ function scoreV2Session(
     scaleResult.scores,
     forcedChoiceResult.scores,
   );
-  const criterionTotal = definition.assessmentDomain === "learning"
+  const criterionTotal =
+    definition.assessmentDomain === "learning" ||
+    definition.assessmentDomain === "attention"
     ? null
     : criterionScores.find((score) => score.id === "criterion_total");
   const criterionMax = criterionItems.reduce((sum, item) => sum + item.config.maxPoints, 0);
@@ -249,6 +267,36 @@ function scoreV2Session(
       session,
     },
   };
+}
+
+function buildAttentionItems(
+  items: Extract<ReturnType<typeof validateScoringDefinitionV2>, { ok: true }>["items"],
+  questionById: Map<string, LegacyQuestionRecord>,
+  answerByQuestion: Map<string, LegacyAnswerRecord>,
+  answerScores: Map<string, LegacyAnswerScore>,
+): AttentionItemInput[] {
+  const criterionItems = items.filter((item) => item.scoringModel === "criterion");
+  if (
+    criterionItems.some((item) =>
+      typeof questionById.get(item.id)?.settings_json?.remediationQuestionId === "string",
+    )
+  ) {
+    throw new ScoringDomainError(
+      "INVALID_SCORING_DEFINITION",
+      "Attention assessments cannot contain remediation branches.",
+      "items",
+    );
+  }
+  return criterionItems.map((item) => {
+    const answer = answerByQuestion.get(item.id);
+    const scoredAnswer = answer ? answerScores.get(answer.id) : null;
+    return {
+      answered: Boolean(answer && answer.answer_json?.skipped !== true),
+      isCorrect: scoredAnswer?.isCorrect ?? null,
+      itemId: item.id,
+      timeSpentSeconds: answer?.time_spent_seconds ?? null,
+    };
+  });
 }
 
 function buildLearningItems(

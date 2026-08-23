@@ -24,6 +24,7 @@
 - Для knowledge-уровней задавайте полный упорядоченный массив `thresholds`, покрывающий 0–100 без пересечений. Если он отсутствует, применяются legacy-уровни совместимости.
 - Не выдавайте normalized score за percentile, sten или norm score. `norm_assignments` допустимы только при наличии реального опубликованного набора норм точной версии.
 - Для learning обязательно сохраняйте связь исходного `single_choice` с feedback и recovery-вопросом через `remediation_question_key`, задавайте `assessment_domain: "learning"`, `learning_scoring` и направляйте `overall_score` на criterion `learning_final`. Веса `initial_weight` и `recovery_weight` должны суммироваться в 1.
+- Для attention используйте объективные criterion items без remediation и направляйте `overall_score` на criterion `attention_accuracy`. Время ответа сохраняется как наблюдаемая метрика; не создавайте формулу, превращающую миллисекунды в score или percentile.
 
 Каждый автоматически оцениваемый вопрос V2 должен иметь ровно один элемент `scoring.items` с тем же `question_key`; `open_text` не должен иметь автоматический scoring item. Все ссылки на dimensions, composites и option keys проверяются до записи в базу.
 
@@ -82,6 +83,7 @@
 - не генерируй percentile, sten или нормативы без предоставленного опубликованного norm set;
 - для Forced Choice сопоставь каждый option_key ровно один раз и используй method "ipsative";
 - для learning используй criterion items с min_points 0, добавь минимум одну remediation-пару и установи overall_score в {"source_type":"criterion","source_key":"learning_final"};
+- для attention используй criterion items с min_points 0 без remediation и установи overall_score в {"source_type":"criterion","source_key":"attention_accuracy"};
 - все key должны быть уникальными, стабильными и машиночитаемыми;
 - не используй чувствительные признаки кандидата в вопросах или scoring.
 ```

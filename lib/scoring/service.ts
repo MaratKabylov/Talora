@@ -17,6 +17,7 @@ import {
   type LegacySessionScore as SessionScore,
 } from "@/lib/scoring/models/legacy-session";
 import { scoreSession } from "@/lib/scoring/session";
+import type { ScoringResultV2 } from "@/lib/scoring/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Relation<T> = T | T[] | null;
@@ -145,6 +146,27 @@ function recommendationFromScore(value: number | null) {
   return "not_recommended";
 }
 
+function getV2MetricsSummary(result: ScoringResultV2 | null) {
+  const attention = result?.metrics.attention;
+  if (attention) {
+    const accuracy = attention.accuracy === null
+      ? "нет данных"
+      : `${attention.accuracy}%`;
+    const time = attention.median_response_time_ms === null
+      ? "нет данных"
+      : `${attention.median_response_time_ms} мс`;
+    return `Точность: ${accuracy}. Ошибки: ${attention.incorrect_count}. Пропуски: ${attention.omitted_count}. Медианное время ответа: ${time}.`;
+  }
+  const learning = result?.metrics.learning;
+  if (learning) {
+    const initial = learning.initial_score === null ? "нет данных" : `${learning.initial_score}%`;
+    const recovery = learning.recovery_rate === null ? "не применимо" : `${learning.recovery_rate}%`;
+    const final = learning.final_score === null ? "нет данных" : `${learning.final_score}%`;
+    return `Первичный результат: ${initial}. Recovery: ${recovery}. Learning gain: ${learning.learning_gain ?? "нет данных"}. Итог: ${final}.`;
+  }
+  return null;
+}
+
 function combineCompetencies(sessionScores: SessionScore[]) {
   const totals = new Map<CompetencyKey, CompetencyTotal>();
 
@@ -261,7 +283,7 @@ export async function scoreCompletedApplication(applicationId: string) {
       .in("test_version_id", testVersionIds),
     admin
       .from("candidate_answers")
-      .select("id, session_id, question_id, selected_option_id, answer_text, answer_json")
+      .select("id, session_id, question_id, selected_option_id, answer_text, answer_json, time_spent_seconds")
       .in("session_id", sessionIds),
   ]);
 
@@ -343,7 +365,7 @@ export async function scoreCompletedApplication(applicationId: string) {
         scoring_engine_version: score.scoringResult?.engineVersion ?? null,
         scoring_result_json: score.scoringResult,
         session_id: score.session.id,
-        summary: score.requiresReview
+        summary: (!score.requiresReview ? getV2MetricsSummary(score.scoringResult) : null) ?? (score.requiresReview
           ? "Содержит ответы, требующие ручной проверки."
           : score.hasForcedChoice && score.percentage !== null
             ? `Качество рабочих решений: ${score.percentage} / 100. Forced Choice формирует отдельный профиль компетенций.`
@@ -351,7 +373,7 @@ export async function scoreCompletedApplication(applicationId: string) {
               ? "Forced Choice формирует профиль компетенций без оценки правильности."
           : score.scoringType === "competency_profile"
             ? "Профильная шкала без оценки правильности."
-            : null,
+            : null),
         test_version_id: score.session.test_version_id,
         level: getResultLevel(
           score.percentage,
@@ -675,7 +697,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
       .in("test_version_id", testVersionIds),
     admin
       .from("employee_assessment_answers")
-      .select("id, session_id, question_id, selected_option_id, answer_text, answer_json")
+      .select("id, session_id, question_id, selected_option_id, answer_text, answer_json, time_spent_seconds")
       .in("session_id", sessionIds),
   ]);
 
@@ -757,7 +779,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
         scoring_engine_version: score.scoringResult?.engineVersion ?? null,
         scoring_result_json: score.scoringResult,
         session_id: score.session.id,
-        summary: score.requiresReview
+        summary: (!score.requiresReview ? getV2MetricsSummary(score.scoringResult) : null) ?? (score.requiresReview
           ? "Содержит ответы, требующие ручной проверки."
           : score.hasForcedChoice && score.percentage !== null
             ? `Качество рабочих решений: ${score.percentage} / 100. Forced Choice формирует отдельный профиль компетенций.`
@@ -765,7 +787,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
               ? "Forced Choice формирует профиль компетенций без оценки правильности."
           : score.scoringType === "competency_profile"
             ? "Профильная шкала без оценки правильности."
-            : null,
+            : null),
         test_version_id: score.session.test_version_id,
         level: getResultLevel(
           score.percentage,

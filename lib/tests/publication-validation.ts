@@ -170,6 +170,24 @@ export function validateQuestionsForPublication(
         return "Learning criterion items must use minPoints equal to 0.";
       }
     }
+    if (definition.assessmentDomain === "attention") {
+      const questions = sections.flatMap((section) => section.questions ?? []);
+      if (
+        questions.some(
+          (question) =>
+            typeof question.settings_json?.remediationQuestionId === "string",
+        )
+      ) {
+        return "Attention assessment cannot contain remediation branches.";
+      }
+      if (
+        validation.items.some(
+          (item) => item.scoringModel === "criterion" && (item.config.minPoints ?? 0) !== 0,
+        )
+      ) {
+        return "Attention criterion items must use minPoints equal to 0.";
+      }
+    }
   }
 
   return null;

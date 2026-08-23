@@ -29,6 +29,7 @@ export const DERIVED_CRITERION_SCORE_IDS = [
   "learning_initial",
   "learning_recovery",
   "learning_final",
+  "attention_accuracy",
 ] as const;
 
 export type AssessmentDomain = (typeof ASSESSMENT_DOMAINS)[number];
@@ -183,6 +184,22 @@ export type LearningMetrics = {
   items: LearningItemResult[];
 };
 
+export type AttentionMetrics = {
+  accuracy: number | null;
+  answered_count: number;
+  completion_rate: number | null;
+  correct_count: number;
+  false_negative_count: number | null;
+  false_positive_count: number | null;
+  incorrect_count: number;
+  mean_response_time_ms: number | null;
+  median_response_time_ms: number | null;
+  omitted_count: number;
+  speed_percentile: null;
+  timed_items: number;
+  total_items: number;
+};
+
 export type ScoringDefinitionV2 = {
   assessmentDomain: AssessmentDomain;
   composites: CompositeDefinition[];
@@ -262,6 +279,7 @@ export type ScoringResultV2 = {
   forcedChoiceScores: ForcedChoiceScoreValue[];
   interpretation: ScoreThreshold | null;
   metrics: {
+    attention: AttentionMetrics | null;
     learning: LearningMetrics | null;
   };
   overallScore: number | null;

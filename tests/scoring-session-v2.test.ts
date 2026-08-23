@@ -49,7 +49,7 @@ function answer(
 }
 
 function v2Session(input: {
-  assessmentDomain: "knowledge" | "learning" | "personality";
+  assessmentDomain: "attention" | "knowledge" | "learning" | "personality";
   definition: Record<string, unknown>;
   resultShape: "score" | "profile";
   scoringType: "points" | "competency_profile";
@@ -244,6 +244,54 @@ test("v2 learning keeps initial and recovery performance separate", () => {
   assert.equal(result.score.percentage, 80);
   assert.equal(result.score.rawScore, 80);
   assert.equal(result.score.maxScore, 100);
+});
+
+test("v2 attention uses accuracy as overall and preserves observed time", () => {
+  const questions: LegacyQuestionRecord[] = ["q1", "q2", "q3"].map((id) => ({
+    answer_options: [
+      option(`${id}-wrong`, { is_correct: false, points: 0 }),
+      option(`${id}-correct`, { is_correct: true, points: 1 }),
+    ],
+    competency_key: "attention_to_detail",
+    id,
+    points: 1,
+    question_type: "single_choice",
+    scoring_config_json: {
+      maxPoints: 1,
+      minPoints: 0,
+      strategy: "single_choice_points",
+    },
+    scoring_model: "criterion",
+    settings_json: null,
+  }));
+  const result = scoreSession(
+    v2Session({
+      assessmentDomain: "attention",
+      definition: {
+        composites: [],
+        normAssignments: [],
+        overallScore: { sourceId: "attention_accuracy", sourceType: "criterion" },
+        scales: [],
+      },
+      resultShape: "score",
+      scoringType: "points",
+    }),
+    packageTest,
+    questions,
+    [
+      answer("a1", "q1", { selected_option_id: "q1-correct", time_spent_seconds: 2 }),
+      answer("a2", "q2", { selected_option_id: "q2-wrong", time_spent_seconds: 6 }),
+    ],
+  );
+
+  const metrics = result.score.scoringResult?.metrics.attention;
+  assert.equal(metrics?.accuracy, 50);
+  assert.equal(metrics?.completion_rate, 66.666667);
+  assert.equal(metrics?.omitted_count, 1);
+  assert.equal(metrics?.mean_response_time_ms, 4_000);
+  assert.equal(metrics?.speed_percentile, null);
+  assert.equal(result.score.percentage, 50);
+  assert.equal(result.score.scoringResult?.status, "partial");
 });
 
 test("versions without the v2 marker always stay on the frozen legacy path", () => {
