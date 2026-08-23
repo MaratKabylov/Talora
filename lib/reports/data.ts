@@ -12,7 +12,10 @@ import {
   normalizeAssessmentCompositeResult,
   type AssessmentCompositeResult,
 } from "@/lib/scoring/models/assessment-composite";
-import { scoringResultV2Schema } from "@/lib/scoring/result";
+import {
+  buildReportScoringDetails,
+  type ReportScoringDetails,
+} from "@/lib/reports/scoring-details";
 
 type Relation<T> = T | T[] | null;
 
@@ -167,17 +170,12 @@ export type ReportTest = {
   answers: ReportAnswer[];
   completedAt: string | null;
   id: string;
-  dimensions: Array<{
-    id: string;
-    normalizedScore: number | null;
-    rawScore: number | null;
-    status: "ok" | "insufficient_data" | "not_applicable";
-  }>;
   level: string | null;
   percentage: number | null;
   rawScore: number | null;
   maxScore: number | null;
   requiresReview: boolean;
+  scoringDetails: ReportScoringDetails | null;
   scoringType: string | null;
   summary: string | null;
   title: string;
@@ -447,7 +445,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   const tests = sessions.map((session) => {
     const version = related(session.test_versions);
     const result = resultsBySession.get(session.id);
-    const scoringResult = scoringResultV2Schema.safeParse(result?.scoring_result_json);
+    const scoringDetails = buildReportScoringDetails(result?.scoring_result_json);
     const answers = (answersBySession.get(session.id) ?? [])
       .flatMap((answer) => {
         const question = related(answer.questions);
@@ -484,20 +482,13 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     return {
       answers,
       completedAt: session.completed_at,
-      dimensions: scoringResult.success
-        ? scoringResult.data.scaleScores.map((dimension) => ({
-            id: dimension.id,
-            normalizedScore: dimension.normalized_score,
-            rawScore: dimension.raw_score,
-            status: dimension.status,
-          }))
-        : [],
       id: session.id,
       level: result?.level ?? null,
       maxScore: result?.max_score ?? null,
       percentage: result?.percentage ?? session.percentage,
       rawScore: result?.raw_score ?? null,
       requiresReview: result?.requires_review ?? false,
+      scoringDetails,
       scoringType: version?.scoring_type ?? null,
       summary: result?.summary ?? null,
       title: version?.title ?? "Тест",

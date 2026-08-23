@@ -2,6 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
 import type { InvitationStatus, Recommendation, RiskLevel } from "@/lib/candidates/constants";
 import type { CompetencyKey } from "@/lib/jobs/constants";
+import {
+  buildReportScoringDetails,
+  type ReportScoringDetails,
+} from "@/lib/reports/scoring-details";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 import { listAccessibleAssessmentPackages } from "@/lib/jobs/package-access";
 
@@ -128,6 +132,7 @@ type SessionRecord = {
     percentage: number | null;
     raw_score: number | null;
     requires_review: boolean;
+    scoring_result_json: unknown;
   }> | null;
   employee_assessment_answers?: EmployeeAnswerRecord[] | null;
   id: string;
@@ -266,6 +271,7 @@ export type EmployeeAssessmentReportData = {
     id: string;
     percentage: number | null;
     resultLevel: string | null;
+    scoringDetails: ReportScoringDetails | null;
     score: number | null;
     status: string;
     testTitle: string;
@@ -552,7 +558,7 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
   const { data, error } = await supabase
     .from("employee_assessment_participants")
     .select(
-      "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, completed_at, score, percentage, test_versions(id, title), employee_assessment_test_results(id, percentage, raw_score, level, requires_review), employee_assessment_answers(id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, order_index, answer_options(id, text, match_text, match_target_id, order_index))))",
+      "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, completed_at, score, percentage, test_versions(id, title), employee_assessment_test_results(id, percentage, raw_score, level, requires_review, scoring_result_json), employee_assessment_answers(id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, order_index, answer_options(id, text, match_text, match_target_id, order_index))))",
     )
     .eq("company_id", companyId)
     .eq("id", participantId)
@@ -637,6 +643,7 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
         id: session.id,
         percentage: session.percentage ?? result?.percentage ?? null,
         resultLevel: result?.level ?? null,
+        scoringDetails: buildReportScoringDetails(result?.scoring_result_json),
         score: session.score ?? result?.raw_score ?? null,
         status: session.status,
         testTitle: version?.title ?? "Тест",

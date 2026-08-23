@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { FeedbackMessage } from "@/components/feedback-message";
+import { ScoringResultDetails } from "@/components/scoring-result-details";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -267,15 +268,18 @@ export default async function EmployeeAssessmentReportPage({
             </table>
           </div>
           <div className="mt-6 space-y-3">
-            <h2 className="font-medium">Ответы сотрудника</h2>
-            {data.sessions.every((session) => session.answers.length === 0) ? (
-              <p className="text-sm text-muted-foreground">Ответы пока отсутствуют.</p>
+            <h2 className="font-medium">Результаты и ответы сотрудника</h2>
+            {data.sessions.every(
+              (session) => session.answers.length === 0 && !session.scoringDetails,
+            ) ? (
+              <p className="text-sm text-muted-foreground">Результаты пока отсутствуют.</p>
             ) : (
               data.sessions.map((session) =>
-                session.answers.length > 0 ? (
+                session.answers.length > 0 || session.scoringDetails ? (
                   <details className="rounded-lg border p-4" key={session.id}>
                     <summary className="cursor-pointer font-medium">{session.testTitle}</summary>
                     <div className="mt-4 space-y-4 border-t pt-4">
+                      <ScoringResultDetails details={session.scoringDetails} />
                       {session.answers.map((answer, index) => (
                         <div className="space-y-2 text-sm" key={`${session.id}-${index}`}>
                           <div className="flex flex-wrap justify-between gap-3">
