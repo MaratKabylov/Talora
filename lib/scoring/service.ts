@@ -7,7 +7,6 @@ import {
 } from "@/lib/jobs/constants";
 import { calculateFitScore } from "@/lib/scoring/fit-score";
 import {
-  scoreLegacySession as scoreSession,
   type LegacyAnswerRecord as AnswerRecord,
   type LegacyCompetencyTotal as CompetencyTotal,
   type LegacyPackageTestRecord as PackageTestRecord,
@@ -17,6 +16,7 @@ import {
   type LegacySessionRecord as SessionRecord,
   type LegacySessionScore as SessionScore,
 } from "@/lib/scoring/models/legacy-session";
+import { scoreSession } from "@/lib/scoring/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Relation<T> = T | T[] | null;
@@ -212,7 +212,7 @@ export async function scoreCompletedApplication(applicationId: string) {
   const [sessionsResult, packageTestsResult, weightsResult] = await Promise.all([
     admin
       .from("test_sessions")
-      .select("id, status, test_version_id, test_versions(title, scoring_type)")
+      .select("id, status, test_version_id, test_versions(title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)")
       .eq("application_id", applicationId),
     admin
       .from("assessment_package_tests")
@@ -247,7 +247,7 @@ export async function scoreCompletedApplication(applicationId: string) {
     admin
       .from("test_sections")
       .select(
-        "test_version_id, questions(id, question_type, points, competency_key, settings_json, answer_options(id, is_correct, points, competency_effect_json, match_target_id, order_index))",
+        "test_version_id, questions(id, question_type, points, competency_key, settings_json, scoring_model, scoring_config_json, answer_options(id, is_correct, points, competency_effect_json, match_target_id, order_index))",
       )
       .in("test_version_id", testVersionIds),
     admin
@@ -330,6 +330,9 @@ export async function scoreCompletedApplication(applicationId: string) {
         percentage: score.percentage,
         raw_score: score.rawScore,
         requires_review: score.requiresReview,
+        scored_at: score.scoringResult?.scoredAt ?? null,
+        scoring_engine_version: score.scoringResult?.engineVersion ?? null,
+        scoring_result_json: score.scoringResult,
         session_id: score.session.id,
         summary: score.requiresReview
           ? "Содержит ответы, требующие ручной проверки."
@@ -618,7 +621,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
   const [sessionsResult, packageTestsResult, weightsResult] = await Promise.all([
     admin
       .from("employee_assessment_sessions")
-      .select("id, status, test_version_id, test_versions(title, scoring_type)")
+      .select("id, status, test_version_id, test_versions(title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)")
       .eq("participant_id", participantId),
     admin
       .from("assessment_package_tests")
@@ -653,7 +656,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
     admin
       .from("test_sections")
       .select(
-        "test_version_id, questions(id, question_type, points, competency_key, settings_json, answer_options(id, is_correct, points, competency_effect_json, match_target_id, order_index))",
+        "test_version_id, questions(id, question_type, points, competency_key, settings_json, scoring_model, scoring_config_json, answer_options(id, is_correct, points, competency_effect_json, match_target_id, order_index))",
       )
       .in("test_version_id", testVersionIds),
     admin
@@ -736,6 +739,9 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
         percentage: score.percentage,
         raw_score: score.rawScore,
         requires_review: score.requiresReview,
+        scored_at: score.scoringResult?.scoredAt ?? null,
+        scoring_engine_version: score.scoringResult?.engineVersion ?? null,
+        scoring_result_json: score.scoringResult,
         session_id: score.session.id,
         summary: score.requiresReview
           ? "Содержит ответы, требующие ручной проверки."
@@ -982,5 +988,52 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
     recommendation,
     requiresReview,
     riskLevel,
+  };
+}
+
+/**
+ * Rebuilds a completed assessment from persisted raw answers. The parent-level
+ * scorer is used deliberately so aggregate competencies, fit and reports stay
+ * consistent with the replaced session snapshot.
+ */
+export async function recalculateSessionScore(sessionId: string) {
+  const admin = createAdminClient();
+  const { data: candidateSession, error: candidateError } = await admin
+    .from("test_sessions")
+    .select("application_id, status")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (candidateError) {
+    throw new Error("Unable to locate candidate session for recalculation.");
+  }
+  if (candidateSession) {
+    if (candidateSession.status !== "completed") {
+      throw new Error("Only completed sessions can be recalculated.");
+    }
+    return {
+      scope: "candidate" as const,
+      result: await scoreCompletedApplication(candidateSession.application_id as string),
+    };
+  }
+
+  const { data: employeeSession, error: employeeError } = await admin
+    .from("employee_assessment_sessions")
+    .select("participant_id, status")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (employeeError) {
+    throw new Error("Unable to locate employee session for recalculation.");
+  }
+  if (!employeeSession) {
+    throw new Error("Assessment session was not found.");
+  }
+  if (employeeSession.status !== "completed") {
+    throw new Error("Only completed sessions can be recalculated.");
+  }
+  return {
+    scope: "employee" as const,
+    result: await scoreCompletedEmployeeAssessmentParticipant(
+      employeeSession.participant_id as string,
+    ),
   };
 }

@@ -31,6 +31,10 @@ export type LegacyScoringType = "points" | "competency_profile" | "manual" | "mi
 export type LegacyRelation<T> = T | T[] | null;
 
 export type LegacyVersionRecord = {
+  assessment_domain?: string | null;
+  result_shape?: string | null;
+  scoring_config_json?: unknown;
+  scoring_schema_version?: string | null;
   scoring_type: LegacyScoringType;
   title: string;
 };
@@ -64,6 +68,8 @@ export type LegacyQuestionRecord = {
   id: string;
   points: number;
   question_type: QuestionType;
+  scoring_config_json?: unknown;
+  scoring_model?: "criterion" | "scale" | "forced_choice" | null;
   settings_json: QuestionSettings | null;
 };
 

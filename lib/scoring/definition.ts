@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   ASSESSMENT_DOMAINS,
+  CRITERION_STRATEGIES,
   FORCED_CHOICE_METHODS,
   RESULT_SHAPES,
   SCORING_SCHEMA_VERSION,
@@ -17,9 +18,7 @@ const stableKeySchema = z
   .max(160)
   .regex(/^[a-z][a-z0-9_.-]*$/i, "Use a stable machine-readable key.");
 const entityIdSchema = z.string().trim().min(1).max(160);
-const finiteNonZeroSchema = z.number().finite().refine((value) => value !== 0, {
-  message: "Weight must be non-zero.",
-});
+const positiveWeightSchema = z.number().finite().gt(0, "Weight must be greater than zero.");
 const optionalTextSchema = z.string().trim().min(1).max(4_000).nullable().optional();
 
 export const scaleDefinitionSchema = z
@@ -55,14 +54,14 @@ export const criterionScoringConfigSchema = z
         z
           .object({
             competencyId: stableKeySchema,
-            weight: finiteNonZeroSchema,
+            weight: positiveWeightSchema,
           })
           .strict(),
       )
       .optional(),
     maxPoints: z.number().finite(),
     minPoints: z.number().finite().optional().default(0),
-    strategy: stableKeySchema,
+    strategy: z.enum(CRITERION_STRATEGIES),
   })
   .strict()
   .superRefine((config, context) => {
@@ -83,7 +82,7 @@ export const scaleScoringConfigSchema = z
           .object({
             direction: z.union([z.literal(1), z.literal(-1)]),
             scaleId: stableKeySchema,
-            weight: finiteNonZeroSchema,
+            weight: positiveWeightSchema,
           })
           .strict(),
       )
@@ -179,7 +178,7 @@ const compositeDefinitionSchema = z
             scoreId: entityIdSchema,
             source: z.enum(["criterion", "scale", "composite"]),
             value: z.enum(["raw_score", "normalized_score", "norm_score"]),
-            weight: finiteNonZeroSchema,
+            weight: positiveWeightSchema,
           })
           .strict(),
       )
@@ -314,6 +313,22 @@ export function validateScoringDefinitionV2(input: {
   ]);
 
   items.forEach((item, itemIndex) => {
+    if (item.scoringModel === "criterion") {
+      const expectedStrategy = {
+        matching: "matching",
+        multiple_choice: "multiple_choice_v1",
+        ordering: "ordering",
+        scale: "scale_value",
+        single_choice: "single_choice_points",
+      } as const;
+      if (item.config.strategy !== expectedStrategy[item.questionType]) {
+        issues.push(issue(
+          "INVALID_SCORING_DEFINITION",
+          `Criterion strategy '${item.config.strategy}' is incompatible with '${item.questionType}'.`,
+          `items.${itemIndex}.config.strategy`,
+        ));
+      }
+    }
     if (item.scoringModel === "scale") {
       item.config.bindings.forEach((binding, bindingIndex) => {
         if (!scaleIds.has(binding.scaleId)) {

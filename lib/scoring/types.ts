@@ -14,12 +14,20 @@ export const ASSESSMENT_DOMAINS = [
 export const RESULT_SHAPES = ["score", "profile", "hybrid"] as const;
 export const SCORING_MODELS = ["criterion", "scale", "forced_choice", "composite"] as const;
 export const FORCED_CHOICE_METHODS = ["ipsative", "thurstonian_irt"] as const;
+export const CRITERION_STRATEGIES = [
+  "single_choice_points",
+  "multiple_choice_v1",
+  "scale_value",
+  "ordering",
+  "matching",
+] as const;
 
 export type AssessmentDomain = (typeof ASSESSMENT_DOMAINS)[number];
 export type ResultShape = (typeof RESULT_SHAPES)[number];
 export type ScoringModel = (typeof SCORING_MODELS)[number];
 export type PrimaryScoringModel = Exclude<ScoringModel, "composite">;
 export type ForcedChoiceMethod = (typeof FORCED_CHOICE_METHODS)[number];
+export type CriterionStrategy = (typeof CRITERION_STRATEGIES)[number];
 
 export type ScaleDefinition = {
   aggregation: "sum" | "mean";
@@ -53,7 +61,7 @@ export type CriterionScoringConfig = {
   }>;
   maxPoints: number;
   minPoints?: number;
-  strategy: string;
+  strategy: CriterionStrategy;
 };
 
 export type ForcedChoiceScoringConfig = {

@@ -167,6 +167,24 @@ test("definition validation separates response type from scoring model", () => {
   });
   assert.equal(incompatible.ok, false);
   assert.equal(incompatible.issues[0].code, "INVALID_SCORING_DEFINITION");
+
+  const negativeWeight = validateScoringDefinitionV2({
+    definition: definition({ scales: [scale()] }),
+    items: [
+      {
+        config: {
+          bindings: [{ direction: 1, scaleId: "scale_achievement", weight: -1 }],
+          responseMax: 5,
+          responseMin: 1,
+        },
+        id: "q_negative_weight",
+        questionType: "scale",
+        scoringModel: "scale",
+      },
+    ],
+  });
+  assert.equal(negativeWeight.ok, false);
+  assert.match(negativeWeight.issues[0].message, /greater than zero/);
 });
 
 test("publication validation catches unknown scales, cycles and unsupported TIRT", () => {
