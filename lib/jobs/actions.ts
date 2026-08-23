@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireCompanyContext } from "@/lib/auth/context";
+import { profileTargetListSchema } from "@/lib/scoring/profile-fit";
 import { createClient } from "@/lib/supabase/server";
 
 import {
@@ -119,6 +120,15 @@ async function isAvailablePackage(
   packageId: string | null,
 ) {
   return isAssessmentPackageAvailable(supabase, companyId, packageId);
+}
+
+function parseProfileTarget(formData: FormData, key: string) {
+  const rawValue = formString(formData, key);
+  try {
+    return profileTargetListSchema.safeParse(JSON.parse(rawValue || "[]"));
+  } catch {
+    return profileTargetListSchema.safeParse(null);
+  }
 }
 
 function weightsToRows(
@@ -291,4 +301,49 @@ export async function updateJobWeightsAction(formData: FormData) {
 
   revalidatePath(path);
   redirectWithFeedback(path, "message", "Веса компетенций обновлены.");
+}
+
+export async function updateJobProfileTargetsAction(formData: FormData) {
+  const jobId = z.string().uuid().safeParse(formString(formData, "jobId"));
+
+  if (!jobId.success) {
+    redirect("/dashboard/jobs");
+  }
+
+  const path = getJobPath(jobId.data);
+  const context = await requireCompanyContext();
+
+  if (!canManageJobs(context.activeCompany.role)) {
+    redirectWithFeedback(path, "error", "У вашей роли нет права изменять целевые профили.");
+  }
+
+  const motivationTargets = parseProfileTarget(formData, "motivationTargetProfile");
+  const behaviorTargets = parseProfileTarget(formData, "behaviorTargetProfile");
+
+  if (!motivationTargets.success) {
+    redirectWithFeedback(path, "error", `Некорректный motivation profile: ${motivationTargets.error.issues[0].message}`);
+  }
+
+  if (!behaviorTargets.success) {
+    redirectWithFeedback(path, "error", `Некорректный behavior profile: ${behaviorTargets.error.issues[0].message}`);
+  }
+
+  const supabase = await createClient();
+  const { data: updatedJob, error } = await supabase
+    .from("jobs")
+    .update({
+      behavior_target_profile_json: behaviorTargets.data,
+      motivation_target_profile_json: motivationTargets.data,
+    })
+    .eq("company_id", context.activeCompany.id)
+    .eq("id", jobId.data)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !updatedJob) {
+    redirectWithFeedback(path, "error", "Не удалось сохранить целевые профили вакансии.");
+  }
+
+  revalidatePath(path);
+  redirectWithFeedback(path, "message", "Целевые профили вакансии обновлены.");
 }

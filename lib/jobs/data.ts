@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { normalizeProfileTargets, type ProfileTarget } from "@/lib/scoring/profile-fit";
 
 import type { CompetencyKey, EmploymentType, JobStatus } from "./constants";
 import { listAccessibleAssessmentPackages } from "./package-access";
@@ -16,12 +17,14 @@ type PackageRelation = PackageRecord | PackageRecord[] | null;
 type JobRecord = {
   assessment_package_id: string | null;
   assessment_packages: PackageRelation;
+  behavior_target_profile_json: unknown;
   created_at: string;
   department: string | null;
   description: string | null;
   employment_type: EmploymentType | null;
   id: string;
   location: string | null;
+  motivation_target_profile_json: unknown;
   passing_score: number | null;
   status: JobStatus;
   title: string;
@@ -38,12 +41,14 @@ type WeightRecord = {
 export type JobDetails = {
   assessmentPackageId: string | null;
   assessmentPackageTitle: string | null;
+  behaviorTargetProfile: ProfileTarget[];
   createdAt: string;
   department: string | null;
   description: string | null;
   employmentType: EmploymentType | null;
   id: string;
   location: string | null;
+  motivationTargetProfile: ProfileTarget[];
   passingScore: number | null;
   status: JobStatus;
   title: string;
@@ -67,12 +72,14 @@ function normalizeJob(record: JobRecord): JobDetails {
   return {
     assessmentPackageId: record.assessment_package_id,
     assessmentPackageTitle: assessmentPackage?.title ?? null,
+    behaviorTargetProfile: normalizeProfileTargets(record.behavior_target_profile_json),
     createdAt: record.created_at,
     department: record.department,
     description: record.description,
     employmentType: record.employment_type,
     id: record.id,
     location: record.location,
+    motivationTargetProfile: normalizeProfileTargets(record.motivation_target_profile_json),
     passingScore: record.passing_score,
     status: record.status,
     title: record.title,
@@ -85,7 +92,7 @@ export async function listJobs(companyId: string) {
   const { data, error } = await supabase
     .from("jobs")
     .select(
-      "id, title, description, department, location, employment_type, status, assessment_package_id, passing_score, created_at, updated_at, assessment_packages(id, title, is_system)",
+      "id, title, description, department, location, employment_type, status, assessment_package_id, passing_score, motivation_target_profile_json, behavior_target_profile_json, created_at, updated_at, assessment_packages(id, title, is_system)",
     )
     .eq("company_id", companyId)
     .order("updated_at", { ascending: false });
@@ -108,7 +115,7 @@ export async function getJobPageData(companyId: string, jobId: string) {
     supabase
       .from("jobs")
       .select(
-        "id, title, description, department, location, employment_type, status, assessment_package_id, passing_score, created_at, updated_at, assessment_packages(id, title, is_system)",
+        "id, title, description, department, location, employment_type, status, assessment_package_id, passing_score, motivation_target_profile_json, behavior_target_profile_json, created_at, updated_at, assessment_packages(id, title, is_system)",
       )
       .eq("company_id", companyId)
       .eq("id", jobId)

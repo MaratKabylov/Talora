@@ -24,11 +24,13 @@ type JobRecord = {
 };
 
 type ApplicationRecord = {
+  behavior_fit: number | null;
   candidates: Relation<CandidateRecord>;
   completed_at: string | null;
   fit_score: number | null;
   id: string;
   jobs: Relation<JobRecord>;
+  motivation_fit: number | null;
   overall_score: number | null;
   recommendation: string | null;
   requires_review: boolean;
@@ -198,6 +200,7 @@ export type ReportIntegritySummary = {
 };
 
 export type CandidateReportData = {
+  behaviorFit: number | null;
   candidate: {
     city: string | null;
     email: string | null;
@@ -211,6 +214,7 @@ export type CandidateReportData = {
   integrity: ReportIntegritySummary;
   interviewQuestions: string[];
   job: { id: string; title: string };
+  motivationFit: number | null;
   overallScore: number | null;
   recommendation: string | null;
   reportText: string | null;
@@ -303,7 +307,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   const { data: applicationData, error: applicationError } = await supabase
     .from("candidate_applications")
     .select(
-      "id, status, completed_at, overall_score, fit_score, recommendation, risk_level, requires_review, candidates(full_name, email, phone, city), jobs(id, title)",
+      "id, status, completed_at, overall_score, fit_score, motivation_fit, behavior_fit, recommendation, risk_level, requires_review, candidates(full_name, email, phone, city), jobs(id, title)",
     )
     .eq("company_id", companyId)
     .eq("id", applicationId)
@@ -528,6 +532,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
         : "clear";
 
   return {
+    behaviorFit: application.behavior_fit,
     candidate: {
       city: candidate.city,
       email: candidate.email,
@@ -560,6 +565,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
         ? storedQuestions
         : createInterviewQuestions(competencies, application.requires_review),
     job: { id: job.id, title: job.title },
+    motivationFit: application.motivation_fit,
     overallScore: application.overall_score,
     recommendation: application.recommendation,
     reportText: storedReport?.report_text ?? null,

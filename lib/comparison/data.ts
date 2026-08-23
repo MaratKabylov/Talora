@@ -18,10 +18,12 @@ type SummaryRecord = {
 
 type ApplicationRecord = {
   application_competency_summary?: SummaryRecord[] | null;
+  behavior_fit: number | null;
   candidates: Relation<CandidateRecord>;
   completed_at: string | null;
   fit_score: number | null;
   id: string;
+  motivation_fit: number | null;
   overall_score: number | null;
   recommendation: string | null;
   requires_review: boolean;
@@ -36,6 +38,7 @@ type JobRecord = {
 };
 
 export type ComparisonCandidate = {
+  behaviorFit: number | null;
   candidate: {
     email: string | null;
     fullName: string;
@@ -45,6 +48,7 @@ export type ComparisonCandidate = {
   completedAt: string | null;
   fitScore: number | null;
   id: string;
+  motivationFit: number | null;
   overallScore: number | null;
   recommendation: string | null;
   requiresReview: boolean;
@@ -72,6 +76,7 @@ function normalizeApplication(record: ApplicationRecord): ComparisonCandidate | 
   }
 
   return {
+    behaviorFit: record.behavior_fit,
     candidate: {
       email: candidate.email,
       fullName: candidate.full_name ?? "Без имени",
@@ -86,6 +91,7 @@ function normalizeApplication(record: ApplicationRecord): ComparisonCandidate | 
     completedAt: record.completed_at,
     fitScore: record.fit_score,
     id: record.id,
+    motivationFit: record.motivation_fit,
     overallScore: record.overall_score,
     recommendation: record.recommendation,
     requiresReview: record.requires_review,
@@ -106,7 +112,7 @@ export async function getJobComparisonData(companyId: string, jobId: string) {
     supabase
       .from("candidate_applications")
       .select(
-        "id, status, completed_at, overall_score, fit_score, recommendation, risk_level, requires_review, candidates(id, full_name, email), application_competency_summary(competency_key, percentage)",
+        "id, status, completed_at, overall_score, fit_score, motivation_fit, behavior_fit, recommendation, risk_level, requires_review, candidates(id, full_name, email), application_competency_summary(competency_key, percentage)",
       )
       .eq("company_id", companyId)
       .eq("job_id", jobId)

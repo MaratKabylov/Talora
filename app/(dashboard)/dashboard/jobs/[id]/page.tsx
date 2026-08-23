@@ -4,10 +4,15 @@ import { notFound } from "next/navigation";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { CompetencyWeightsFields } from "@/components/jobs/competency-weights-fields";
 import { JobDetailsFields } from "@/components/jobs/job-details-fields";
+import { ProfileTargetFields } from "@/components/jobs/profile-target-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireCompanyContext } from "@/lib/auth/context";
-import { updateJobAction, updateJobWeightsAction } from "@/lib/jobs/actions";
+import {
+  updateJobAction,
+  updateJobProfileTargetsAction,
+  updateJobWeightsAction,
+} from "@/lib/jobs/actions";
 import { canManageJobs, JOB_STATUS_LABELS } from "@/lib/jobs/constants";
 import { getJobPageData } from "@/lib/jobs/data";
 
@@ -96,6 +101,26 @@ export default async function JobPage({
             <input name="jobId" type="hidden" value={data.job.id} />
             <CompetencyWeightsFields disabled={!mayManage} weights={data.weights} />
             {mayManage ? <Button type="submit">Сохранить веса</Button> : null}
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Целевые профили</CardTitle>
+          <CardDescription>
+            Диапазоны рассчитывают отдельные Motivation Fit и Behavior Fit. Они не изменяют competency Fit Score.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <form action={updateJobProfileTargetsAction} className="space-y-5">
+            <input name="jobId" type="hidden" value={data.job.id} />
+            <ProfileTargetFields
+              behaviorTargets={data.job.behaviorTargetProfile}
+              disabled={!mayManage}
+              motivationTargets={data.job.motivationTargetProfile}
+            />
+            {mayManage ? <Button type="submit">Сохранить целевые профили</Button> : null}
           </form>
         </CardContent>
       </Card>

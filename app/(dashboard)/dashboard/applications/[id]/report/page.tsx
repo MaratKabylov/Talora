@@ -200,7 +200,7 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
         </p>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <Card>
           <CardHeader>
             <CardDescription>Overall score</CardDescription>
@@ -211,6 +211,18 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
           <CardHeader>
             <CardDescription>Fit score</CardDescription>
             <CardTitle className="text-3xl">{score(report.fitScore)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Motivation Fit</CardDescription>
+            <CardTitle className="text-3xl">{score(report.motivationFit)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Behavior Fit</CardDescription>
+            <CardTitle className="text-3xl">{score(report.behaviorFit)}</CardTitle>
           </CardHeader>
         </Card>
         <Card>

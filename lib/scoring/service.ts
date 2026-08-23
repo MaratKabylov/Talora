@@ -7,6 +7,11 @@ import {
 } from "@/lib/jobs/constants";
 import { calculateFitScore } from "@/lib/scoring/fit-score";
 import {
+  calculateProfileFit,
+  normalizeProfileTargets,
+  type ProfileDimensionScore,
+} from "@/lib/scoring/profile-fit";
+import {
   type LegacyAnswerRecord as AnswerRecord,
   type LegacyCompetencyTotal as CompetencyTotal,
   type LegacyPackageTestRecord as PackageTestRecord,
@@ -24,7 +29,9 @@ type Relation<T> = T | T[] | null;
 
 type JobRecord = {
   assessment_package_id: string | null;
+  behavior_target_profile_json: unknown;
   id: string;
+  motivation_target_profile_json: unknown;
   passing_score: number | null;
 };
 
@@ -179,6 +186,22 @@ function combineCompetencies(sessionScores: SessionScore[]) {
   return totals;
 }
 
+function collectProfileDimensions(
+  sessionScores: Array<{ scoringResult?: ScoringResultV2 | null }>,
+  domain: "behavior" | "motivation",
+): ProfileDimensionScore[] {
+  return sessionScores.flatMap((sessionScore) => {
+    const result = sessionScore.scoringResult;
+    if (!result || result.assessmentDomain !== domain) return [];
+
+    return [...result.scaleScores, ...result.forcedChoiceScores].flatMap((score) =>
+      score.status === "ok" && score.normalized_score !== null
+        ? [{ dimensionId: score.id, score: score.normalized_score }]
+        : [],
+    );
+  });
+}
+
 function riskLevelForFlags(flags: Array<{ risk_level: "low" | "medium" | "high" }>) {
   if (flags.some((flag) => flag.risk_level === "high")) {
     return "high";
@@ -226,7 +249,7 @@ export async function scoreCompletedApplication(applicationId: string) {
   const admin = createAdminClient();
   const { data: applicationData, error: applicationError } = await admin
     .from("candidate_applications")
-    .select("id, candidate_id, job_id, jobs(id, assessment_package_id, passing_score)")
+    .select("id, candidate_id, job_id, jobs(id, assessment_package_id, passing_score, motivation_target_profile_json, behavior_target_profile_json)")
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -480,6 +503,14 @@ export async function scoreCompletedApplication(applicationId: string) {
 
   // Motivation needs a job-side target profile before it can fairly influence fit.
   const fitScore = calculateFitScore(summaryRows, weights);
+  const motivationFit = calculateProfileFit(
+    collectProfileDimensions(sessionScores, "motivation"),
+    normalizeProfileTargets(job.motivation_target_profile_json),
+  )?.score ?? null;
+  const behaviorFit = calculateProfileFit(
+    collectProfileDimensions(sessionScores, "behavior"),
+    normalizeProfileTargets(job.behavior_target_profile_json),
+  )?.score ?? null;
 
   const riskFlags: Array<{
     application_id: string;
@@ -576,7 +607,9 @@ export async function scoreCompletedApplication(applicationId: string) {
   const { error: applicationUpdateError } = await admin
     .from("candidate_applications")
     .update({
+      behavior_fit: behaviorFit,
       fit_score: fitScore,
+      motivation_fit: motivationFit,
       overall_score: overallScore,
       recommendation,
       requires_review: requiresReview,
@@ -594,8 +627,10 @@ export async function scoreCompletedApplication(applicationId: string) {
       completed_required_tests: packageTests
         .filter((test) => test.is_required)
         .every((test) => sessions.some((session) => session.test_version_id === test.test_version_id && session.status === "completed")),
+      behavior_fit: behaviorFit,
       fit_score: fitScore,
       job_id: application.job_id,
+      motivation_fit: motivationFit,
       overall_score: overallScore,
       recommendation,
       risk_level: riskLevel,
@@ -609,9 +644,11 @@ export async function scoreCompletedApplication(applicationId: string) {
   const { error: reportError } = await admin.from("candidate_reports").upsert(
     {
       application_id: application.id,
+      behavior_fit: behaviorFit,
       candidate_id: application.candidate_id,
       fit_score: fitScore,
       interview_questions_json: interviewQuestions,
+      motivation_fit: motivationFit,
       overall_score: overallScore,
       recommendation,
       report_text: requiresReview
@@ -628,7 +665,9 @@ export async function scoreCompletedApplication(applicationId: string) {
   }
 
   return {
+    behaviorFit,
     fitScore,
+    motivationFit,
     overallScore,
     recommendation,
     requiresReview,
