@@ -61,19 +61,28 @@ export function TestImportWizard({
         <CardHeader>
           <CardTitle>1. Загрузите JSON-файл</CardTitle>
           <CardDescription>
-            Talvia принимает один тест в формате <code>talvia.test.v1</code>. На этом шаге данные
+            Talvia принимает один тест в формате <code>talvia.test.v1</code> или <code>talvia.test.v2</code>. На этом шаге данные
             только проверяются — {isSystemImport ? "новая версия" : "тест компании"} еще не
             создается.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5 pt-6">
-          <Link
-            className={buttonVariants({ variant: "outline" })}
-            download
-            href="/api/tests/import-schema"
-          >
-            Скачать JSON Schema для ИИ
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              className={buttonVariants({ variant: "outline" })}
+              download
+              href="/api/tests/import-schema?version=v2"
+            >
+              Скачать JSON Schema V2
+            </Link>
+            <Link
+              className={buttonVariants({ variant: "outline" })}
+              download
+              href="/api/tests/import-schema"
+            >
+              Скачать legacy Schema V1
+            </Link>
+          </div>
 
           <form
             action={previewAction}
@@ -150,6 +159,7 @@ export function TestImportWizard({
             ) : null}
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <SummaryCard label="Формат" value={preview.summary.schemaVersion ?? "talvia.test.v1"} />
               <SummaryCard label="Секции" value={preview.summary.sectionCount} />
               <SummaryCard label="Вопросы" value={preview.summary.totalQuestionCount} />
               <SummaryCard label="Обязательные" value={preview.summary.requiredQuestionCount} />

@@ -110,6 +110,15 @@ const forcedChoiceScoreSchema = scoreValueSchema.safeExtend({
   norm_score: z.null(),
 });
 
+const scoreThresholdSchema = z
+  .object({
+    code: z.string().min(1),
+    label: z.string().min(1),
+    max: z.number().finite().min(0).max(100),
+    min: z.number().finite().min(0).max(100),
+  })
+  .strict();
+
 export const scoringResultV2Schema = z
   .object({
     assessmentDomain: z.enum(ASSESSMENT_DOMAINS),
@@ -118,6 +127,7 @@ export const scoringResultV2Schema = z
     definitionVersionId: z.string().min(1),
     engineVersion: z.string().min(1),
     forcedChoiceScores: z.array(forcedChoiceScoreSchema),
+    interpretation: scoreThresholdSchema.nullable().optional().default(null),
     overallScore: z.number().finite().min(0).max(100).nullable(),
     resultShape: z.enum(RESULT_SHAPES),
     scaleScores: z.array(scoreValueSchema),

@@ -141,6 +141,13 @@ export type OverallScoreMapping = {
   sourceType: "criterion" | "composite";
 };
 
+export type ScoreThreshold = {
+  code: string;
+  label: string;
+  max: number;
+  min: number;
+};
+
 export type ScoringDefinitionV2 = {
   assessmentDomain: AssessmentDomain;
   composites: CompositeDefinition[];
@@ -149,6 +156,7 @@ export type ScoringDefinitionV2 = {
   resultShape: ResultShape;
   scales: ScaleDefinition[];
   schemaVersion: typeof SCORING_SCHEMA_VERSION;
+  thresholds?: ScoreThreshold[];
 };
 
 export type ConfidenceInfo = {
@@ -216,6 +224,7 @@ export type ScoringResultV2 = {
   definitionVersionId: string;
   engineVersion: string;
   forcedChoiceScores: ForcedChoiceScoreValue[];
+  interpretation: ScoreThreshold | null;
   overallScore: number | null;
   resultShape: ResultShape;
   scaleScores: ScaleScoreValue[];

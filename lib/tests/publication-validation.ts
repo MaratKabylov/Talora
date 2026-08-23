@@ -7,6 +7,8 @@ import {
   isMultipleChoiceV1,
   validateMultipleChoiceDefinition,
 } from "@/lib/answers/multiple-choice";
+import { validateScoringDefinitionV2 } from "@/lib/scoring/definition";
+import type { ScoringDefinitionV2 } from "@/lib/scoring/types";
 
 import type { QuestionType } from "./builder-constants";
 import type { QuestionSettings } from "./remediation";
@@ -23,8 +25,11 @@ type PublicationOption = {
 type PublicationQuestion = {
   answer_options?: PublicationOption[] | null;
   competency_key: string | null;
+  id: string;
   points: number;
   question_type: QuestionType;
+  scoring_config_json?: unknown;
+  scoring_model?: "criterion" | "scale" | "forced_choice" | null;
   settings_json: QuestionSettings | null;
 };
 
@@ -32,11 +37,21 @@ export type PublicationSection = {
   questions?: PublicationQuestion[] | null;
 };
 
+export type PublicationScoringVersion = {
+  assessment_domain?: string | null;
+  result_shape?: string | null;
+  scoring_config_json?: unknown;
+  scoring_schema_version?: string | null;
+};
+
 function normalized(values: string[]) {
   return values.map((value) => value.trim().toLocaleLowerCase("ru"));
 }
 
-export function validateQuestionsForPublication(sections: PublicationSection[]) {
+export function validateQuestionsForPublication(
+  sections: PublicationSection[],
+  version?: PublicationScoringVersion,
+) {
   for (const question of sections.flatMap((section) => section.questions ?? [])) {
     const options = question.answer_options ?? [];
     if (question.question_type === "single_choice") {
@@ -104,7 +119,39 @@ export function validateQuestionsForPublication(sections: PublicationSection[]) 
     }
   }
 
+  if (version?.scoring_schema_version === "2.0") {
+    const config = isRecord(version.scoring_config_json)
+      ? version.scoring_config_json
+      : {};
+    const definition = {
+      ...config,
+      assessmentDomain: version.assessment_domain,
+      resultShape: version.result_shape,
+      schemaVersion: version.scoring_schema_version,
+    } as ScoringDefinitionV2;
+    const items = sections.flatMap((section) => section.questions ?? []).map((question) => ({
+      config: question.scoring_model ? question.scoring_config_json : null,
+      id: question.id,
+      questionType: question.question_type,
+      scoringModel: question.scoring_model ?? null,
+    }));
+    const validation = validateScoringDefinitionV2({
+      criterionScoreIds: ["criterion_total"],
+      definition,
+      forPublication: true,
+      items,
+    });
+    if (!validation.ok) {
+      const first = validation.issues[0];
+      return `${first.path || "scoring"}: ${first.message}`;
+    }
+  }
+
   return null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** @deprecated Use the shared publication orchestrator. */

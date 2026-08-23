@@ -9,6 +9,7 @@ export type TalviaTestImportSummary = {
   remediationQuestionCount: number;
   requiredQuestionCount: number;
   scaleCount: number;
+  schemaVersion?: "talvia.test.v1" | "talvia.test.v2";
   scoringType: "points" | "competency_profile" | "manual" | "mixed";
   sectionCount: number;
   singleChoiceCount: number;

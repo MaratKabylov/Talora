@@ -88,7 +88,12 @@ function addCompetencyRange(
   competencies.set(key, existing);
 }
 
-function getResultLevel(value: number | null, requiresReview: boolean, scoringType: ScoringType) {
+function getResultLevel(
+  value: number | null,
+  requiresReview: boolean,
+  scoringType: ScoringType,
+  configuredLevel?: string | null,
+) {
   if (requiresReview || scoringType === "manual") {
     return "requires_review";
   }
@@ -99,6 +104,10 @@ function getResultLevel(value: number | null, requiresReview: boolean, scoringTy
 
   if (value === null) {
     return "not_scored";
+  }
+
+  if (configuredLevel) {
+    return configuredLevel;
   }
 
   if (value >= 85) {
@@ -344,7 +353,12 @@ export async function scoreCompletedApplication(applicationId: string) {
             ? "Профильная шкала без оценки правильности."
             : null,
         test_version_id: score.session.test_version_id,
-        level: getResultLevel(score.percentage, score.requiresReview, score.scoringType),
+        level: getResultLevel(
+          score.percentage,
+          score.requiresReview,
+          score.scoringType,
+          score.scoringResult?.interpretation?.code,
+        ),
       })),
       { onConflict: "session_id" },
     )
@@ -753,7 +767,12 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
             ? "Профильная шкала без оценки правильности."
             : null,
         test_version_id: score.session.test_version_id,
-        level: getResultLevel(score.percentage, score.requiresReview, score.scoringType),
+        level: getResultLevel(
+          score.percentage,
+          score.requiresReview,
+          score.scoringType,
+          score.scoringResult?.interpretation?.code,
+        ),
       })),
       { onConflict: "session_id" },
     )

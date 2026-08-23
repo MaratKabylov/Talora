@@ -13,6 +13,7 @@ import { scoreScales } from "../lib/scoring/models/scale.ts";
 import { convertNormScore, normScaleDefinitionSchema } from "../lib/scoring/norms.ts";
 import { normalizeScore, reverseScore } from "../lib/scoring/normalization.ts";
 import { parseScoringResultV2 } from "../lib/scoring/result.ts";
+import { interpretScore } from "../lib/scoring/thresholds.ts";
 import type {
   CompositeDefinition,
   ScaleDefinition,
@@ -72,6 +73,33 @@ test("mathematical normalization is distinct and validates the theoretical range
   assert.equal(normalizeScore(5, 1, 5), 100);
   assert.throws(() => normalizeScore(1, 1, 1), /positive range/);
   assert.throws(() => normalizeScore(6, 1, 5), /outside the validated theoretical range/);
+});
+
+test("configured thresholds replace hardcoded result levels", () => {
+  const thresholds = [
+    { code: "low", label: "Low", min: 0, max: 49.99 },
+    { code: "ready", label: "Ready", min: 50, max: 79.99 },
+    { code: "advanced", label: "Advanced", min: 80, max: 100 },
+  ];
+  assert.equal(interpretScore(49.99, thresholds)?.code, "low");
+  assert.equal(interpretScore(50, thresholds)?.code, "ready");
+  assert.equal(interpretScore(80, thresholds)?.code, "advanced");
+
+  const valid = validateScoringDefinitionV2({
+    definition: definition({ thresholds }),
+  });
+  assert.equal(valid.ok, true);
+
+  const gap = validateScoringDefinitionV2({
+    definition: definition({
+      thresholds: [
+        { code: "low", label: "Low", min: 0, max: 40 },
+        { code: "high", label: "High", min: 50, max: 100 },
+      ],
+    }),
+  });
+  assert.equal(gap.ok, false);
+  assert.match(gap.issues[0]?.message ?? "", /cover every score/);
 });
 
 test("coverage does not manufacture reliability, SE or confidence intervals", () => {

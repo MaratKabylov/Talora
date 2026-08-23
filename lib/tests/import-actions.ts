@@ -7,10 +7,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { canManageTests } from "@/lib/tests/constants";
 import {
   getTalviaTestImportWarnings,
-  parseTalviaTestImport,
-  summarizeTalviaTestImport,
   TALVIA_TEST_IMPORT_MAX_FILE_SIZE,
 } from "@/lib/tests/import-parser";
+import {
+  parseTalviaTestImportAny,
+  summarizeTalviaTestImportAny,
+} from "@/lib/tests/import-parser-v2";
 import type {
   TalviaTestImportPreviewState,
   TalviaTestImportResult,
@@ -84,8 +86,8 @@ export async function previewTalviaTestImportAction(
   }
 
   try {
-    const document = parseTalviaTestImport(source);
-    const summary = summarizeTalviaTestImport(document);
+    const document = parseTalviaTestImportAny(source);
+    const summary = summarizeTalviaTestImportAny(document);
     const normalizedDocument = JSON.stringify(document);
     if (new TextEncoder().encode(normalizedDocument).byteLength > TALVIA_TEST_IMPORT_MAX_FILE_SIZE) {
       return {
@@ -124,7 +126,7 @@ export async function confirmTalviaTestImportAction(
 
   let document;
   try {
-    document = parseTalviaTestImport(normalizedDocument);
+    document = parseTalviaTestImportAny(normalizedDocument);
   } catch {
     return {
       error: "Данные предпросмотра повреждены. Загрузите и проверьте JSON-файл заново.",
@@ -138,11 +140,16 @@ export async function confirmTalviaTestImportAction(
   }
 
   const admin = createAdminClient();
-  const { data, error } = await admin.rpc("import_company_test_v1", {
-    import_document: document,
-    target_company_id: context.activeCompany.id,
-    target_created_by: context.user.id,
-  });
+  const { data, error } = await admin.rpc(
+    document.schema_version === "talvia.test.v2"
+      ? "import_company_test_v2"
+      : "import_company_test_v1",
+    {
+      import_document: document,
+      target_company_id: context.activeCompany.id,
+      target_created_by: context.user.id,
+    },
+  );
 
   if (error) {
     return { error: rpcErrorMessage(error.message), status: "error" };

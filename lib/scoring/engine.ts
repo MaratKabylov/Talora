@@ -1,5 +1,6 @@
 import { validateScoringDefinitionV2 } from "./definition.ts";
 import { calculateCompositeScores } from "./models/composite.ts";
+import { interpretScore } from "./thresholds.ts";
 import {
   SCORING_ENGINE_VERSION,
   SCORING_SCHEMA_VERSION,
@@ -65,6 +66,7 @@ export function buildScoringResultV2(input: BuildScoringResultInput): ScoringRes
     definitionVersionId: input.definitionVersionId,
     engineVersion: SCORING_ENGINE_VERSION,
     forcedChoiceScores: [...(input.forcedChoiceScores ?? [])],
+    interpretation: interpretScore(overallScore, input.definition.thresholds),
     overallScore,
     resultShape: input.definition.resultShape,
     scaleScores: [...input.scaleScores],

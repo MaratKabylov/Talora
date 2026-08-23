@@ -704,7 +704,9 @@ export async function publishSystemTestVersionAction(formData: FormData) {
 
   const { data: draftVersion, error: draftLookupError } = await admin
     .from("test_versions")
-    .select("id, version_number, duration_minutes")
+    .select(
+      "id, version_number, duration_minutes, scoring_schema_version, assessment_domain, result_shape, scoring_config_json",
+    )
     .eq("id", versionId.data)
     .eq("test_template_id", templateId.data)
     .eq("status", "draft")
@@ -720,13 +722,16 @@ export async function publishSystemTestVersionAction(formData: FormData) {
 
   const { data: publicationSections, error: publicationContentError } = await admin
     .from("test_sections")
-    .select("questions(question_type, points, competency_key, settings_json, answer_options(id, text, match_text, is_correct, points, competency_effect_json))")
+    .select(
+      "questions(id, question_type, points, competency_key, settings_json, scoring_model, scoring_config_json, answer_options(id, text, match_text, is_correct, points, competency_effect_json))",
+    )
     .eq("test_version_id", versionId.data);
   if (publicationContentError) {
     redirectWithFeedback(path, "error", "Не удалось проверить содержание версии перед публикацией.");
   }
   const publicationError = validateQuestionsForPublication(
     (publicationSections ?? []) as unknown as PublicationSection[],
+    draftVersion,
   );
   if (publicationError) {
     redirectWithFeedback(path, "error", publicationError);

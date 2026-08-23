@@ -21,6 +21,24 @@ const entityIdSchema = z.string().trim().min(1).max(160);
 const positiveWeightSchema = z.number().finite().gt(0, "Weight must be greater than zero.");
 const optionalTextSchema = z.string().trim().min(1).max(4_000).nullable().optional();
 
+export const scoreThresholdSchema = z
+  .object({
+    code: stableKeySchema,
+    label: z.string().trim().min(1).max(240),
+    max: z.number().finite().min(0).max(100),
+    min: z.number().finite().min(0).max(100),
+  })
+  .strict()
+  .superRefine((threshold, context) => {
+    if (threshold.min >= threshold.max) {
+      context.addIssue({
+        code: "custom",
+        message: "max must be greater than min.",
+        path: ["max"],
+      });
+    }
+  });
+
 export const scaleDefinitionSchema = z
   .object({
     aggregation: z.enum(["sum", "mean"]),
@@ -243,6 +261,43 @@ export const scoringDefinitionV2Schema = z
     resultShape: z.enum(RESULT_SHAPES),
     scales: z.array(scaleDefinitionSchema),
     schemaVersion: z.literal(SCORING_SCHEMA_VERSION),
+    thresholds: z
+      .array(scoreThresholdSchema)
+      .optional()
+      .superRefine((thresholds, context) => {
+        if (!thresholds || thresholds.length === 0) return;
+        if (thresholds[0].min !== 0) {
+          context.addIssue({
+            code: "custom",
+            message: "Thresholds must start at 0.",
+            path: [0, "min"],
+          });
+        }
+        if (thresholds.at(-1)?.max !== 100) {
+          context.addIssue({
+            code: "custom",
+            message: "Thresholds must end at 100.",
+            path: [thresholds.length - 1, "max"],
+          });
+        }
+        thresholds.slice(1).forEach((threshold, index) => {
+          const previous = thresholds[index];
+          const gap = threshold.min - previous.max;
+          if (gap <= 0) {
+            context.addIssue({
+              code: "custom",
+              message: "Threshold ranges must not overlap and must be ordered.",
+              path: [index + 1, "min"],
+            });
+          } else if (gap > 0.0100001) {
+            context.addIssue({
+              code: "custom",
+              message: "Threshold ranges must cover every score rounded to two decimals.",
+              path: [index + 1, "min"],
+            });
+          }
+        });
+      }),
   })
   .strict();
 
@@ -304,6 +359,12 @@ export function validateScoringDefinitionV2(input: {
     issues,
   );
   findDuplicates(items.map((item) => item.id), "items", "item id", issues);
+  findDuplicates(
+    (definition.thresholds ?? []).map((threshold) => threshold.code),
+    "thresholds",
+    "threshold code",
+    issues,
+  );
 
   const scaleIds = new Set(definition.scales.map((scale) => scale.id));
   const compositeIds = new Set(definition.composites.map((composite) => composite.id));

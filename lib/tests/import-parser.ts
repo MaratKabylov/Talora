@@ -30,7 +30,7 @@ const competencyKeys = TEST_COMPETENCIES.map((competency) => competency.key) as 
   ...TestCompetencyKey[],
 ];
 
-class JsonDocumentError extends Error {
+export class JsonDocumentError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "JsonDocumentError";
@@ -851,7 +851,7 @@ function formatPath(path: PropertyKey[]) {
   }, "");
 }
 
-function formatValidationError(error: z.ZodError) {
+export function formatImportValidationError(error: z.ZodError) {
   const issues = error.issues.slice(0, 5).map((issue) => {
     const path = formatPath(issue.path);
     return `${path || "$"}: ${issue.message}`;
@@ -860,19 +860,22 @@ function formatValidationError(error: z.ZodError) {
   return `${issues.join(" • ")}${suffix}`;
 }
 
-export function parseTalviaTestImport(source: string): TalviaTestImportDocument {
+export function parseStrictJsonDocument(source: string): unknown {
   const withoutBom = source.charCodeAt(0) === 0xfeff ? source.slice(1) : source;
-  let rawDocument: unknown;
   try {
-    rawDocument = new StrictJsonParser(withoutBom).parse();
+    return new StrictJsonParser(withoutBom).parse();
   } catch (error) {
     if (error instanceof JsonDocumentError) throw error;
     throw new JsonDocumentError("Не удалось прочитать JSON-документ.");
   }
+}
+
+export function parseTalviaTestImport(source: string): TalviaTestImportDocument {
+  const rawDocument = parseStrictJsonDocument(source);
 
   const result = talviaTestImportDocumentSchema.safeParse(rawDocument);
   if (!result.success) {
-    throw new JsonDocumentError(formatValidationError(result.error));
+    throw new JsonDocumentError(formatImportValidationError(result.error));
   }
 
   return {
