@@ -431,7 +431,7 @@ function isUuid(value: string) {
 }
 
 export function canonicalizeMultipleChoiceSelection(values: readonly string[]) {
-  return [...new Set(values)];
+  return [...new Set(values)].sort();
 }
 
 export function validateMultipleChoiceAnswer(

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { requireCompanyContext } from "@/lib/auth/context";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { createClient } from "@/lib/supabase/server";
+import { hasUniqueOptionIds } from "@/lib/answers/option-shuffle";
 import {
   MATCHING_SCORING_MODES,
   ORDERING_SCORING_MODES,
@@ -96,6 +97,7 @@ const questionSchema = z
     questionType: z.enum(QUESTION_TYPE_VALUES),
     scaleMax: optionalPositiveInteger,
     scaleMin: optionalPositiveInteger,
+    shuffleOptions: z.boolean(),
     text: z.string().trim().min(2, "Введите текст вопроса.").max(4000, "Вопрос слишком длинный."),
   })
   .superRefine((question, context) => {
@@ -158,9 +160,17 @@ const documentQuestionSchema = z
     remediationQuestionId: z.string().uuid().nullable(),
     scaleMax: z.number().int().min(2).max(100),
     scaleMin: z.number().int().min(1).max(99),
+    shuffleOptions: z.boolean(),
     text: z.string().trim().min(2).max(4000),
   })
   .superRefine((question, context) => {
+    if (!hasUniqueOptionIds(question.options)) {
+      context.addIssue({
+        code: "custom",
+        message: "Идентификаторы вариантов ответа не должны повторяться.",
+        path: ["options"],
+      });
+    }
     if (question.questionType === "scale" && question.scaleMin >= question.scaleMax) {
       context.addIssue({ code: "custom", message: "Максимум шкалы должен быть больше минимума." });
     }
@@ -309,6 +319,7 @@ function parseQuestion(formData: FormData) {
     questionType: formString(formData, "questionType"),
     scaleMax: formString(formData, "scaleMax"),
     scaleMin: formString(formData, "scaleMin"),
+    shuffleOptions: formData.get("shuffleOptions") === "on",
     text: formString(formData, "questionText"),
   });
 }
@@ -418,7 +429,9 @@ function questionPayload(question: z.infer<typeof questionSchema>) {
         ? { max: question.scaleMax ?? 5, min: question.scaleMin ?? 1 }
         : question.questionType === "forced_choice"
           ? { mode: "most_least" }
-          : {},
+          : question.questionType === "single_choice" || question.questionType === "multiple_choice"
+            ? { shuffleOptions: question.shuffleOptions }
+            : {},
     text: question.text,
   };
 }
@@ -435,6 +448,26 @@ function optionPayload(option: z.infer<typeof optionSchema>) {
     points: option.points,
     text: option.text,
   };
+}
+
+function preserveUncontrolledQuestionSettings(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const uncontrolled = { ...(value as Record<string, unknown>) };
+  for (const key of [
+    "incorrectFeedback",
+    "matchingScoringMode",
+    "max",
+    "min",
+    "mode",
+    "orderingScoringMode",
+    "remediationQuestionId",
+    "required",
+    "shuffleOptions",
+    "structuredResponseVersion",
+  ]) {
+    delete uncontrolled[key];
+  }
+  return uncontrolled;
 }
 
 async function getDocumentContext(templateId: string, versionId: string) {
@@ -498,7 +531,7 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
   const { supabase } = context;
   const { data: currentSections, error: currentError } = await supabase
     .from("test_sections")
-    .select("id, settings_json, questions(id, answer_options(id))")
+    .select("id, settings_json, questions(id, settings_json, answer_options(id))")
     .eq("test_version_id", document.versionId);
 
   if (currentError) {
@@ -517,12 +550,21 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
 
   type StoredSection = {
     id: string;
-    questions?: Array<{ answer_options?: Array<{ id: string }> | null; id: string }> | null;
+    questions?: Array<{
+      answer_options?: Array<{ id: string }> | null;
+      id: string;
+      settings_json: unknown;
+    }> | null;
     settings_json: unknown;
   };
   const storedSections = (currentSections ?? []) as unknown as StoredSection[];
   const storedSettingsBySectionId = new Map(
     storedSections.map((section) => [section.id, section.settings_json]),
+  );
+  const storedSettingsByQuestionId = new Map(
+    storedSections.flatMap((section) =>
+      (section.questions ?? []).map((question) => [question.id, question.settings_json] as const),
+    ),
   );
   const removedOptionIds = storedSections.flatMap((section) =>
     (section.questions ?? []).flatMap((question) =>
@@ -601,10 +643,17 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
       question_type: question.questionType,
       section_id: section.id,
       settings_json: {
+        ...preserveUncontrolledQuestionSettings(
+          storedSettingsByQuestionId.get(question.id),
+        ),
         ...(question.questionType === "scale"
           ? { max: question.scaleMax, min: question.scaleMin }
           : {}),
         ...(question.questionType === "forced_choice" ? { mode: "most_least" } : {}),
+        ...(question.questionType === "single_choice" ||
+        question.questionType === "multiple_choice"
+          ? { shuffleOptions: question.shuffleOptions }
+          : {}),
         ...(question.isStructured && question.questionType === "ordering"
           ? {
               orderingScoringMode: question.orderingScoringMode,

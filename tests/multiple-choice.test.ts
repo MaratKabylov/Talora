@@ -72,7 +72,7 @@ test("duplicates never increase score and option order has no scoring meaning", 
     definition: exact,
     selectedOptionIds: ["C", "A", "C", "A"],
   });
-  assert.deepEqual(duplicated.selectedOptionIds, ["C", "A"]);
+  assert.deepEqual(duplicated.selectedOptionIds, ["A", "C"]);
   assert.equal(duplicated.pointsAwarded, 3);
   assert.equal(areMultipleChoiceSetsEqual(["A", "C"], ["C", "A"]), true);
 });
@@ -364,6 +364,14 @@ test("talvia.test.v1 schema exposes multiple_choice and all three scoring modes"
   assert.ok(schema.$defs.multipleChoiceExactScoring);
   assert.ok(schema.$defs.multipleChoicePartialScoring);
   assert.ok(schema.$defs.multipleChoiceOptionPointsScoring);
+  const multipleChoiceDefinition = schema.$defs.multipleChoiceQuestion as {
+    allOf: Array<{ properties?: Record<string, unknown> }>;
+  };
+  assert.ok(
+    multipleChoiceDefinition.allOf.some(
+      (entry) => entry.properties?.shuffle_options,
+    ),
+  );
   assert.deepEqual(getAllowedImportScoringTypes(["multiple_choice"]), [
     "points",
     "competency_profile",
@@ -378,7 +386,14 @@ test("the documented import fixture contains one example of every strategy", () 
     ),
   ) as {
     schema_version: string;
-    test: { sections: Array<{ questions: Array<{ scoring: { mode: string } }> }> };
+    test: {
+      sections: Array<{
+        questions: Array<{
+          scoring: { mode: string };
+          shuffle_options: boolean;
+        }>;
+      }>;
+    };
   };
   assert.equal(fixture.schema_version, "talvia.test.v1");
   assert.deepEqual(
@@ -386,5 +401,11 @@ test("the documented import fixture contains one example of every strategy", () 
       section.questions.map((question) => question.scoring.mode),
     ),
     ["exact_match", "partial_credit", "option_points"],
+  );
+  assert.deepEqual(
+    fixture.test.sections.flatMap((section) =>
+      section.questions.map((question) => question.shuffle_options),
+    ),
+    [true, false, true],
   );
 });

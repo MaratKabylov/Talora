@@ -108,6 +108,7 @@ function question(questionType: QuestionType = "single_choice", text = "Новы
     remediationQuestionId: null,
     scaleMax: 5,
     scaleMin: 1,
+    shuffleOptions: false,
     text,
   };
 }
@@ -346,6 +347,7 @@ export function TestBuilderEditor({
           remediationQuestionId: currentQuestion.remediationQuestionId,
           scaleMax: Number(currentQuestion.scaleMax) || 5,
           scaleMin: Number(currentQuestion.scaleMin) || 1,
+          shuffleOptions: currentQuestion.shuffleOptions,
           text: currentQuestion.text,
         })),
         timeLimitMinutes: currentSection.timeLimitMinutes,
@@ -1319,6 +1321,12 @@ export function TestBuilderEditor({
                           ...(questionType === "single_choice"
                             ? {}
                             : { incorrectFeedback: null, remediationQuestionId: null }),
+                          ...(
+                            questionType === "single_choice" ||
+                            questionType === "multiple_choice"
+                              ? {}
+                              : { shuffleOptions: false }
+                          ),
                         });
                       }}
                       value={currentQuestion.questionType}
@@ -1426,7 +1434,31 @@ export function TestBuilderEditor({
                           />
                         </div>
                       ) : null}
-                    </div>
+                  </div>
+                  ) : null}
+
+                  {currentQuestion.questionType === "single_choice" ||
+                  currentQuestion.questionType === "multiple_choice" ? (
+                    <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border bg-muted/20 p-4">
+                      <input
+                        checked={currentQuestion.shuffleOptions}
+                        className="mt-0.5 size-4 shrink-0 accent-primary"
+                        onChange={(event) =>
+                          patchQuestion(currentSection.id, currentQuestion.id, {
+                            shuffleOptions: event.target.checked,
+                          })
+                        }
+                        type="checkbox"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium">
+                          Перемешивать варианты ответов
+                        </span>
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          Порядок будет стабильным в рамках одной попытки и разным между попытками.
+                        </span>
+                      </span>
+                    </label>
                   ) : null}
 
                   {currentQuestion.questionType === "scale" ? (

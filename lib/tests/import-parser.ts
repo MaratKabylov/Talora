@@ -312,6 +312,7 @@ const singleChoiceQuestionSchema = z
     incorrect_feedback: optionalTrimmedText(4000).optional().default(null),
     options: z.array(answerOptionSchema).min(2, "Нужно минимум два варианта ответа.").max(100),
     remediation_question_key: z.union([localKeySchema, z.null()]).optional().default(null),
+    shuffle_options: z.boolean().optional().default(false),
     type: z.literal("single_choice"),
   })
   .strict()
@@ -442,6 +443,7 @@ const multipleChoiceQuestionSchema = z
         min: z.number().int().min(0).max(100),
       })
       .strict(),
+    shuffle_options: z.boolean().optional().default(false),
     type: z.literal("multiple_choice"),
   })
   .strict()

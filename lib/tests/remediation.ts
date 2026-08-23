@@ -10,6 +10,7 @@ export type QuestionSettings = StructuredQuestionSettings & MultipleChoiceQuesti
   min?: number;
   remediationQuestionId?: string;
   required?: boolean;
+  shuffleOptions?: boolean;
 };
 
 export type RemediationQuestionInput = {

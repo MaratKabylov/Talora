@@ -124,6 +124,17 @@ export function QuestionFields({
           />
         </div>
       </div>
+      <label className="flex items-start gap-3 rounded-md border p-3">
+        <input
+          defaultChecked={question?.shuffleOptions ?? false}
+          className="mt-0.5 size-4 accent-primary"
+          name="shuffleOptions"
+          type="checkbox"
+        />
+        <span className="text-sm">
+          Перемешивать варианты ответов для single_choice и multiple_choice
+        </span>
+      </label>
       <div className="space-y-2">
         <Label htmlFor={`${prefix}-description`}>Пояснение</Label>
         <RichTextEditor

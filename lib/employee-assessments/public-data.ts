@@ -1,4 +1,5 @@
 import { scoreCompletedEmployeeAssessmentParticipant } from "@/lib/scoring/service";
+import { getDisplayOptions } from "@/lib/answers/option-shuffle";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { QuestionType } from "@/lib/tests/builder-constants";
@@ -494,6 +495,10 @@ export async function getEmployeeAssessmentQuestionPageData(
             { orderedOptionIds: answer?.answer_json?.orderedOptionIds },
             canonicalOptions.map((option) => option.id),
           );
+          const shouldShuffleChoiceOptions =
+            (question.question_type === "single_choice" ||
+              question.question_type === "multiple_choice") &&
+            settings.shuffleOptions === true;
           const presentedOptionIds =
             question.question_type === "ordering" && structured
               ? savedOrdering.ok
@@ -502,7 +507,12 @@ export async function getEmployeeAssessmentQuestionPageData(
                     canonicalOptions.map((option) => option.id),
                     `${session.id}:${question.id}:ordering`,
                   )
-              : canonicalOptions.map((option) => option.id);
+              : getDisplayOptions({
+                  attemptId: session.id,
+                  options: canonicalOptions,
+                  questionId: question.id,
+                  shuffle: shouldShuffleChoiceOptions,
+                }).map((option) => option.id);
           const optionById = new Map(canonicalOptions.map((option) => [option.id, option]));
           const matchingTargetIds = createDeterministicShuffledIds(
             canonicalOptions.map((option) => option.match_target_id),

@@ -169,6 +169,7 @@ function normalizeQuestion(question: QuestionRecord): BuilderQuestion {
         : null,
     scaleMax: typeof settings.max === "number" ? settings.max : 5,
     scaleMin: typeof settings.min === "number" ? settings.min : 1,
+    shuffleOptions: settings.shuffleOptions === true,
     text: question.text,
   };
 }

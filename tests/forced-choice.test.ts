@@ -76,6 +76,7 @@ test("import: single_choice schema exposes remediation fields", () => {
 
   assert.ok(properties?.incorrect_feedback);
   assert.ok(properties?.remediation_question_key);
+  assert.ok(properties?.shuffle_options);
 });
 
 const remediationQuestions = [

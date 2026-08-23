@@ -598,6 +598,11 @@
             "type": {
               "const": "single_choice"
             },
+            "shuffle_options": {
+              "type": "boolean",
+              "default": false,
+              "description": "Перемешивать варианты детерминированно в рамках попытки."
+            },
             "incorrect_feedback": {
               "description": "Объяснение, которое кандидат увидит после неверного ответа перед повторным вопросом. Указывается только вместе с remediation_question_key.",
               "type": [
@@ -725,6 +730,11 @@
           "properties": {
             "type": {
               "const": "multiple_choice"
+            },
+            "shuffle_options": {
+              "type": "boolean",
+              "default": false,
+              "description": "Перемешивать варианты детерминированно в рамках попытки."
             },
             "selection": {
               "type": "object",
