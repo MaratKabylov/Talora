@@ -51,6 +51,7 @@ function hasReport(application: ComparisonCandidate) {
     application.fitScore !== null ||
     application.motivationFit !== null ||
     application.behaviorFit !== null ||
+    application.compositeScore !== null ||
     application.requiresReview
   );
 }
@@ -123,7 +124,7 @@ export function CandidateComparisonTable({
 
   return (
     <div className="overflow-x-auto rounded-lg border">
-      <table className="min-w-[1480px] w-full text-sm">
+      <table className="min-w-[1580px] w-full text-sm">
         <thead className="bg-muted/50 text-left text-muted-foreground">
           <tr>
             <th className="px-4 py-3 font-medium">Кандидат</th>
@@ -133,6 +134,7 @@ export function CandidateComparisonTable({
             <th className="px-4 py-3 font-medium">Fit</th>
             <th className="px-4 py-3 font-medium">Motivation Fit</th>
             <th className="px-4 py-3 font-medium">Behavior Fit</th>
+            <th className="px-4 py-3 font-medium">Composite</th>
             {DISPLAY_COMPETENCY_KEYS.map((key) => (
               <th className="px-4 py-3 font-medium" key={key}>
                 {COMPETENCY_LABELS.get(key)}
@@ -160,6 +162,7 @@ export function CandidateComparisonTable({
               <td className="px-4 py-3 font-medium">{formatScore(application.fitScore)}</td>
               <td className="px-4 py-3">{formatScore(application.motivationFit)}</td>
               <td className="px-4 py-3">{formatScore(application.behaviorFit)}</td>
+              <td className="px-4 py-3 font-medium">{formatScore(application.compositeScore)}</td>
               {DISPLAY_COMPETENCY_KEYS.map((key) => (
                 <td className="px-4 py-3" key={key}>
                   {formatScore(application.competencies[key])}

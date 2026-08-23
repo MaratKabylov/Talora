@@ -21,6 +21,7 @@ type ApplicationRecord = {
   behavior_fit: number | null;
   candidates: Relation<CandidateRecord>;
   completed_at: string | null;
+  composite_score: number | null;
   fit_score: number | null;
   id: string;
   motivation_fit: number | null;
@@ -46,6 +47,7 @@ export type ComparisonCandidate = {
   };
   competencies: Partial<Record<CompetencyKey, number | null>>;
   completedAt: string | null;
+  compositeScore: number | null;
   fitScore: number | null;
   id: string;
   motivationFit: number | null;
@@ -89,6 +91,7 @@ function normalizeApplication(record: ApplicationRecord): ComparisonCandidate | 
       ]),
     ) as Partial<Record<CompetencyKey, number | null>>,
     completedAt: record.completed_at,
+    compositeScore: record.composite_score,
     fitScore: record.fit_score,
     id: record.id,
     motivationFit: record.motivation_fit,
@@ -112,7 +115,7 @@ export async function getJobComparisonData(companyId: string, jobId: string) {
     supabase
       .from("candidate_applications")
       .select(
-        "id, status, completed_at, overall_score, fit_score, motivation_fit, behavior_fit, recommendation, risk_level, requires_review, candidates(id, full_name, email), application_competency_summary(competency_key, percentage)",
+        "id, status, completed_at, overall_score, fit_score, motivation_fit, behavior_fit, composite_score, recommendation, risk_level, requires_review, candidates(id, full_name, email), application_competency_summary(competency_key, percentage)",
       )
       .eq("company_id", companyId)
       .eq("job_id", jobId)

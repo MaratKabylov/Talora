@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { FeedbackMessage } from "@/components/feedback-message";
 import { CompetencyWeightsFields } from "@/components/jobs/competency-weights-fields";
+import { CompositeScoringFields } from "@/components/jobs/composite-scoring-fields";
 import { JobDetailsFields } from "@/components/jobs/job-details-fields";
 import { ProfileTargetFields } from "@/components/jobs/profile-target-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireCompanyContext } from "@/lib/auth/context";
 import {
   updateJobAction,
+  updateJobCompositeConfigAction,
   updateJobProfileTargetsAction,
   updateJobWeightsAction,
 } from "@/lib/jobs/actions";
@@ -121,6 +123,25 @@ export default async function JobPage({
               motivationTargets={data.job.motivationTargetProfile}
             />
             {mayManage ? <Button type="submit">Сохранить целевые профили</Button> : null}
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Composite assessment</CardTitle>
+          <CardDescription>
+            Составная оценка объединяет результаты тестов, dimensions и отдельные fit-метрики. Overall Score остаётся самостоятельным показателем.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <form action={updateJobCompositeConfigAction} className="space-y-5">
+            <input name="jobId" type="hidden" value={data.job.id} />
+            <CompositeScoringFields
+              config={data.job.compositeScoringConfig}
+              disabled={!mayManage}
+            />
+            {mayManage ? <Button type="submit">Сохранить composite scoring</Button> : null}
           </form>
         </CardContent>
       </Card>

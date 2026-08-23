@@ -21,6 +21,10 @@ import {
   type LegacySessionRecord as SessionRecord,
   type LegacySessionScore as SessionScore,
 } from "@/lib/scoring/models/legacy-session";
+import {
+  calculateAssessmentComposite,
+  normalizeAssessmentCompositeConfig,
+} from "@/lib/scoring/models/assessment-composite";
 import { scoreSession } from "@/lib/scoring/session";
 import type { ScoringResultV2 } from "@/lib/scoring/types";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -30,6 +34,7 @@ type Relation<T> = T | T[] | null;
 type JobRecord = {
   assessment_package_id: string | null;
   behavior_target_profile_json: unknown;
+  composite_scoring_config_json: unknown;
   id: string;
   motivation_target_profile_json: unknown;
   passing_score: number | null;
@@ -202,6 +207,61 @@ function collectProfileDimensions(
   });
 }
 
+function collectCompositeSourceValues(
+  sessionScores: Array<SessionScore & { scoringResult?: ScoringResultV2 | null }>,
+  reserved: {
+    behaviorFit: number | null;
+    fitScore: number | null;
+    motivationFit: number | null;
+    overallScore: number | null;
+  },
+) {
+  const observed = new Map<string, number[]>();
+  const add = (source: string, value: number | null | undefined) => {
+    if (typeof value !== "number" || !Number.isFinite(value)) return;
+    const values = observed.get(source) ?? [];
+    values.push(value);
+    observed.set(source, values);
+  };
+
+  for (const sessionScore of sessionScores) {
+    add(`test:${sessionScore.session.test_version_id}`, sessionScore.percentage);
+
+    const result = sessionScore.scoringResult;
+    if (!result) continue;
+    add(`domain:${result.assessmentDomain}`, result.overallScore);
+
+    for (const score of [
+      ...result.criterionScores,
+      ...result.scaleScores,
+      ...result.forcedChoiceScores,
+      ...result.compositeScores,
+    ]) {
+      if (score.status !== "ok") continue;
+      add(score.id, score.normalized_score);
+      add(`score:${score.id}`, score.normalized_score);
+    }
+
+    for (const score of [...result.scaleScores, ...result.forcedChoiceScores]) {
+      if (score.status === "ok") add(`dimension:${score.id}`, score.normalized_score);
+    }
+  }
+
+  const values = Object.fromEntries(
+    [...observed.entries()].map(([source, scores]) => [
+      source,
+      scores.reduce((sum, score) => sum + score, 0) / scores.length,
+    ]),
+  ) as Record<string, number | null>;
+
+  values.overall_score = reserved.overallScore;
+  values.fit_score = reserved.fitScore;
+  values.competency_fit = reserved.fitScore;
+  values.motivation_fit = reserved.motivationFit;
+  values.behavior_fit = reserved.behaviorFit;
+  return values;
+}
+
 function riskLevelForFlags(flags: Array<{ risk_level: "low" | "medium" | "high" }>) {
   if (flags.some((flag) => flag.risk_level === "high")) {
     return "high";
@@ -249,7 +309,7 @@ export async function scoreCompletedApplication(applicationId: string) {
   const admin = createAdminClient();
   const { data: applicationData, error: applicationError } = await admin
     .from("candidate_applications")
-    .select("id, candidate_id, job_id, jobs(id, assessment_package_id, passing_score, motivation_target_profile_json, behavior_target_profile_json)")
+    .select("id, candidate_id, job_id, jobs(id, assessment_package_id, passing_score, motivation_target_profile_json, behavior_target_profile_json, composite_scoring_config_json)")
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -511,6 +571,19 @@ export async function scoreCompletedApplication(applicationId: string) {
     collectProfileDimensions(sessionScores, "behavior"),
     normalizeProfileTargets(job.behavior_target_profile_json),
   )?.score ?? null;
+  const compositeConfig = normalizeAssessmentCompositeConfig(job.composite_scoring_config_json);
+  const compositeResult = compositeConfig
+    ? calculateAssessmentComposite(
+        compositeConfig,
+        collectCompositeSourceValues(sessionScores, {
+          behaviorFit,
+          fitScore,
+          motivationFit,
+          overallScore,
+        }),
+      )
+    : null;
+  const compositeScore = compositeResult?.score ?? null;
 
   const riskFlags: Array<{
     application_id: string;
@@ -608,6 +681,8 @@ export async function scoreCompletedApplication(applicationId: string) {
     .from("candidate_applications")
     .update({
       behavior_fit: behaviorFit,
+      composite_result_json: compositeResult,
+      composite_score: compositeScore,
       fit_score: fitScore,
       motivation_fit: motivationFit,
       overall_score: overallScore,
@@ -628,6 +703,7 @@ export async function scoreCompletedApplication(applicationId: string) {
         .filter((test) => test.is_required)
         .every((test) => sessions.some((session) => session.test_version_id === test.test_version_id && session.status === "completed")),
       behavior_fit: behaviorFit,
+      composite_score: compositeScore,
       fit_score: fitScore,
       job_id: application.job_id,
       motivation_fit: motivationFit,
@@ -646,6 +722,8 @@ export async function scoreCompletedApplication(applicationId: string) {
       application_id: application.id,
       behavior_fit: behaviorFit,
       candidate_id: application.candidate_id,
+      composite_result_json: compositeResult,
+      composite_score: compositeScore,
       fit_score: fitScore,
       interview_questions_json: interviewQuestions,
       motivation_fit: motivationFit,
@@ -666,6 +744,7 @@ export async function scoreCompletedApplication(applicationId: string) {
 
   return {
     behaviorFit,
+    compositeScore,
     fitScore,
     motivationFit,
     overallScore,

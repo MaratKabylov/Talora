@@ -58,6 +58,7 @@ function hasReport(application: CandidateApplication) {
     application.status === "completed" ||
     application.overallScore !== null ||
     application.fitScore !== null ||
+    application.compositeScore !== null ||
     application.requiresReview
   );
 }
@@ -127,6 +128,7 @@ export function CandidateApplicationsTable({
                 <td className="px-4 py-3">
                   {application.overallScore !== null ||
                   application.fitScore !== null ||
+                  application.compositeScore !== null ||
                   application.requiresReview ||
                   application.recommendation ? (
                     <>
@@ -134,6 +136,9 @@ export function CandidateApplicationsTable({
                         Overall: {application.overallScore !== null ? `${application.overallScore}%` : "-"}
                         {" / "}
                         Fit: {application.fitScore !== null ? `${application.fitScore}%` : "-"}
+                        {application.compositeScore !== null
+                          ? ` / Composite: ${application.compositeScore}%`
+                          : ""}
                       </p>
                       <p className="text-muted-foreground">
                         {application.requiresReview

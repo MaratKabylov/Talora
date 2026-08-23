@@ -8,6 +8,10 @@ import {
   type CompetencyKey,
 } from "@/lib/jobs/constants";
 import type { QuestionType } from "@/lib/tests/builder-constants";
+import {
+  normalizeAssessmentCompositeResult,
+  type AssessmentCompositeResult,
+} from "@/lib/scoring/models/assessment-composite";
 
 type Relation<T> = T | T[] | null;
 
@@ -27,6 +31,8 @@ type ApplicationRecord = {
   behavior_fit: number | null;
   candidates: Relation<CandidateRecord>;
   completed_at: string | null;
+  composite_result_json: unknown;
+  composite_score: number | null;
   fit_score: number | null;
   id: string;
   jobs: Relation<JobRecord>;
@@ -208,6 +214,8 @@ export type CandidateReportData = {
     phone: string | null;
   };
   completedAt: string | null;
+  compositeResult: AssessmentCompositeResult | null;
+  compositeScore: number | null;
   competencies: ReportCompetency[];
   fitScore: number | null;
   id: string;
@@ -307,7 +315,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   const { data: applicationData, error: applicationError } = await supabase
     .from("candidate_applications")
     .select(
-      "id, status, completed_at, overall_score, fit_score, motivation_fit, behavior_fit, recommendation, risk_level, requires_review, candidates(full_name, email, phone, city), jobs(id, title)",
+      "id, status, completed_at, overall_score, fit_score, motivation_fit, behavior_fit, composite_score, composite_result_json, recommendation, risk_level, requires_review, candidates(full_name, email, phone, city), jobs(id, title)",
     )
     .eq("company_id", companyId)
     .eq("id", applicationId)
@@ -540,6 +548,8 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       phone: candidate.phone,
     },
     completedAt: application.completed_at,
+    compositeResult: normalizeAssessmentCompositeResult(application.composite_result_json),
+    compositeScore: application.composite_score,
     competencies,
     fitScore: application.fit_score,
     id: application.id,

@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { requireCompanyContext } from "@/lib/auth/context";
 import { profileTargetListSchema } from "@/lib/scoring/profile-fit";
+import { assessmentCompositeConfigSchema } from "@/lib/scoring/models/assessment-composite";
 import { createClient } from "@/lib/supabase/server";
 
 import {
@@ -128,6 +129,18 @@ function parseProfileTarget(formData: FormData, key: string) {
     return profileTargetListSchema.safeParse(JSON.parse(rawValue || "[]"));
   } catch {
     return profileTargetListSchema.safeParse(null);
+  }
+}
+
+function parseCompositeConfig(formData: FormData) {
+  const rawValue = formString(formData, "compositeScoringConfig");
+  try {
+    const value = JSON.parse(rawValue || "null");
+    return value === null
+      ? { data: null, success: true } as const
+      : assessmentCompositeConfigSchema.safeParse(value);
+  } catch {
+    return assessmentCompositeConfigSchema.safeParse(null);
   }
 }
 
@@ -346,4 +359,37 @@ export async function updateJobProfileTargetsAction(formData: FormData) {
 
   revalidatePath(path);
   redirectWithFeedback(path, "message", "Целевые профили вакансии обновлены.");
+}
+
+export async function updateJobCompositeConfigAction(formData: FormData) {
+  const jobId = z.string().uuid().safeParse(formString(formData, "jobId"));
+
+  if (!jobId.success) redirect("/dashboard/jobs");
+
+  const path = getJobPath(jobId.data);
+  const context = await requireCompanyContext();
+  if (!canManageJobs(context.activeCompany.role)) {
+    redirectWithFeedback(path, "error", "У вашей роли нет права изменять composite scoring.");
+  }
+
+  const config = parseCompositeConfig(formData);
+  if (!config.success) {
+    redirectWithFeedback(path, "error", `Некорректная composite configuration: ${config.error.issues[0].message}`);
+  }
+
+  const supabase = await createClient();
+  const { data: updatedJob, error } = await supabase
+    .from("jobs")
+    .update({ composite_scoring_config_json: config.data })
+    .eq("company_id", context.activeCompany.id)
+    .eq("id", jobId.data)
+    .select("id")
+    .maybeSingle();
+
+  if (error || !updatedJob) {
+    redirectWithFeedback(path, "error", "Не удалось сохранить composite configuration.");
+  }
+
+  revalidatePath(path);
+  redirectWithFeedback(path, "message", "Composite scoring обновлён.");
 }

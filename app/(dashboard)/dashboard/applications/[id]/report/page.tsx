@@ -200,7 +200,7 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
         </p>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-7">
         <Card>
           <CardHeader>
             <CardDescription>Overall score</CardDescription>
@@ -227,6 +227,12 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
         </Card>
         <Card>
           <CardHeader>
+            <CardDescription>Composite</CardDescription>
+            <CardTitle className="text-3xl">{score(report.compositeScore)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
             <CardDescription>Рекомендация</CardDescription>
             <CardTitle>
               {report.recommendation
@@ -247,6 +253,42 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
           </CardHeader>
         </Card>
       </div>
+
+      {report.compositeResult ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Структура Composite Assessment</CardTitle>
+            <CardDescription>
+              Покрытие {score(report.compositeResult.coverage)} / статус {report.compositeResult.status}.
+              Пропущенные источники сохраняются в snapshot и не подменяются нулём.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead className="bg-muted/50 text-left text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Источник</th>
+                    <th className="px-4 py-3 font-medium">Результат</th>
+                    <th className="px-4 py-3 font-medium">Вес</th>
+                    <th className="px-4 py-3 font-medium">Вклад</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.compositeResult.components.map((component) => (
+                    <tr className="border-t" key={component.source}>
+                      <td className="px-4 py-3 font-medium">{component.source}</td>
+                      <td className="px-4 py-3">{score(component.score)}</td>
+                      <td className="px-4 py-3">{component.weight}</td>
+                      <td className="px-4 py-3">{score(component.contribution)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
