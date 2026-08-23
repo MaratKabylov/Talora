@@ -1,0 +1,246 @@
+export const SCORING_ENGINE_VERSION = "talvia-scoring/2.0.0" as const;
+export const SCORING_SCHEMA_VERSION = "2.0" as const;
+
+export const ASSESSMENT_DOMAINS = [
+  "knowledge",
+  "skills",
+  "personality",
+  "motivation",
+  "behavior",
+  "mixed",
+  "other",
+] as const;
+
+export const RESULT_SHAPES = ["score", "profile", "hybrid"] as const;
+export const SCORING_MODELS = ["criterion", "scale", "forced_choice", "composite"] as const;
+export const FORCED_CHOICE_METHODS = ["ipsative", "thurstonian_irt"] as const;
+
+export type AssessmentDomain = (typeof ASSESSMENT_DOMAINS)[number];
+export type ResultShape = (typeof RESULT_SHAPES)[number];
+export type ScoringModel = (typeof SCORING_MODELS)[number];
+export type PrimaryScoringModel = Exclude<ScoringModel, "composite">;
+export type ForcedChoiceMethod = (typeof FORCED_CHOICE_METHODS)[number];
+
+export type ScaleDefinition = {
+  aggregation: "sum" | "mean";
+  code: string;
+  description?: string | null;
+  displayOrder: number;
+  id: string;
+  interpretationKey?: string | null;
+  minAnsweredItems?: number | null;
+  minAnsweredRatio?: number | null;
+  missingPolicy: "insufficient" | "prorate";
+  theoreticalMax: number;
+  theoreticalMin: number;
+  title: string;
+};
+
+export type ScaleScoringConfig = {
+  bindings: Array<{
+    direction: 1 | -1;
+    scaleId: string;
+    weight: number;
+  }>;
+  responseMax: number;
+  responseMin: number;
+};
+
+export type CriterionScoringConfig = {
+  competencyBindings?: Array<{
+    competencyId: string;
+    weight: number;
+  }>;
+  maxPoints: number;
+  minPoints?: number;
+  strategy: string;
+};
+
+export type ForcedChoiceScoringConfig = {
+  centering: "none" | "person_mean";
+  method: ForcedChoiceMethod;
+  roleWeights: {
+    least: number;
+    most: number;
+  };
+  statements: Array<{
+    keyedDirection?: 1 | -1;
+    scaleId: string;
+    statementId: string;
+  }>;
+};
+
+export type ScoringItemDefinition =
+  | {
+      config: CriterionScoringConfig;
+      id: string;
+      questionType:
+        | "single_choice"
+        | "multiple_choice"
+        | "scale"
+        | "ordering"
+        | "matching";
+      scoringModel: "criterion";
+    }
+  | {
+      config: ScaleScoringConfig;
+      id: string;
+      questionType: "scale";
+      scoringModel: "scale";
+    }
+  | {
+      config: ForcedChoiceScoringConfig;
+      id: string;
+      questionType: "forced_choice";
+      scoringModel: "forced_choice";
+    }
+  | {
+      config: null;
+      id: string;
+      questionType: "open_text";
+      scoringModel: null;
+    };
+
+export type CompositeInput = {
+  scoreId: string;
+  source: "criterion" | "scale" | "composite";
+  value: "raw_score" | "normalized_score" | "norm_score";
+  weight: number;
+};
+
+export type CompositeDefinition = {
+  aggregation: "weighted_mean" | "sum";
+  code: string;
+  id: string;
+  inputs: CompositeInput[];
+  interpretationKey?: string | null;
+  minRequiredInputs?: number;
+  missingPolicy: "fail" | "renormalize";
+  outputRange?: { max: number; min: number } | null;
+  title: string;
+};
+
+export type NormAssignment = {
+  normScaleCode: string;
+  normSetId: string;
+  normSetVersion: number;
+  primaryMetric: "percentile" | "z" | "sten";
+  scaleId: string;
+};
+
+export type OverallScoreMapping = {
+  sourceId: string;
+  sourceType: "criterion" | "composite";
+};
+
+export type ScoringDefinitionV2 = {
+  assessmentDomain: AssessmentDomain;
+  composites: CompositeDefinition[];
+  normAssignments: NormAssignment[];
+  overallScore?: OverallScoreMapping | null;
+  resultShape: ResultShape;
+  scales: ScaleDefinition[];
+  schemaVersion: typeof SCORING_SCHEMA_VERSION;
+};
+
+export type ConfidenceInfo = {
+  confidence_interval: { level: number; lower: number; upper: number } | null;
+  coverage: {
+    answered_items: number;
+    eligible_items: number;
+    ratio: number | null;
+  };
+  level: "low" | "medium" | "high" | "not_available";
+  reliability: {
+    method: "alpha" | "omega" | "test_retest" | "configured" | "not_available";
+    source: string | null;
+    value: number | null;
+  };
+  standard_error: number | null;
+};
+
+export type NormScore = {
+  derived?: Array<{
+    metric: "percentile" | "z" | "sten";
+    value: number;
+  }>;
+  norm_set_id: string;
+  norm_set_version: number;
+  population_label: string;
+  primary: {
+    metric: "percentile" | "z" | "sten";
+    value: number;
+  };
+};
+
+export type ScoreValue = {
+  confidence: ConfidenceInfo;
+  id: string;
+  norm_score: NormScore | null;
+  normalized_score: number | null;
+  raw_score: number | null;
+  status: "ok" | "insufficient_data" | "not_applicable";
+};
+
+export type ScaleScoreValue = ScoreValue;
+
+export type ForcedChoiceScoreValue = ScoreValue & {
+  comparability: "within_person_only";
+  method: "ipsative";
+};
+
+export type ScoringWarningCode =
+  | "INSUFFICIENT_DATA"
+  | "PRORATED_SCORE"
+  | "NORM_NOT_APPLIED"
+  | "REQUIRES_REVIEW";
+
+export type ScoringWarning = {
+  code: ScoringWarningCode;
+  message: string;
+  scoreId?: string;
+};
+
+export type ScoringResultV2 = {
+  assessmentDomain: AssessmentDomain;
+  compositeScores: ScoreValue[];
+  criterionScores: ScoreValue[];
+  definitionVersionId: string;
+  engineVersion: string;
+  forcedChoiceScores: ForcedChoiceScoreValue[];
+  overallScore: number | null;
+  resultShape: ResultShape;
+  scaleScores: ScaleScoreValue[];
+  schemaVersion: typeof SCORING_SCHEMA_VERSION;
+  scoredAt: string;
+  status: "complete" | "partial" | "insufficient_data" | "requires_review";
+  warnings: ScoringWarning[];
+};
+
+export type ScoringErrorCode =
+  | "INVALID_SCORING_DEFINITION"
+  | "UNSUPPORTED_SCORING_METHOD"
+  | "INVALID_ANSWER_PAYLOAD"
+  | "INSUFFICIENT_DATA"
+  | "NORM_SET_NOT_FOUND"
+  | "NORM_SCALE_NOT_FOUND"
+  | "NORM_VERSION_MISMATCH"
+  | "COMPOSITE_CYCLE"
+  | "COMPOSITE_INPUT_MISSING"
+  | "OVERALL_MAPPING_INVALID";
+
+export class ScoringDomainError extends Error {
+  readonly code: ScoringErrorCode;
+  readonly path?: string;
+
+  constructor(
+    code: ScoringErrorCode,
+    message: string,
+    path?: string,
+  ) {
+    super(message);
+    this.name = "ScoringDomainError";
+    this.code = code;
+    this.path = path;
+  }
+}

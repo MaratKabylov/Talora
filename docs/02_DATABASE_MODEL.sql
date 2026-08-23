@@ -140,6 +140,13 @@ create table if not exists public.test_versions (
   instructions text,
   duration_minutes integer,
   scoring_type text not null default 'points' check (scoring_type in ('points','competency_profile','manual','mixed')),
+  scoring_schema_version text check (scoring_schema_version is null or scoring_schema_version = '2.0'),
+  assessment_domain text check (
+    assessment_domain is null
+    or assessment_domain in ('knowledge','skills','personality','motivation','behavior','mixed','other')
+  ),
+  result_shape text check (result_shape is null or result_shape in ('score','profile','hybrid')),
+  scoring_config_json jsonb,
   status text not null default 'draft' check (status in ('draft','published','archived')),
   settings_json jsonb not null default '{}'::jsonb,
   published_at timestamptz,
@@ -147,6 +154,38 @@ create table if not exists public.test_versions (
   updated_at timestamptz not null default now(),
   check (status <> 'published' or duration_minutes is not null),
   unique(test_template_id, version_number)
+);
+
+-- Versioned platform norms. Drafts are editable; published/retired versions are immutable.
+create table if not exists public.norm_sets (
+  id uuid primary key default gen_random_uuid(),
+  code text not null,
+  version integer not null check (version > 0),
+  status text not null default 'draft' check (status in ('draft','published','retired')),
+  title text not null,
+  population_json jsonb not null default '{}'::jsonb,
+  locale text,
+  country_code text,
+  sample_size integer not null check (sample_size > 0),
+  methodology text not null,
+  source_reference text,
+  published_at timestamptz,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(code, version)
+);
+
+create table if not exists public.norm_scale_definitions (
+  id uuid primary key default gen_random_uuid(),
+  norm_set_id uuid not null references public.norm_sets(id) on delete cascade,
+  scale_code text not null,
+  score_basis text not null check (score_basis in ('raw_score','normalized_score')),
+  conversion_method text not null check (conversion_method in ('percentile_table','z_score')),
+  parameters_json jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(norm_set_id, scale_code)
 );
 
 create table if not exists public.test_sections (
@@ -170,6 +209,8 @@ create table if not exists public.questions (
   order_index integer not null default 0,
   points numeric(8,2) not null default 0,
   competency_key text,
+  scoring_model text check (scoring_model is null or scoring_model in ('criterion','scale','forced_choice')),
+  scoring_config_json jsonb,
   difficulty text check (difficulty in ('easy','medium','hard')),
   settings_json jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
@@ -287,6 +328,9 @@ create table if not exists public.test_results (
   percentage numeric(5,2),
   level text,
   summary text,
+  scoring_result_json jsonb,
+  scoring_engine_version text,
+  scored_at timestamptz,
   created_at timestamptz not null default now(),
   unique(session_id)
 );
@@ -494,6 +538,8 @@ alter table public.candidates enable row level security;
 alter table public.candidate_applications enable row level security;
 alter table public.test_templates enable row level security;
 alter table public.test_versions enable row level security;
+alter table public.norm_sets enable row level security;
+alter table public.norm_scale_definitions enable row level security;
 alter table public.test_sections enable row level security;
 alter table public.questions enable row level security;
 alter table public.answer_options enable row level security;
