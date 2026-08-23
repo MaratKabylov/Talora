@@ -31,6 +31,24 @@ system version.
 - `talvia.test.v1` remains unchanged. `talvia.test.v2` will use a separate parser,
   normalized document, import path and export contract.
 
+### Runtime scorer registries
+
+- `lib/scoring/session.ts` is an orchestrator: it selects legacy or v2,
+  validates the versioned definition, invokes registries and assembles the
+  compatibility result. It does not import concrete v2 scorer functions.
+- Primary item models are adapters in `lib/scoring/model-registry.ts`. Every
+  adapter translates stored answers into its model input and contributes to a
+  common result contract: answer scores, criterion/scale/profile scores,
+  warnings and named raw totals.
+- Domain-only calculations such as learning recovery and attention metrics are
+  adapters in `lib/scoring/domain-registry.ts`; they consume the already scored
+  item answers and append domain metrics and derived criterion scores.
+- Composite and explicit overall-score calculation remain centralized in the
+  pure result engine after both registries finish.
+- Adding a primary scorer or a domain calculation must be done through its
+  registry. Architecture tests verify registry completeness and prevent direct
+  concrete-v2-scorer calls from returning to `scoreSession`.
+
 ### Physical definition storage
 
 Add nullable columns to `test_versions`:
