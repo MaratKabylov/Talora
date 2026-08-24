@@ -1,4 +1,88 @@
-# Scoring Framework V2: recommendation, attention and recalculation
+# Scoring Framework V2: recommendation, interpretation and atomic persistence
+
+## Scoring lifecycle
+
+```text
+Raw answers
+→ calculation
+→ immutable scoring snapshot
+→ atomic persistence
+→ scoring revision
+→ reporting interpretation
+```
+
+Calculation finishes before the first derived write. Candidate and employee
+completion both call `persist_scoring_snapshot`, a service-role-only PostgreSQL
+RPC. The function locks the parent application/participant row, verifies the
+expected `scoring_revision`, and writes scored answer fields, session totals,
+test results, competencies, summaries, fit/composite/overall values, risks,
+recommendation and the generated report in one database transaction.
+
+A persistence error leaves every previous derived row unchanged. Raw response
+payloads (`selected_option_id`, `answer_text`, `answer_json` and response time)
+are never written by scoring. Replacing child collections is idempotent and
+cannot create duplicate competency rows.
+
+The parent `scoring_revision` starts at `0` when no result exists. The first
+successful snapshot becomes revision `1`; every successful recalculation adds
+exactly one. A row lock plus compare-and-set rejects concurrent calculations
+that started from the same revision. `scored_at` remains the initial scoring
+time, while `recalculated_at` records the latest successful recalculation.
+
+For recalculation, the completed audit row is inserted by the same RPC after
+all derived writes. An audit insert failure therefore rolls back the scoring
+snapshot. Failed attempts are recorded separately after rollback and never
+contain `new_result_json` or `new_revision`.
+
+## Three independent policies
+
+- Test `thresholds` interpret the score of one concrete test version, such as
+  `basic`, `proficient` or `advanced`.
+- Recommendation Policy selects the hiring recommendation from aggregate
+  `fit_score`, `overall_score` or `composite_score`.
+- Interpretation Policy classifies report indicators as `strength`, `neutral`
+  or `development_area` and drives threshold-based interview guidance.
+
+The three configurations do not fall back to one another.
+
+## Interpretation policy
+
+Report interpretation belongs to the hiring/assessment workflow and is stored
+on `jobs.interpretation_policy_json` or
+`employee_assessments.interpretation_policy_json`. A null value uses
+`DEFAULT_INTERPRETATION_POLICY`, preserving the deployed boundaries:
+
+```json
+{
+  "bands": [
+    { "min": 0, "max": 64.99, "code": "development_area" },
+    { "min": 65, "max": 74.99, "code": "neutral" },
+    { "min": 75, "max": 100, "code": "strength" }
+  ]
+}
+```
+
+Policies must cover `0..100` without gaps or overlaps and use unique codes.
+Report generation calls `interpretReportScore`; it does not compare scores to
+local numeric thresholds. Personality and motivation dimensions default to
+the non-evaluative `neutral` direction and yield `low`, `medium` or `high`
+expression bands. Knowledge and performance indicators default to
+`higher_is_better`. Explicit directions are limited to
+`higher_is_better`, `lower_is_better`, `neutral` and `target_range`.
+The resolved direction is persisted on the aggregate competency summary so a
+later report read retains the original domain semantics.
+
+### Threshold audit
+
+- `65/85` in `LEGACY_SCORE_THRESHOLDS` remain test-result thresholds.
+- `50/65/75/85` live only in `DEFAULT_RECOMMENDATION_POLICY`.
+- `65/75` live only in `DEFAULT_INTERPRETATION_POLICY` for legacy report
+  compatibility.
+- `0.75/0.9` in coverage confidence remain confidence-level classification,
+  not report or hiring thresholds; changing them would alter an existing
+  Scoring V2 output.
+- Limits such as collection size `50`, normalization `0..100`, and rounding to
+  two decimals are validation or mathematical constants, not business policy.
 
 ## Recommendation policy
 
@@ -86,11 +170,10 @@ and structured response payloads) are never updated. Existing derived manual
 values on open-text answers are preserved. V2 result rows store both the engine
 and schema versions.
 
-Before scoring starts, `scoring_recalculation_history` stores the previous
-session result and parent aggregate snapshot together with reason and actor.
-After success it stores the new snapshots and versions. A scorer failure is
-recorded as `failed`; because all scorers run before the first derived write,
-the active result remains untouched on a scoring exception. The history table
-is tenant-scoped, RLS-readable by company members and writable only by the
+The previous session result and parent aggregate are loaded before calculation.
+On success the RPC stores the previous and new snapshots, engine/schema
+versions, `previous_revision` and `new_revision` atomically with scoring. A
+scorer failure is recorded as `failed`; because all scorers run before the first
+derived write, the active result remains untouched. The history table is
+tenant-scoped, RLS-readable by company members and writable only by the
 server-side service.
-

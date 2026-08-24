@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { findScoreBand, validateScoreBands } from "./score-bands.ts";
+
 export const RECOMMENDATION_SOURCES = [
   "fit_score",
   "overall_score",
@@ -47,51 +49,9 @@ export const recommendationPolicySchema = z
   })
   .strict()
   .superRefine((policy, context) => {
-    const codes = new Set<string>();
-    policy.bands.forEach((band, index) => {
-      if (codes.has(band.code)) {
-        context.addIssue({
-          code: "custom",
-          message: `Duplicate recommendation code '${band.code}'.`,
-          path: ["bands", index, "code"],
-        });
-      }
-      codes.add(band.code);
-    });
-
-    const ordered = [...policy.bands].sort((left, right) => left.min - right.min);
-    if (ordered[0]?.min !== 0) {
-      context.addIssue({
-        code: "custom",
-        message: "Recommendation bands must start at 0.",
-        path: ["bands"],
-      });
+    for (const message of validateScoreBands(policy.bands)) {
+      context.addIssue({ code: "custom", message, path: ["bands"] });
     }
-    if (ordered.at(-1)?.max !== 100) {
-      context.addIssue({
-        code: "custom",
-        message: "Recommendation bands must end at 100.",
-        path: ["bands"],
-      });
-    }
-
-    ordered.slice(1).forEach((band, index) => {
-      const previous = ordered[index];
-      const gap = band.min - previous.max;
-      if (gap <= 0) {
-        context.addIssue({
-          code: "custom",
-          message: "Recommendation bands must not overlap.",
-          path: ["bands"],
-        });
-      } else if (gap > 0.0100001) {
-        context.addIssue({
-          code: "custom",
-          message: "Recommendation bands must cover every score rounded to two decimals.",
-          path: ["bands"],
-        });
-      }
-    });
   });
 
 /**
@@ -124,7 +84,7 @@ export function recommendWithPolicy(
   if (value === null || !Number.isFinite(value)) return "requires_review";
 
   const rounded = Math.round(Math.min(Math.max(value, 0), 100) * 100) / 100;
-  const band = policy.bands.find((candidate) => rounded >= candidate.min && rounded <= candidate.max);
+  const band = findScoreBand(rounded, policy.bands);
   if (!band) {
     throw new Error(`Recommendation policy does not cover score ${rounded}.`);
   }

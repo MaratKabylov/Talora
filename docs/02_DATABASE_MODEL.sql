@@ -71,6 +71,7 @@ create table if not exists public.jobs (
   assessment_package_id uuid references public.assessment_packages(id),
   passing_score numeric(5,2),
   recommendation_policy_json jsonb,
+  interpretation_policy_json jsonb,
   created_by uuid references public.profiles(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -113,6 +114,7 @@ create table if not exists public.candidate_applications (
   fit_score numeric(5,2),
   recommendation text,
   risk_level text check (risk_level in ('low','medium','high')),
+  scoring_revision integer not null default 0,
   completed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -333,6 +335,8 @@ create table if not exists public.test_results (
   scoring_engine_version text,
   scoring_schema_version text,
   scored_at timestamptz,
+  recalculated_at timestamptz,
+  scoring_revision integer not null default 0,
   created_at timestamptz not null default now(),
   unique(session_id)
 );
@@ -360,6 +364,11 @@ create table if not exists public.application_competency_summary (
   level text,
   weighted_score numeric(8,2),
   is_below_minimum boolean not null default false,
+  interpretation_direction text check (
+    interpretation_direction is null or interpretation_direction in (
+      'higher_is_better','lower_is_better','neutral','target_range'
+    )
+  ),
   created_at timestamptz not null default now(),
   unique(application_id, competency_key)
 );

@@ -13,6 +13,12 @@ import {
   type AssessmentCompositeResult,
 } from "@/lib/scoring/models/assessment-composite";
 import {
+  interpretReportScore,
+  parseInterpretationPolicy,
+  type InterpretationDirection,
+  type InterpretationPolicy,
+} from "@/lib/scoring/interpretation-policy";
+import {
   buildReportScoringDetails,
   type ReportScoringDetails,
 } from "@/lib/reports/scoring-details";
@@ -28,6 +34,7 @@ type CandidateRecord = {
 
 type JobRecord = {
   id: string;
+  interpretation_policy_json: unknown;
   title: string;
 };
 
@@ -50,6 +57,7 @@ type ApplicationRecord = {
 
 type SummaryRecord = {
   competency_key: CompetencyKey;
+  interpretation_direction: InterpretationDirection | null;
   is_below_minimum: boolean;
   percentage: number | null;
   weighted_score: number | null;
@@ -142,6 +150,7 @@ type GeneratedReportRecord = {
 };
 
 export type ReportCompetency = {
+  interpretationDirection: InterpretationDirection;
   isBelowMinimum: boolean;
   isMotivation: boolean;
   key: CompetencyKey;
@@ -294,13 +303,20 @@ function renderAnswer(record: AnswerRecord, question: QuestionRecord) {
   return record.answer_text ?? "Ответ не указан";
 }
 
-function createInterviewQuestions(competencies: ReportCompetency[], requiresReview: boolean) {
+function createInterviewQuestions(
+  competencies: ReportCompetency[],
+  requiresReview: boolean,
+  interpretationPolicy: InterpretationPolicy,
+) {
   const questions = competencies
     .filter(
       (competency) =>
-        !competency.isMotivation &&
         competency.percentage !== null &&
-        (competency.isBelowMinimum || competency.percentage < 65),
+        (competency.isBelowMinimum ||
+          interpretReportScore(competency.percentage, interpretationPolicy, {
+            competencyKey: competency.key,
+            direction: competency.interpretationDirection,
+          })?.band === "development_area"),
     )
     .map(
       (competency) =>
@@ -321,7 +337,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   const { data: applicationData, error: applicationError } = await supabase
     .from("candidate_applications")
     .select(
-      "id, status, completed_at, overall_score, fit_score, motivation_fit, behavior_fit, composite_score, composite_result_json, recommendation, risk_level, requires_review, candidates(full_name, email, phone, city), jobs(id, title)",
+      "id, status, completed_at, overall_score, fit_score, motivation_fit, behavior_fit, composite_score, composite_result_json, recommendation, risk_level, requires_review, candidates(full_name, email, phone, city), jobs(id, title, interpretation_policy_json)",
     )
     .eq("company_id", companyId)
     .eq("id", applicationId)
@@ -341,6 +357,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   if (!candidate || !job) {
     return null;
   }
+  const interpretationPolicy = parseInterpretationPolicy(job.interpretation_policy_json);
 
   const [
     summaryResult,
@@ -353,7 +370,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     await Promise.all([
       supabase
         .from("application_competency_summary")
-        .select("competency_key, percentage, weighted_score, is_below_minimum")
+        .select("competency_key, percentage, weighted_score, is_below_minimum, interpretation_direction")
         .eq("application_id", applicationId),
       supabase
         .from("candidate_risk_flags")
@@ -419,6 +436,9 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     .map((summary) => ({
       isBelowMinimum: summary.is_below_minimum,
       isMotivation: isMotivationCompetencyKey(summary.competency_key),
+      interpretationDirection:
+        summary.interpretation_direction ??
+        (summary.competency_key.startsWith("motivation_") ? "neutral" : "higher_is_better"),
       key: summary.competency_key,
       label: COMPETENCY_LABELS.get(summary.competency_key) ?? summary.competency_key,
       percentage: summary.percentage,
@@ -497,9 +517,11 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   const storedReport = generatedReportResult.data as GeneratedReportRecord | null;
   const strengths = competencies.filter(
     (competency) =>
-      !competency.isMotivation &&
       competency.percentage !== null &&
-      competency.percentage >= 75,
+      interpretReportScore(competency.percentage, interpretationPolicy, {
+        competencyKey: competency.key,
+        direction: competency.interpretationDirection,
+      })?.band === "strength",
   );
   const storedQuestions = stringArray(storedReport?.interview_questions_json);
   const integrityRecords = (integrityEventsResult.data ?? []) as unknown as IntegrityEventRecord[];
@@ -581,7 +603,11 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     interviewQuestions:
       storedQuestions.length > 0
         ? storedQuestions
-        : createInterviewQuestions(competencies, application.requires_review),
+        : createInterviewQuestions(
+            competencies,
+            application.requires_review,
+            interpretationPolicy,
+          ),
     job: { id: job.id, title: job.title },
     motivationFit: application.motivation_fit,
     overallScore: application.overall_score,

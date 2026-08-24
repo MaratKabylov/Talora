@@ -13,17 +13,22 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+const finalizationMigration = readFileSync(
+  new URL(
+    "../supabase/migrations/20260824130000_scoring_v2_finalization.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 test("recalculation delegates to normal parent pipelines and audits both snapshots", () => {
   const entryPoint = service.slice(service.indexOf("export async function recalculateSessionScore"));
-  assert.match(entryPoint, /scoreCompletedApplication\(applicationId\)/);
-  assert.match(entryPoint, /scoreCompletedEmployeeAssessmentParticipant\(participantId\)/);
-  assert.ok(
-    entryPoint.indexOf("startRecalculationAudit") <
-      entryPoint.indexOf("scoreCompletedApplication(applicationId)"),
-  );
+  assert.match(entryPoint, /scoreCompletedApplication\(applicationId, \{/);
+  assert.match(entryPoint, /scoreCompletedEmployeeAssessmentParticipant\(participantId, \{/);
+  assert.match(entryPoint, /expectedRevision: before\.revision/);
+  assert.match(service, /\.rpc\(\s*"persist_scoring_snapshot"/);
   assert.match(entryPoint, /previous_engine_version/);
-  assert.match(entryPoint, /new_engine_version/);
+  assert.match(entryPoint, /previous_revision/);
   assert.match(entryPoint, /status: "failed"/);
 });
 
@@ -37,6 +42,8 @@ test("recalculation reasons and versioned history are constrained", () => {
   assert.match(migration, /new_result_json jsonb/);
   assert.match(migration, /previous_aggregate_json jsonb/);
   assert.match(migration, /scoring_schema_version/);
+  assert.match(finalizationMigration, /previous_revision integer/);
+  assert.match(finalizationMigration, /new_revision integer/);
 });
 
 test("raw response columns are read but never updated by the scoring pipeline", () => {
