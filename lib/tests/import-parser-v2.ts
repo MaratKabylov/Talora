@@ -71,6 +71,10 @@ const criterionItemSchema = z
     min_points: z.number().finite().optional().default(0),
     question_key: stableKeySchema,
     scoring_model: z.literal("criterion"),
+    signal_classification: z
+      .object({ target_present: z.boolean() })
+      .strict()
+      .optional(),
     strategy: z.enum(CRITERION_STRATEGIES),
   })
   .strict()
@@ -412,6 +416,9 @@ export function buildScoringItemsFromImportV2(
           })),
           maxPoints: item.max_points,
           minPoints: item.min_points,
+          signalClassification: item.signal_classification
+            ? { targetPresent: item.signal_classification.target_present }
+            : undefined,
           strategy: item.strategy,
         },
         id: item.question_key,
@@ -643,6 +650,27 @@ function validateV2CrossReferences(document: TalviaTestImportDocumentV2) {
         "Attention assessments cannot contain remediation branches.",
       );
     }
+    for (const item of document.scoring.items) {
+      if (
+        item.scoring_model === "criterion" &&
+        item.signal_classification &&
+        !["single_choice", "multiple_choice"].includes(
+          questionByKey.get(item.question_key)?.type ?? "",
+        )
+      ) {
+        throw new JsonDocumentError(
+          `Attention signal_classification requires a choice question ('${item.question_key}').`,
+        );
+      }
+    }
+  } else if (
+    document.scoring.items.some(
+      (item) => item.scoring_model === "criterion" && item.signal_classification,
+    )
+  ) {
+    throw new JsonDocumentError(
+      "signal_classification is only valid for the attention assessment domain.",
+    );
   }
 
   if (

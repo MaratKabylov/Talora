@@ -150,8 +150,10 @@ const attentionMetricsSchema = z
     answered_count: z.number().int().min(0),
     completion_rate: z.number().finite().min(0).max(100).nullable(),
     correct_count: z.number().int().min(0),
+    false_alarm_rate: z.number().finite().min(0).max(1).nullable().optional().default(null),
     false_negative_count: z.number().int().min(0).nullable(),
     false_positive_count: z.number().int().min(0).nullable(),
+    hit_rate: z.number().finite().min(0).max(1).nullable().optional().default(null),
     incorrect_count: z.number().int().min(0),
     mean_response_time_ms: z.number().finite().min(0).nullable(),
     median_response_time_ms: z.number().finite().min(0).nullable(),
@@ -159,6 +161,8 @@ const attentionMetricsSchema = z
     speed_percentile: z.null(),
     timed_items: z.number().int().min(0),
     total_items: z.number().int().min(0),
+    true_negative_count: z.number().int().min(0).nullable().optional().default(null),
+    true_positive_count: z.number().int().min(0).nullable().optional().default(null),
   })
   .strict();
 

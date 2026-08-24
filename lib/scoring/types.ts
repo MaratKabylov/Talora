@@ -72,6 +72,9 @@ export type CriterionScoringConfig = {
   }>;
   maxPoints: number;
   minPoints?: number;
+  signalClassification?: {
+    targetPresent: boolean;
+  };
   strategy: CriterionStrategy;
 };
 
@@ -209,8 +212,10 @@ export type AttentionMetrics = {
   answered_count: number;
   completion_rate: number | null;
   correct_count: number;
+  false_alarm_rate: number | null;
   false_negative_count: number | null;
   false_positive_count: number | null;
+  hit_rate: number | null;
   incorrect_count: number;
   mean_response_time_ms: number | null;
   median_response_time_ms: number | null;
@@ -218,6 +223,8 @@ export type AttentionMetrics = {
   speed_percentile: null;
   timed_items: number;
   total_items: number;
+  true_negative_count: number | null;
+  true_positive_count: number | null;
 };
 
 export type ScoringDefinitionV2 = {

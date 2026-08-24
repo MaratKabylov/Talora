@@ -26,6 +26,10 @@ const sjtMigration = readFileSync(
   new URL("../supabase/migrations/20260823210000_sjt_scoring_model.sql", import.meta.url),
   "utf8",
 );
+const hardeningMigration = readFileSync(
+  new URL("../supabase/migrations/20260824120000_scoring_v2_hardening.sql", import.meta.url),
+  "utf8",
+);
 
 test("talvia.test.v2 exposes explicit item models and score interpretation", () => {
   assert.equal(publicSchema.properties.schema_version.const, "talvia.test.v2");
@@ -48,6 +52,7 @@ test("talvia.test.v2 exposes explicit item models and score interpretation", () 
   assert.match(serialized, /reverse_scored/);
   assert.match(serialized, /item_weight/);
   assert.match(serialized, /dimension_effects/);
+  assert.match(serialized, /signal_classification/);
   assert.match(serialized, /forced_choice/);
   assert.match(serialized, /sjt/);
   assert.match(
@@ -70,4 +75,7 @@ test("v2 database import wraps v1 atomically and maps option keys to stored UUID
   assert.match(sjtMigration, /apply_talvia_scoring_v2_pre_sjt/);
   assert.match(sjtMigration, /'optionId', option_row\.id::text/);
   assert.match(sjtMigration, /set scoring_model = 'sjt'/);
+  assert.match(hardeningMigration, /apply_talvia_scoring_v2_pre_attention/);
+  assert.match(hardeningMigration, /'signalClassification'/);
+  assert.match(hardeningMigration, /'targetPresent'/);
 });

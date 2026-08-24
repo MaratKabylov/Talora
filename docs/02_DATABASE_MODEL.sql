@@ -70,6 +70,7 @@ create table if not exists public.jobs (
   status text not null default 'draft' check (status in ('draft','active','paused','closed','archived')),
   assessment_package_id uuid references public.assessment_packages(id),
   passing_score numeric(5,2),
+  recommendation_policy_json jsonb,
   created_by uuid references public.profiles(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -330,6 +331,7 @@ create table if not exists public.test_results (
   summary text,
   scoring_result_json jsonb,
   scoring_engine_version text,
+  scoring_schema_version text,
   scored_at timestamptz,
   created_at timestamptz not null default now(),
   unique(session_id)

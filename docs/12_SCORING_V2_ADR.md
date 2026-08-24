@@ -81,6 +81,12 @@ Add the same nullable fields to `test_results` and
 - `scoring_engine_version text`;
 - `scored_at timestamptz`.
 
+The final hardening adds an explicit persisted `scoring_schema_version` beside
+the engine version and keeps pre/post snapshots in
+`scoring_recalculation_history` for every requested recalculation. Aggregate
+recommendation configuration lives on the job or employee assessment, not in
+the version-level test thresholds.
+
 `test_version_id` is the physical `definitionVersionId`. Compatibility scalar
 columns remain available. A v2 result always stores `overallScore` as JSON null
 when no explicit mapping exists; legacy completed results are never rescored or

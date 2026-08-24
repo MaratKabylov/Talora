@@ -26,6 +26,11 @@ import {
   normalizeAssessmentCompositeConfig,
 } from "@/lib/scoring/models/assessment-composite";
 import { scoreSession } from "@/lib/scoring/session";
+import {
+  capHighRiskRecommendation,
+  parseRecommendationPolicy,
+  recommendWithPolicy,
+} from "@/lib/scoring/recommendation-policy";
 import type { ScoringResultV2 } from "@/lib/scoring/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -38,6 +43,7 @@ type JobRecord = {
   id: string;
   motivation_target_profile_json: unknown;
   passing_score: number | null;
+  recommendation_policy_json: unknown;
 };
 
 type ApplicationRecord = {
@@ -51,6 +57,7 @@ type EmployeeAssessmentScoringRecord = {
   assessment_package_id: string;
   id: string;
   passing_score: number | null;
+  recommendation_policy_json: unknown;
 };
 
 type EmployeeParticipantScoringRecord = {
@@ -132,30 +139,6 @@ function getResultLevel(
   }
 
   return "below_expectations";
-}
-
-function recommendationFromScore(value: number | null) {
-  if (value === null) {
-    return "requires_review";
-  }
-
-  if (value >= 85) {
-    return "strong_candidate";
-  }
-
-  if (value >= 75) {
-    return "invite";
-  }
-
-  if (value >= 65) {
-    return "consider";
-  }
-
-  if (value >= 50) {
-    return "backup";
-  }
-
-  return "not_recommended";
 }
 
 function getV2MetricsSummary(result: ScoringResultV2 | null) {
@@ -316,7 +299,7 @@ export async function scoreCompletedApplication(applicationId: string) {
   const admin = createAdminClient();
   const { data: applicationData, error: applicationError } = await admin
     .from("candidate_applications")
-    .select("id, candidate_id, job_id, jobs(id, assessment_package_id, passing_score, motivation_target_profile_json, behavior_target_profile_json, composite_scoring_config_json)")
+    .select("id, candidate_id, job_id, jobs(id, assessment_package_id, passing_score, motivation_target_profile_json, behavior_target_profile_json, composite_scoring_config_json, recommendation_policy_json)")
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -329,6 +312,7 @@ export async function scoreCompletedApplication(applicationId: string) {
   if (!job?.assessment_package_id) {
     throw new Error("Application job has no assessment package.");
   }
+  const recommendationPolicy = parseRecommendationPolicy(job.recommendation_policy_json);
 
   const [sessionsResult, packageTestsResult, weightsResult] = await Promise.all([
     admin
@@ -373,7 +357,7 @@ export async function scoreCompletedApplication(applicationId: string) {
       .in("test_version_id", testVersionIds),
     admin
       .from("candidate_answers")
-      .select("id, session_id, question_id, selected_option_id, answer_text, answer_json, time_spent_seconds")
+      .select("id, session_id, question_id, selected_option_id, answer_text, answer_json, time_spent_seconds, is_correct, points_awarded, raw_score")
       .in("session_id", sessionIds),
   ]);
 
@@ -397,6 +381,10 @@ export async function scoreCompletedApplication(applicationId: string) {
     existing.push(answer);
     answersBySession.set(answer.session_id, existing);
   }
+  const candidateAnswerById = new Map(answers.map((answer) => [answer.id, answer]));
+  const candidateQuestionById = new Map(
+    [...questionsByVersion.values()].flat().map((question) => [question.id, question]),
+  );
 
   const calculations = sessions.map((session) =>
     scoreSession(
@@ -408,16 +396,25 @@ export async function scoreCompletedApplication(applicationId: string) {
   );
 
   const answerUpdates = calculations.flatMap((calculation) =>
-    [...calculation.answerScores.entries()].map(([answerId, scoredAnswer]) =>
-      admin
+    [...calculation.answerScores.entries()].flatMap(([answerId, scoredAnswer]) => {
+      const storedAnswer = candidateAnswerById.get(answerId);
+      const preserveManualReview =
+        candidateQuestionById.get(storedAnswer?.question_id ?? "")?.question_type === "open_text" &&
+        storedAnswer !== undefined &&
+        [storedAnswer.is_correct, storedAnswer.points_awarded, storedAnswer.raw_score].some(
+          (value) => value !== null && value !== undefined,
+        );
+      return preserveManualReview
+        ? []
+        : [admin
         .from("candidate_answers")
         .update({
           is_correct: scoredAnswer.isCorrect,
           points_awarded: scoredAnswer.pointsAwarded,
           raw_score: scoredAnswer.rawScore,
         })
-        .eq("id", answerId),
-    ),
+        .eq("id", answerId)];
+    }),
   );
   const answerUpdateResults = await Promise.all(answerUpdates);
   if (answerUpdateResults.some((result) => result.error)) {
@@ -453,6 +450,7 @@ export async function scoreCompletedApplication(applicationId: string) {
         requires_review: score.requiresReview,
         scored_at: score.scoringResult?.scoredAt ?? null,
         scoring_engine_version: score.scoringResult?.engineVersion ?? null,
+        scoring_schema_version: score.scoringResult?.schemaVersion ?? null,
         scoring_result_json: score.scoringResult,
         session_id: score.session.id,
         summary: (!score.requiresReview ? getV2MetricsSummary(score.scoringResult) : null) ?? (score.requiresReview
@@ -664,10 +662,14 @@ export async function scoreCompletedApplication(applicationId: string) {
   const riskLevel = riskLevelForFlags(riskFlags);
   const baseRecommendation = requiresReview
     ? "requires_review"
-    : recommendationFromScore(fitScore ?? overallScore);
+    : recommendWithPolicy(recommendationPolicy, {
+        composite_score: compositeScore,
+        fit_score: fitScore,
+        overall_score: overallScore,
+      });
   const recommendation =
-    riskLevel === "high" && (baseRecommendation === "strong_candidate" || baseRecommendation === "invite")
-      ? "consider"
+    riskLevel === "high"
+      ? capHighRiskRecommendation(baseRecommendation, recommendationPolicy)
       : baseRecommendation;
   const strengths = summaryRows
     .filter(
@@ -765,7 +767,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
   const admin = createAdminClient();
   const { data: participantData, error: participantError } = await admin
     .from("employee_assessment_participants")
-    .select("id, employee_id, employee_assessment_id, employee_assessments(id, assessment_package_id, passing_score)")
+    .select("id, employee_id, employee_assessment_id, employee_assessments(id, assessment_package_id, passing_score, recommendation_policy_json)")
     .eq("id", participantId)
     .maybeSingle();
 
@@ -778,6 +780,9 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
   if (!assessment?.assessment_package_id) {
     throw new Error("Employee assessment has no assessment package.");
   }
+  const recommendationPolicy = parseRecommendationPolicy(
+    assessment.recommendation_policy_json,
+  );
 
   const [sessionsResult, packageTestsResult, weightsResult] = await Promise.all([
     admin
@@ -822,7 +827,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
       .in("test_version_id", testVersionIds),
     admin
       .from("employee_assessment_answers")
-      .select("id, session_id, question_id, selected_option_id, answer_text, answer_json, time_spent_seconds")
+      .select("id, session_id, question_id, selected_option_id, answer_text, answer_json, time_spent_seconds, is_correct, points_awarded, raw_score")
       .in("session_id", sessionIds),
   ]);
 
@@ -846,6 +851,10 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
     existing.push(answer);
     answersBySession.set(answer.session_id, existing);
   }
+  const employeeAnswerById = new Map(answers.map((answer) => [answer.id, answer]));
+  const employeeQuestionById = new Map(
+    [...questionsByVersion.values()].flat().map((question) => [question.id, question]),
+  );
 
   const calculations = sessions.map((session) =>
     scoreSession(
@@ -857,16 +866,25 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
   );
 
   const answerUpdates = calculations.flatMap((calculation) =>
-    [...calculation.answerScores.entries()].map(([answerId, scoredAnswer]) =>
-      admin
+    [...calculation.answerScores.entries()].flatMap(([answerId, scoredAnswer]) => {
+      const storedAnswer = employeeAnswerById.get(answerId);
+      const preserveManualReview =
+        employeeQuestionById.get(storedAnswer?.question_id ?? "")?.question_type === "open_text" &&
+        storedAnswer !== undefined &&
+        [storedAnswer.is_correct, storedAnswer.points_awarded, storedAnswer.raw_score].some(
+          (value) => value !== null && value !== undefined,
+        );
+      return preserveManualReview
+        ? []
+        : [admin
         .from("employee_assessment_answers")
         .update({
           is_correct: scoredAnswer.isCorrect,
           points_awarded: scoredAnswer.pointsAwarded,
           raw_score: scoredAnswer.rawScore,
         })
-        .eq("id", answerId),
-    ),
+        .eq("id", answerId)];
+    }),
   );
   const answerUpdateResults = await Promise.all(answerUpdates);
   if (answerUpdateResults.some((result) => result.error)) {
@@ -902,6 +920,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
         requires_review: score.requiresReview,
         scored_at: score.scoringResult?.scoredAt ?? null,
         scoring_engine_version: score.scoringResult?.engineVersion ?? null,
+        scoring_schema_version: score.scoringResult?.schemaVersion ?? null,
         scoring_result_json: score.scoringResult,
         session_id: score.session.id,
         summary: (!score.requiresReview ? getV2MetricsSummary(score.scoringResult) : null) ?? (score.requiresReview
@@ -1093,10 +1112,14 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
   const riskLevel = riskLevelForFlags(riskFlags);
   const baseRecommendation = requiresReview
     ? "requires_review"
-    : recommendationFromScore(fitScore ?? overallScore);
+    : recommendWithPolicy(recommendationPolicy, {
+        composite_score: null,
+        fit_score: fitScore,
+        overall_score: overallScore,
+      });
   const recommendation =
-    riskLevel === "high" && (baseRecommendation === "strong_candidate" || baseRecommendation === "invite")
-      ? "consider"
+    riskLevel === "high"
+      ? capHighRiskRecommendation(baseRecommendation, recommendationPolicy)
       : baseRecommendation;
   const strengths = summaryRows
     .filter(
@@ -1157,17 +1180,51 @@ export async function scoreCompletedEmployeeAssessmentParticipant(participantId:
   };
 }
 
+export const RECALCULATION_REASONS = [
+  "manual",
+  "scoring_upgrade",
+  "definition_change",
+  "admin_repair",
+] as const;
+
+export type RecalculationReason = (typeof RECALCULATION_REASONS)[number];
+
+export type RecalculateSessionScoreInput = {
+  actorId?: string | null;
+  reason: RecalculationReason;
+  sessionId: string;
+};
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+type RecalculationSnapshot = {
+  aggregate: Record<string, unknown> | null;
+  companyId: string;
+  engineVersion: string | null;
+  result: Record<string, unknown> | null;
+  schemaVersion: string | null;
+};
+
 /**
- * Rebuilds a completed assessment from persisted raw answers. The parent-level
- * scorer is used deliberately so aggregate competencies, fit and reports stay
- * consistent with the replaced session snapshot.
+ * Rebuilds a completed assessment from persisted raw answers. This entry point
+ * delegates to the same parent pipeline as normal completion, and records the
+ * previous snapshot before any derived scoring data is replaced.
  */
-export async function recalculateSessionScore(sessionId: string) {
+export async function recalculateSessionScore(
+  input: string | RecalculateSessionScoreInput,
+) {
+  const request = typeof input === "string"
+    ? { actorId: null, reason: "manual" as const, sessionId: input }
+    : input;
+  if (!RECALCULATION_REASONS.includes(request.reason)) {
+    throw new Error("Invalid recalculation reason.");
+  }
+
   const admin = createAdminClient();
   const { data: candidateSession, error: candidateError } = await admin
     .from("test_sessions")
     .select("application_id, status")
-    .eq("id", sessionId)
+    .eq("id", request.sessionId)
     .maybeSingle();
   if (candidateError) {
     throw new Error("Unable to locate candidate session for recalculation.");
@@ -1176,16 +1233,39 @@ export async function recalculateSessionScore(sessionId: string) {
     if (candidateSession.status !== "completed") {
       throw new Error("Only completed sessions can be recalculated.");
     }
-    return {
-      scope: "candidate" as const,
-      result: await scoreCompletedApplication(candidateSession.application_id as string),
-    };
+    const applicationId = candidateSession.application_id as string;
+    const before = await loadCandidateRecalculationSnapshot(
+      admin,
+      applicationId,
+      request.sessionId,
+    );
+    const auditId = await startRecalculationAudit(admin, {
+      actorId: request.actorId ?? null,
+      companyId: before.companyId,
+      reason: request.reason,
+      scope: "candidate",
+      sessionId: request.sessionId,
+      snapshot: before,
+    });
+    try {
+      const result = await scoreCompletedApplication(applicationId);
+      const after = await loadCandidateRecalculationSnapshot(
+        admin,
+        applicationId,
+        request.sessionId,
+      );
+      await completeRecalculationAudit(admin, auditId, after);
+      return { auditId, scope: "candidate" as const, result };
+    } catch (error) {
+      await failRecalculationAudit(admin, auditId, error);
+      throw error;
+    }
   }
 
   const { data: employeeSession, error: employeeError } = await admin
     .from("employee_assessment_sessions")
     .select("participant_id, status")
-    .eq("id", sessionId)
+    .eq("id", request.sessionId)
     .maybeSingle();
   if (employeeError) {
     throw new Error("Unable to locate employee session for recalculation.");
@@ -1196,10 +1276,159 @@ export async function recalculateSessionScore(sessionId: string) {
   if (employeeSession.status !== "completed") {
     throw new Error("Only completed sessions can be recalculated.");
   }
+
+  const participantId = employeeSession.participant_id as string;
+  const before = await loadEmployeeRecalculationSnapshot(
+    admin,
+    participantId,
+    request.sessionId,
+  );
+  const auditId = await startRecalculationAudit(admin, {
+    actorId: request.actorId ?? null,
+    companyId: before.companyId,
+    reason: request.reason,
+    scope: "employee",
+    sessionId: request.sessionId,
+    snapshot: before,
+  });
+  try {
+    const result = await scoreCompletedEmployeeAssessmentParticipant(participantId);
+    const after = await loadEmployeeRecalculationSnapshot(
+      admin,
+      participantId,
+      request.sessionId,
+    );
+    await completeRecalculationAudit(admin, auditId, after);
+    return { auditId, scope: "employee" as const, result };
+  } catch (error) {
+    await failRecalculationAudit(admin, auditId, error);
+    throw error;
+  }
+}
+
+async function loadCandidateRecalculationSnapshot(
+  admin: AdminClient,
+  applicationId: string,
+  sessionId: string,
+): Promise<RecalculationSnapshot> {
+  const [application, result] = await Promise.all([
+    admin
+      .from("candidate_applications")
+      .select("company_id, overall_score, fit_score, motivation_fit, behavior_fit, composite_score, composite_result_json, recommendation, risk_level, requires_review")
+      .eq("id", applicationId)
+      .single(),
+    admin
+      .from("test_results")
+      .select("scoring_result_json, scoring_engine_version, scoring_schema_version")
+      .eq("session_id", sessionId)
+      .maybeSingle(),
+  ]);
+  if (application.error || !application.data || result.error) {
+    throw new Error("Unable to snapshot candidate scoring before recalculation.");
+  }
   return {
-    scope: "employee" as const,
-    result: await scoreCompletedEmployeeAssessmentParticipant(
-      employeeSession.participant_id as string,
-    ),
+    aggregate: application.data as Record<string, unknown>,
+    companyId: application.data.company_id as string,
+    engineVersion: (result.data?.scoring_engine_version as string | null | undefined) ?? null,
+    result: (result.data?.scoring_result_json as Record<string, unknown> | null | undefined) ?? null,
+    schemaVersion: (result.data?.scoring_schema_version as string | null | undefined) ?? null,
   };
+}
+
+async function loadEmployeeRecalculationSnapshot(
+  admin: AdminClient,
+  participantId: string,
+  sessionId: string,
+): Promise<RecalculationSnapshot> {
+  const [participant, result] = await Promise.all([
+    admin
+      .from("employee_assessment_participants")
+      .select("company_id, overall_score, fit_score, recommendation, risk_level, requires_review")
+      .eq("id", participantId)
+      .single(),
+    admin
+      .from("employee_assessment_test_results")
+      .select("scoring_result_json, scoring_engine_version, scoring_schema_version")
+      .eq("session_id", sessionId)
+      .maybeSingle(),
+  ]);
+  if (participant.error || !participant.data || result.error) {
+    throw new Error("Unable to snapshot employee scoring before recalculation.");
+  }
+  return {
+    aggregate: participant.data as Record<string, unknown>,
+    companyId: participant.data.company_id as string,
+    engineVersion: (result.data?.scoring_engine_version as string | null | undefined) ?? null,
+    result: (result.data?.scoring_result_json as Record<string, unknown> | null | undefined) ?? null,
+    schemaVersion: (result.data?.scoring_schema_version as string | null | undefined) ?? null,
+  };
+}
+
+async function startRecalculationAudit(
+  admin: AdminClient,
+  input: {
+    actorId: string | null;
+    companyId: string;
+    reason: RecalculationReason;
+    scope: "candidate" | "employee";
+    sessionId: string;
+    snapshot: RecalculationSnapshot;
+  },
+) {
+  const { data, error } = await admin
+    .from("scoring_recalculation_history")
+    .insert({
+      actor_id: input.actorId,
+      company_id: input.companyId,
+      previous_aggregate_json: input.snapshot.aggregate,
+      previous_engine_version: input.snapshot.engineVersion,
+      previous_result_json: input.snapshot.result,
+      previous_schema_version: input.snapshot.schemaVersion,
+      reason: input.reason,
+      scope: input.scope,
+      session_id: input.sessionId,
+      status: "started",
+    })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error("Unable to start scoring recalculation audit.");
+  return data.id as string;
+}
+
+async function completeRecalculationAudit(
+  admin: AdminClient,
+  auditId: string,
+  snapshot: RecalculationSnapshot,
+) {
+  const { error } = await admin
+    .from("scoring_recalculation_history")
+    .update({
+      completed_at: new Date().toISOString(),
+      new_aggregate_json: snapshot.aggregate,
+      new_engine_version: snapshot.engineVersion,
+      new_result_json: snapshot.result,
+      new_schema_version: snapshot.schemaVersion,
+      status: "completed",
+    })
+    .eq("id", auditId)
+    .eq("status", "started");
+  if (error) {
+    throw new Error("Scoring was saved but its recalculation audit could not be completed.");
+  }
+}
+
+async function failRecalculationAudit(
+  admin: AdminClient,
+  auditId: string,
+  cause: unknown,
+) {
+  await admin
+    .from("scoring_recalculation_history")
+    .update({
+      completed_at: new Date().toISOString(),
+      error_message: (cause instanceof Error ? cause.message : "Unknown scoring error").slice(0, 4_000),
+      status: "failed",
+    })
+    .eq("id", auditId)
+    .eq("status", "started");
 }

@@ -97,6 +97,7 @@ function buildAttentionItems(
       answered: Boolean(answer && answer.answer_json?.skipped !== true),
       isCorrect: scoredAnswer?.isCorrect ?? null,
       itemId: item.id,
+      targetPresent: item.config.signalClassification?.targetPresent,
       timeSpentSeconds: answer?.time_spent_seconds ?? null,
     };
   });

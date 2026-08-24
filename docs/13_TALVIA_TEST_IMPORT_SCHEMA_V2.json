@@ -196,6 +196,18 @@
                   "max_points": {
                     "type": "number"
                   },
+                  "signal_classification": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "target_present"
+                    ],
+                    "properties": {
+                      "target_present": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
                   "competency_bindings": {
                     "type": "array",
                     "items": {

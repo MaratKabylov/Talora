@@ -116,6 +116,28 @@ test("explicit v2 marker dispatches knowledge scoring and produces a reproducibl
     result.score.scoringResult?.criterionScores.at(-1)?.confidence.coverage.ratio,
     0.5,
   );
+
+  const recalculated = scoreSession(
+    v2Session({
+      assessmentDomain: "knowledge",
+      definition: {
+        composites: [],
+        normAssignments: [],
+        overallScore: { sourceId: "criterion_total", sourceType: "criterion" },
+        scales: [],
+      },
+      resultShape: "score",
+      scoringType: "points",
+    }),
+    packageTest,
+    questions,
+    [answer("a1", "q1", { selected_option_id: "q1-correct" })],
+  );
+  assert.deepEqual(
+    { ...recalculated.score.scoringResult, scoredAt: undefined },
+    { ...result.score.scoringResult, scoredAt: undefined },
+  );
+  assert.deepEqual(recalculated.answerScores, result.answerScores);
 });
 
 test("v2 profile uses direct and reverse scale bindings without manufacturing overall score", () => {
@@ -247,7 +269,7 @@ test("v2 learning keeps initial and recovery performance separate", () => {
 });
 
 test("v2 attention uses accuracy as overall and preserves observed time", () => {
-  const questions: LegacyQuestionRecord[] = ["q1", "q2", "q3"].map((id) => ({
+  const questions: LegacyQuestionRecord[] = ["q1", "q2", "q3"].map((id, index) => ({
     answer_options: [
       option(`${id}-wrong`, { is_correct: false, points: 0 }),
       option(`${id}-correct`, { is_correct: true, points: 1 }),
@@ -259,6 +281,7 @@ test("v2 attention uses accuracy as overall and preserves observed time", () => 
     scoring_config_json: {
       maxPoints: 1,
       minPoints: 0,
+      signalClassification: { targetPresent: index !== 1 },
       strategy: "single_choice_points",
     },
     scoring_model: "criterion",
@@ -289,6 +312,12 @@ test("v2 attention uses accuracy as overall and preserves observed time", () => 
   assert.equal(metrics?.completion_rate, 66.666667);
   assert.equal(metrics?.omitted_count, 1);
   assert.equal(metrics?.mean_response_time_ms, 4_000);
+  assert.equal(metrics?.true_positive_count, 1);
+  assert.equal(metrics?.false_positive_count, 1);
+  assert.equal(metrics?.false_negative_count, 1);
+  assert.equal(metrics?.true_negative_count, 0);
+  assert.equal(metrics?.hit_rate, 0.5);
+  assert.equal(metrics?.false_alarm_rate, 1);
   assert.equal(metrics?.speed_percentile, null);
   assert.equal(result.score.percentage, 50);
   assert.equal(result.score.scoringResult?.status, "partial");

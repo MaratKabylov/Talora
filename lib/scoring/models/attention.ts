@@ -10,6 +10,7 @@ export type AttentionItemInput = {
   answered: boolean;
   isCorrect: boolean | null;
   itemId: string;
+  targetPresent?: boolean;
   timeSpentSeconds: number | null;
 };
 
@@ -40,14 +41,36 @@ export function scoreAttention(
       ? [item.timeSpentSeconds * 1_000]
       : [],
   );
+  const classified = items.filter((item) => typeof item.targetPresent === "boolean");
+  const truePositiveCount = classified.filter(
+    (item) => item.targetPresent === true && item.answered && item.isCorrect === true,
+  ).length;
+  const falseNegativeCount = classified.filter(
+    (item) => item.targetPresent === true && (!item.answered || item.isCorrect !== true),
+  ).length;
+  const falsePositiveCount = classified.filter(
+    (item) => item.targetPresent === false && item.answered && item.isCorrect !== true,
+  ).length;
+  const trueNegativeCount = classified.filter(
+    (item) => item.targetPresent === false && item.answered && item.isCorrect === true,
+  ).length;
+  const hasClassification = classified.length > 0;
+  const positiveTotal = truePositiveCount + falseNegativeCount;
+  const negativeTotal = falsePositiveCount + trueNegativeCount;
 
   const metrics: AttentionMetrics = {
     accuracy,
     answered_count: answered.length,
     completion_rate: completionRate,
     correct_count: correctCount,
-    false_negative_count: null,
-    false_positive_count: null,
+    false_alarm_rate: hasClassification && negativeTotal > 0
+      ? roundOutput(falsePositiveCount / negativeTotal)
+      : null,
+    false_negative_count: hasClassification ? falseNegativeCount : null,
+    false_positive_count: hasClassification ? falsePositiveCount : null,
+    hit_rate: hasClassification && positiveTotal > 0
+      ? roundOutput(truePositiveCount / positiveTotal)
+      : null,
     incorrect_count: incorrectCount,
     mean_response_time_ms: mean(responseTimesMs),
     median_response_time_ms: median(responseTimesMs),
@@ -55,6 +78,8 @@ export function scoreAttention(
     speed_percentile: null,
     timed_items: responseTimesMs.length,
     total_items: items.length,
+    true_negative_count: hasClassification ? trueNegativeCount : null,
+    true_positive_count: hasClassification ? truePositiveCount : null,
   };
   const warnings: ScoringWarning[] = [];
   if (omittedCount > 0) {

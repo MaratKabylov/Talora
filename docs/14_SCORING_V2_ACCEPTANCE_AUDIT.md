@@ -16,11 +16,11 @@ Audit date: 2026-08-23.
 | 8 | Pass | Interpretation thresholds are version configuration and are validated for ranges, overlap and coverage. |
 | 9 | Pass | Learning domain scorer is registered separately from question scoring. |
 | 10 | Pass | Initial, recovery, gain, final and item-level recovery metrics are stored in the v2 snapshot. |
-| 11 | Pass | Attention stores accuracy, completion, errors, omissions and observed response-time metrics without invented percentiles. |
+| 11 | Pass | Attention stores accuracy, completion, errors, omissions and observed response-time metrics; explicit signal items also store TP/TN/FP/FN, hit rate and false-alarm rate without heuristics. |
 | 12 | Pass | Forced Choice is a registered primary model and retains the legacy ipsative mathematics. |
 | 13 | Pass | Result snapshots store schema, engine and physical definition version identifiers. |
 | 14 | Pass | Raw candidate and employee answers remain stored separately and are not replaced by scoring output. |
-| 15 | Pass | `recalculateSessionScore(sessionId)` rebuilds completed results from stored answers. |
+| 15 | Pass | `recalculateSessionScore` rebuilds completed results through the normal parent pipeline, preserves raw/manual response data and records reasoned pre/post audit snapshots with schema and engine versions. |
 | 16 | Pass | `talvia.test.v2` schema/parser/import RPC support dimensions, item configs, thresholds, composites, profile targets and SJT. |
 | 17 | Pass | AI generation guidance documents model-specific trusted scoring fields. |
 | 18 | Pass | Unit, integration, import, result, registry and legacy regression tests are present. |
@@ -45,7 +45,7 @@ The specification explicitly excludes IRT/Rasch, Thurstonian IRT, inferred
 percentiles or sten scores, runtime reliability estimation and complex
 speed-accuracy modelling. Their extension points remain in the contracts.
 
-Atomic persistence of all per-session compatibility rows and snapshots is an
-operations-hardening follow-up from the ADR, not a missing formal acceptance
-criterion. Recalculation currently replaces the active snapshot; retaining a
-full recalculation history is also a future auditability enhancement.
+The final hardening centralizes aggregate recommendation bands, adds explicit
+attention signal classification and retains a tenant-scoped recalculation
+history. Bulk recalculation UI and job scheduling remain future operational
+work; the single-session service is the reusable foundation for them.

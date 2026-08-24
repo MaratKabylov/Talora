@@ -87,3 +87,77 @@ test("attention returns null accuracy when every item is omitted", () => {
   assert.equal(result.scores[0].status, "insufficient_data");
   assert.equal(result.scores[0].raw_score, null);
 });
+
+test("signal classification is rejected outside attention and on non-choice items", () => {
+  const baseItem = {
+    config: {
+      maxPoints: 1,
+      minPoints: 0,
+      signalClassification: { targetPresent: true },
+      strategy: "single_choice_points",
+    },
+    id: "q1",
+    questionType: "single_choice",
+    scoringModel: "criterion",
+  };
+  assert.equal(validateScoringDefinitionV2({
+    criterionScoreIds: ["criterion_total"],
+    definition: {
+      assessmentDomain: "knowledge",
+      composites: [],
+      normAssignments: [],
+      overallScore: { sourceId: "criterion_total", sourceType: "criterion" },
+      resultShape: "score",
+      scales: [],
+      schemaVersion: "2.0",
+    },
+    items: [baseItem],
+  }).ok, false);
+  assert.equal(validateScoringDefinitionV2({
+    criterionScoreIds: ["attention_accuracy"],
+    definition: {
+      assessmentDomain: "attention",
+      composites: [],
+      normAssignments: [],
+      overallScore: { sourceId: "attention_accuracy", sourceType: "criterion" },
+      resultShape: "score",
+      scales: [],
+      schemaVersion: "2.0",
+    },
+    items: [{
+      ...baseItem,
+      config: { ...baseItem.config, strategy: "ordering" },
+      questionType: "ordering",
+    }],
+  }).ok, false);
+});
+
+test("attention classifies explicit target and non-target responses", () => {
+  const result = scoreAttention([
+    { answered: true, isCorrect: true, itemId: "tp", targetPresent: true, timeSpentSeconds: null },
+    { answered: true, isCorrect: false, itemId: "fn", targetPresent: true, timeSpentSeconds: null },
+    { answered: true, isCorrect: false, itemId: "fp", targetPresent: false, timeSpentSeconds: null },
+    { answered: true, isCorrect: true, itemId: "tn", targetPresent: false, timeSpentSeconds: null },
+  ]);
+
+  assert.equal(result.metrics.true_positive_count, 1);
+  assert.equal(result.metrics.false_negative_count, 1);
+  assert.equal(result.metrics.false_positive_count, 1);
+  assert.equal(result.metrics.true_negative_count, 1);
+  assert.equal(result.metrics.hit_rate, 0.5);
+  assert.equal(result.metrics.false_alarm_rate, 0.5);
+});
+
+test("attention counts an omitted target as a miss and excludes legacy items", () => {
+  const result = scoreAttention([
+    { answered: false, isCorrect: null, itemId: "miss", targetPresent: true, timeSpentSeconds: null },
+    { answered: false, isCorrect: null, itemId: "legacy", timeSpentSeconds: null },
+  ]);
+
+  assert.equal(result.metrics.false_negative_count, 1);
+  assert.equal(result.metrics.true_positive_count, 0);
+  assert.equal(result.metrics.false_positive_count, 0);
+  assert.equal(result.metrics.true_negative_count, 0);
+  assert.equal(result.metrics.hit_rate, 0);
+  assert.equal(result.metrics.false_alarm_rate, null);
+});

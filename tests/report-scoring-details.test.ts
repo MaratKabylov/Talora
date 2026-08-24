@@ -55,6 +55,10 @@ test("report details expose attention metrics and dimension coverage from a v2 s
   });
 
   assert.equal(details?.attention?.omitted_count, 1);
+  assert.equal(details?.attention?.true_positive_count, null);
+  assert.equal(details?.attention?.true_negative_count, null);
+  assert.equal(details?.attention?.hit_rate, null);
+  assert.equal(details?.attention?.false_alarm_rate, null);
   assert.equal(details?.interpretation?.label, "Уверенный");
   assert.deepEqual(details?.dimensions[0], {
     answeredItems: 2,

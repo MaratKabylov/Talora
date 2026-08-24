@@ -95,6 +95,10 @@ export const criterionScoringConfigSchema = z
       .optional(),
     maxPoints: z.number().finite(),
     minPoints: z.number().finite().optional().default(0),
+    signalClassification: z
+      .object({ targetPresent: z.boolean() })
+      .strict()
+      .optional(),
     strategy: z.enum(CRITERION_STRATEGIES),
   })
   .strict()
@@ -542,6 +546,27 @@ export function validateScoringDefinitionV2(input: {
           "INVALID_SCORING_DEFINITION",
           `Criterion strategy '${item.config.strategy}' is incompatible with '${item.questionType}'.`,
           `items.${itemIndex}.config.strategy`,
+        ));
+      }
+      if (
+        item.config.signalClassification &&
+        definition.assessmentDomain !== "attention"
+      ) {
+        issues.push(issue(
+          "INVALID_SCORING_DEFINITION",
+          "Signal classification is only valid for the attention domain.",
+          `items.${itemIndex}.config.signalClassification`,
+        ));
+      }
+      if (
+        item.config.signalClassification &&
+        item.questionType !== "single_choice" &&
+        item.questionType !== "multiple_choice"
+      ) {
+        issues.push(issue(
+          "INVALID_SCORING_DEFINITION",
+          "Signal classification requires a choice response.",
+          `items.${itemIndex}.config.signalClassification`,
         ));
       }
     }

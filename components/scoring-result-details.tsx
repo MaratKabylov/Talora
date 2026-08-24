@@ -12,6 +12,10 @@ function milliseconds(value: number | null) {
     : `${value.toLocaleString("ru-RU", { maximumFractionDigits: 0 })} мс`;
 }
 
+function rate(value: number | null) {
+  return value === null ? "Нет данных" : percent(value * 100);
+}
+
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md bg-muted/50 p-3 text-sm">
@@ -60,6 +64,31 @@ export function ScoringResultDetails({ details }: { details: ReportScoringDetail
               label="Среднее время"
               value={milliseconds(details.attention.mean_response_time_ms)}
             />
+            {details.attention.false_positive_count !== null ? (
+              <>
+                <Metric
+                  label="Верные обнаружения (TP)"
+                  value={String(details.attention.true_positive_count ?? 0)}
+                />
+                <Metric
+                  label="Верные отклонения (TN)"
+                  value={String(details.attention.true_negative_count ?? 0)}
+                />
+                <Metric
+                  label="Ложные срабатывания (FP)"
+                  value={String(details.attention.false_positive_count)}
+                />
+                <Metric
+                  label="Пропущенные сигналы (FN)"
+                  value={String(details.attention.false_negative_count ?? 0)}
+                />
+                <Metric label="Hit rate" value={rate(details.attention.hit_rate)} />
+                <Metric
+                  label="False alarm rate"
+                  value={rate(details.attention.false_alarm_rate)}
+                />
+              </>
+            ) : null}
           </div>
         </section>
       ) : null}

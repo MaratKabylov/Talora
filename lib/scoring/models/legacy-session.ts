@@ -82,7 +82,10 @@ export type LegacyAnswerRecord = {
   answer_json: Record<string, unknown> | null;
   answer_text: string | null;
   id: string;
+  is_correct?: boolean | null;
+  points_awarded?: number | null;
   question_id: string;
+  raw_score?: number | null;
   selected_option_id: string | null;
   session_id: string;
   time_spent_seconds?: number | null;
