@@ -11,6 +11,7 @@ import {
   type SystemTestGroup,
 } from "@/lib/tests/constants";
 import type { TestTemplate } from "@/lib/tests/data";
+import { getLatestPublishedVersion } from "@/lib/tests/version-selection";
 
 type SystemTestGroupsProps = {
   emptyText: string;
@@ -51,39 +52,45 @@ function SystemTestsTable({
           </tr>
         </thead>
         <tbody>
-          {templates.map((template) => (
-            <tr className="border-t first:border-t-0" key={template.id}>
-              <td className="px-4 py-3">
-                <p className="font-medium">{template.title}</p>
-                <p className="text-muted-foreground">{template.category ?? "Без категории"}</p>
-              </td>
-              <td className="px-4 py-3">
-                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-                  {statusMode === "system-badge"
-                    ? "Системный"
-                    : TEST_TEMPLATE_STATUS_LABELS[template.status]}
-                </span>
-              </td>
-              <td className="px-4 py-3">
-                {template.latestVersion ? (
-                  <>
-                    v{template.latestVersion.versionNumber} ·{" "}
-                    {TEST_VERSION_STATUS_LABELS[template.latestVersion.status]}
-                  </>
-                ) : (
-                  "Версий нет"
-                )}
-              </td>
-              <td className="px-4 py-3 text-right">
-                <Link
-                  className={buttonVariants({ size: "sm", variant: "outline" })}
-                  href={`${hrefBase}/${template.id}`}
-                >
-                  Открыть
-                </Link>
-              </td>
-            </tr>
-          ))}
+          {templates.map((template) => {
+            const latestPublishedVersion = getLatestPublishedVersion(template.versions);
+
+            return (
+              <tr className="border-t first:border-t-0" key={template.id}>
+                <td className="px-4 py-3">
+                  <p className="font-medium">{template.title}</p>
+                  <p className="text-muted-foreground">
+                    {template.category ?? "Без категории"}
+                  </p>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
+                    {statusMode === "system-badge"
+                      ? "Системный"
+                      : TEST_TEMPLATE_STATUS_LABELS[template.status]}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  {latestPublishedVersion ? (
+                    <>
+                      v{latestPublishedVersion.versionNumber} ·{" "}
+                      {TEST_VERSION_STATUS_LABELS[latestPublishedVersion.status]}
+                    </>
+                  ) : (
+                    "Опубликованных версий нет"
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <Link
+                    className={buttonVariants({ size: "sm", variant: "outline" })}
+                    href={`${hrefBase}/${template.id}`}
+                  >
+                    Открыть
+                  </Link>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
