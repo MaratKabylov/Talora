@@ -182,14 +182,12 @@ export function CandidateComparisonTable({
               </td>
               <td className="px-4 py-3">
                 <div className="flex flex-wrap justify-end gap-2">
-                  {hasReport(application) ? (
-                    <Link
-                      className={buttonVariants({ size: "sm", variant: "outline" })}
-                      href={`/dashboard/applications/${application.id}/report`}
-                    >
-                      Отчет
-                    </Link>
-                  ) : null}
+                  <Link
+                    className={buttonVariants({ size: "sm", variant: "outline" })}
+                    href={`/dashboard/applications/${application.id}/report`}
+                  >
+                    {hasReport(application) ? "Отчет" : "Карточка"}
+                  </Link>
                   {application.status === "shortlisted" ? (
                     <span className="rounded-md bg-muted px-3 py-2 text-xs font-medium">
                       В шорт-листе

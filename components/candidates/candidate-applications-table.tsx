@@ -173,14 +173,12 @@ export function CandidateApplicationsTable({
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap justify-end gap-2">
-                    {hasReport(application) ? (
-                      <Link
-                        className={buttonVariants({ size: "sm", variant: "outline" })}
-                        href={`/dashboard/applications/${application.id}/report`}
-                      >
-                        Отчет
-                      </Link>
-                    ) : null}
+                    <Link
+                      className={buttonVariants({ size: "sm", variant: "outline" })}
+                      href={`/dashboard/applications/${application.id}/report`}
+                    >
+                      {hasReport(application) ? "Отчет" : "Карточка"}
+                    </Link>
                     {mayManage ? (
                       <>
                         {invitation && canCancelInvitation(application) ? (
@@ -208,17 +206,6 @@ export function CandidateApplicationsTable({
                               Отменить
                             </Button>
                           </form>
-                        ) : null}
-                        {!canResendInvitation(application) &&
-                        !canCancelInvitation(application) &&
-                        application.job &&
-                        !hasReport(application) ? (
-                          <Link
-                            className={buttonVariants({ size: "sm", variant: "outline" })}
-                            href={`/dashboard/jobs/${application.job.id}/candidates`}
-                          >
-                            Открыть вакансию
-                          </Link>
                         ) : null}
                       </>
                     ) : null}

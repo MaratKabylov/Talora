@@ -8,6 +8,7 @@ export const APPLICATION_STATUS_VALUES = [
   "rejected",
   "hired",
   "withdrawn",
+  "cancelled",
 ] as const;
 
 export const APPLICATION_STATUS_LABELS: Record<(typeof APPLICATION_STATUS_VALUES)[number], string> = {
@@ -18,6 +19,7 @@ export const APPLICATION_STATUS_LABELS: Record<(typeof APPLICATION_STATUS_VALUES
   rejected: "Отклонен",
   hired: "Нанят",
   withdrawn: "Отказался",
+  cancelled: "Отменено",
 };
 
 export const INVITATION_STATUS_VALUES = [
@@ -73,4 +75,8 @@ export type RiskLevel = (typeof RISK_LEVEL_VALUES)[number];
 
 export function canManageCandidates(role: CompanyRole) {
   return role === "owner" || role === "admin" || role === "recruiter" || role === "super_admin";
+}
+
+export function canCancelCandidateAssessment(status: ApplicationStatus) {
+  return status === "invited" || status === "in_progress";
 }

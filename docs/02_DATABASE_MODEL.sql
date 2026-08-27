@@ -108,7 +108,7 @@ create table if not exists public.candidate_applications (
   company_id uuid not null references public.companies(id) on delete cascade,
   job_id uuid not null references public.jobs(id) on delete cascade,
   candidate_id uuid not null references public.candidates(id) on delete cascade,
-  status text not null default 'invited' check (status in ('invited','in_progress','completed','shortlisted','rejected','hired','withdrawn')),
+  status text not null default 'invited' check (status in ('invited','in_progress','completed','shortlisted','rejected','hired','withdrawn','cancelled')),
   current_stage text,
   overall_score numeric(5,2),
   fit_score numeric(5,2),

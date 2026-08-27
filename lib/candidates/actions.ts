@@ -105,8 +105,11 @@ function getInvitationErrorMessage(message: string) {
 function getReturnPath(formData: FormData) {
   const returnTo = formString(formData, "returnTo");
   const jobPath = /^\/dashboard\/jobs\/[0-9a-f-]{36}(?:\/candidates)?$/i;
+  const applicationPath = /^\/dashboard\/applications\/[0-9a-f-]{36}\/report$/i;
 
-  return jobPath.test(returnTo) ? returnTo : "/dashboard/candidates";
+  return jobPath.test(returnTo) || applicationPath.test(returnTo)
+    ? returnTo
+    : "/dashboard/candidates";
 }
 
 export async function inviteCandidateAction(formData: FormData) {
@@ -250,4 +253,39 @@ export async function cancelInvitationAction(formData: FormData) {
   revalidatePath(path);
   revalidatePath("/dashboard/candidates");
   redirectWithFeedback(path, "message", "Приглашение отменено.");
+}
+
+export async function cancelCandidateAssessmentAction(formData: FormData) {
+  const applicationId = z.string().uuid().safeParse(formString(formData, "applicationId"));
+  const path = getReturnPath(formData);
+
+  if (!applicationId.success) {
+    redirect(path);
+  }
+
+  const context = await requireCompanyContext();
+  if (!canManageCandidates(context.activeCompany.role)) {
+    redirectWithFeedback(path, "error", "У вашей роли нет права отменять прохождение оценки.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_candidate_assessment", {
+    target_application_id: applicationId.data,
+    target_company_id: context.activeCompany.id,
+  });
+
+  if (error) {
+    const message = error.message.includes("can no longer be cancelled")
+      ? "Это прохождение уже нельзя отменить."
+      : error.message.includes("not found")
+        ? "Отклик кандидата не найден или недоступен."
+        : error.message.includes("cannot cancel candidate assessments")
+          ? "У вашей роли нет права отменять прохождение оценки."
+          : "Не удалось отменить прохождение. Проверьте миграции базы данных.";
+    redirectWithFeedback(path, "error", message);
+  }
+
+  revalidatePath(path);
+  revalidatePath("/dashboard/candidates");
+  redirectWithFeedback(path, "message", "Прохождение оценки отменено.");
 }

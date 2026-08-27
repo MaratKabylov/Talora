@@ -2,12 +2,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/empty-state";
+import { CancelCandidateAssessmentForm } from "@/components/candidates/cancel-candidate-assessment-form";
+import { FeedbackMessage } from "@/components/feedback-message";
 import { ScoringResultDetails } from "@/components/scoring-result-details";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireCompanyContext } from "@/lib/auth/context";
 import {
   APPLICATION_STATUS_LABELS,
+  canCancelCandidateAssessment,
+  canManageCandidates,
   RECOMMENDATION_LABELS,
   RISK_LEVEL_LABELS,
 } from "@/lib/candidates/constants";
@@ -20,6 +24,15 @@ import { buildMotivation9Profile } from "@/lib/reports/motivation-profile";
 import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
 
 type ReportParams = Promise<{ id: string }>;
+type ReportSearchParams = Promise<{ error?: string; message?: string }>;
+
+const TEST_SESSION_STATUS_LABELS = {
+  cancelled: "Отменен",
+  completed: "Завершен",
+  expired: "Истек",
+  in_progress: "В процессе",
+  not_started: "Не начат",
+} as const;
 
 function score(value: number | null) {
   return value === null ? "-" : `${value}%`;
@@ -161,9 +174,16 @@ function MotivationProfile({ competencies }: { competencies: ReportCompetency[] 
   );
 }
 
-export default async function CandidateReportPage({ params }: { params: ReportParams }) {
+export default async function CandidateReportPage({
+  params,
+  searchParams,
+}: {
+  params: ReportParams;
+  searchParams: ReportSearchParams;
+}) {
   const context = await requireCompanyContext();
   const { id } = await params;
+  const feedback = await searchParams;
   const report = await getCandidateReportData(context.activeCompany.id, id);
 
   if (!report) {
@@ -172,12 +192,15 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
 
   const assessedCompetencies = report.competencies.filter((competency) => !competency.isMotivation);
   const motivationProfile = report.competencies.filter((competency) => competency.isMotivation);
+  const mayCancel =
+    canManageCandidates(context.activeCompany.role) && canCancelCandidateAssessment(report.status);
+  const reportPath = `/dashboard/applications/${report.id}/report`;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">{report.job.title}</p>
+          <p className="text-sm text-muted-foreground">Карточка кандидата / {report.job.title}</p>
           <h1 className="text-3xl font-semibold tracking-tight">{report.candidate.fullName}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {[report.candidate.email, report.candidate.phone, report.candidate.city]
@@ -186,6 +209,9 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {mayCancel ? (
+            <CancelCandidateAssessmentForm applicationId={report.id} returnTo={reportPath} />
+          ) : null}
           <Link className={buttonVariants({ variant: "outline" })} href={`/dashboard/jobs/${report.job.id}`}>
             К вакансии
           </Link>
@@ -194,6 +220,8 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
           </Link>
         </div>
       </div>
+
+      <FeedbackMessage error={feedback.error} message={feedback.message} />
 
       {report.requiresReview ? (
         <p className="rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
@@ -484,10 +512,19 @@ export default async function CandidateReportPage({ params }: { params: ReportPa
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="font-medium">{test.title}</p>
                     <p className="text-sm text-muted-foreground">
-                      {test.requiresReview ? "Нужна проверка" : score(test.percentage)}
+                      {TEST_SESSION_STATUS_LABELS[test.status]}
+                      {test.percentage !== null ? ` / ${score(test.percentage)}` : ""}
+                      {test.requiresReview ? " / Нужна проверка" : ""}
                     </p>
                   </div>
                   {test.summary ? <p className="mt-2 text-sm text-muted-foreground">{test.summary}</p> : null}
+                  {test.startedAt || test.completedAt ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {test.startedAt ? `Начат: ${formatDateTime(test.startedAt)}` : ""}
+                      {test.startedAt && test.completedAt ? " / " : ""}
+                      {test.completedAt ? `Завершен: ${formatDateTime(test.completedAt)}` : ""}
+                    </p>
+                  ) : null}
                 </summary>
                 <div className="mt-4 space-y-4 border-t pt-4">
                   <ScoringResultDetails details={test.scoringDetails} />

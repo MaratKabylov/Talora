@@ -186,6 +186,8 @@ export type ReportTest = {
   requiresReview: boolean;
   scoringDetails: ReportScoringDetails | null;
   scoringType: string | null;
+  startedAt: string | null;
+  status: "not_started" | "in_progress" | "completed" | "expired" | "cancelled";
   summary: string | null;
   title: string;
 };
@@ -510,6 +512,8 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       requiresReview: result?.requires_review ?? false,
       scoringDetails,
       scoringType: version?.scoring_type ?? null,
+      startedAt: session.started_at,
+      status: session.status as ReportTest["status"],
       summary: result?.summary ?? null,
       title: version?.title ?? "Тест",
     };
