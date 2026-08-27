@@ -48,6 +48,9 @@ type PackageTestRecord = {
     id: string;
     instructions: string | null;
     status: string;
+    test_templates: Relation<{
+      title: string;
+    }>;
     title: string;
   }>;
 };
@@ -234,13 +237,15 @@ function normalizeTests(assessment: EmployeeAssessmentRecord) {
         return [];
       }
 
+      const template = related(version.test_templates);
+
       return [
         {
           description: sanitizeRichTextValue(version.description),
           durationMinutes: version.duration_minutes,
           instructions: sanitizeRichTextValue(version.instructions),
           orderIndex: packageTest.order_index,
-          title: version.title,
+          title: template?.title ?? version.title,
           versionId: version.id,
         },
       ];
@@ -310,7 +315,7 @@ export async function getEmployeeAssessmentByToken(
     admin
       .from("employee_assessments")
       .select(
-        "id, title, description, assessment_packages(id, title, description, assessment_package_tests(order_index, test_version_id, test_versions(id, title, description, instructions, duration_minutes, status)))",
+        "id, title, description, assessment_packages(id, title, description, assessment_package_tests(order_index, test_version_id, test_versions(id, title, description, instructions, duration_minutes, status, test_templates(title))))",
       )
       .eq("id", invitation.employee_assessment_id)
       .eq("company_id", invitation.company_id)

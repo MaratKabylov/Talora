@@ -48,29 +48,25 @@ type CandidateRecord = {
   profile_completed_at: string | null;
 };
 
+type TestTemplateRecord = {
+  title: string;
+};
+
+type TestVersionRecord = {
+  description: string | null;
+  duration_minutes: number | null;
+  id: string;
+  instructions: string | null;
+  settings_json: unknown;
+  status: string;
+  test_templates: TestTemplateRecord | TestTemplateRecord[] | null;
+  title: string;
+};
+
 type PackageTestRecord = {
   order_index: number;
   test_version_id: string;
-  test_versions:
-    | {
-        description: string | null;
-        duration_minutes: number | null;
-        id: string;
-        instructions: string | null;
-        settings_json: unknown;
-        status: string;
-        title: string;
-      }
-    | {
-        description: string | null;
-        duration_minutes: number | null;
-        id: string;
-        instructions: string | null;
-        settings_json: unknown;
-        status: string;
-        title: string;
-      }[]
-    | null;
+  test_versions: TestVersionRecord | TestVersionRecord[] | null;
 };
 
 type PackageRecord = {
@@ -266,6 +262,8 @@ function normalizeTests(job: JobRecord) {
         return [];
       }
 
+      const template = related(version.test_templates);
+
       return [
         {
           description: sanitizeRichTextValue(version.description),
@@ -273,7 +271,7 @@ function normalizeTests(job: JobRecord) {
           instructions: sanitizeRichTextValue(version.instructions),
           orderIndex: packageTest.order_index,
           presentationSettings: normalizePresentationSettings(version.settings_json),
-          title: version.title,
+          title: template?.title ?? version.title,
           versionId: version.id,
         },
       ];
@@ -338,7 +336,7 @@ export async function getAssessmentByToken(token: string): Promise<AssessmentAva
     admin
       .from("jobs")
       .select(
-        "id, title, department, location, assessment_packages(id, title, description, assessment_package_tests(order_index, test_version_id, test_versions(id, title, description, instructions, duration_minutes, settings_json, status)))",
+        "id, title, department, location, assessment_packages(id, title, description, assessment_package_tests(order_index, test_version_id, test_versions(id, title, description, instructions, duration_minutes, settings_json, status, test_templates(title))))",
       )
       .eq("id", invitation.job_id)
       .eq("company_id", invitation.company_id)
