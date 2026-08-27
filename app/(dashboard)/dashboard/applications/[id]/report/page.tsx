@@ -195,6 +195,13 @@ export default async function CandidateReportPage({
   const mayCancel =
     canManageCandidates(context.activeCompany.role) && canCancelCandidateAssessment(report.status);
   const reportPath = `/dashboard/applications/${report.id}/report`;
+  const answerCounts = report.tests.reduce(
+    (counts, test) => ({
+      correct: counts.correct + test.correctAnswersCount,
+      incorrect: counts.incorrect + test.incorrectAnswersCount,
+    }),
+    { correct: 0, incorrect: 0 },
+  );
 
   return (
     <div className="space-y-6">
@@ -496,7 +503,10 @@ export default async function CandidateReportPage({
       <Card>
         <CardHeader>
           <CardTitle>Ответы кандидата</CardTitle>
-          <CardDescription>История прохождения и ответы по конкретным версиям тестов.</CardDescription>
+          <CardDescription>
+            История прохождения по конкретным версиям тестов. Верных ответов: {answerCounts.correct},
+            неверных: {answerCounts.incorrect}. Учитываются только ответы с определенной правильностью.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
           {report.tests.length === 0 ? (
@@ -514,6 +524,7 @@ export default async function CandidateReportPage({
                     <p className="text-sm text-muted-foreground">
                       {TEST_SESSION_STATUS_LABELS[test.status]}
                       {test.percentage !== null ? ` / ${score(test.percentage)}` : ""}
+                      {` / Верных: ${test.correctAnswersCount} / Неверных: ${test.incorrectAnswersCount}`}
                       {test.requiresReview ? " / Нужна проверка" : ""}
                     </p>
                   </div>

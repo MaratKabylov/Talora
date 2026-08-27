@@ -22,6 +22,7 @@ import {
   buildReportScoringDetails,
   type ReportScoringDetails,
 } from "@/lib/reports/scoring-details";
+import { countAnswerCorrectness } from "@/lib/reports/answer-counts";
 
 type Relation<T> = T | T[] | null;
 
@@ -178,7 +179,9 @@ export type ReportAnswer = {
 export type ReportTest = {
   answers: ReportAnswer[];
   completedAt: string | null;
+  correctAnswersCount: number;
   id: string;
+  incorrectAnswersCount: number;
   level: string | null;
   percentage: number | null;
   rawScore: number | null;
@@ -500,11 +503,14 @@ export async function getCandidateReportData(companyId: string, applicationId: s
         question: answer.question,
         questionType: answer.questionType,
       }));
+    const answerCounts = countAnswerCorrectness(answers);
 
     return {
       answers,
       completedAt: session.completed_at,
+      correctAnswersCount: answerCounts.correct,
       id: session.id,
+      incorrectAnswersCount: answerCounts.incorrect,
       level: result?.level ?? null,
       maxScore: result?.max_score ?? null,
       percentage: result?.percentage ?? session.percentage,

@@ -6,6 +6,7 @@ import {
   buildReportScoringDetails,
   type ReportScoringDetails,
 } from "@/lib/reports/scoring-details";
+import { countAnswerCorrectness } from "@/lib/reports/answer-counts";
 import type {
   ReportIntegrityEventType,
   ReportIntegritySummary,
@@ -283,7 +284,9 @@ export type EmployeeAssessmentReportData = {
       questionType: QuestionType;
     }>;
     completedAt: string | null;
+    correctAnswersCount: number;
     id: string;
+    incorrectAnswersCount: number;
     percentage: number | null;
     resultLevel: string | null;
     scoringDetails: ReportScoringDetails | null;
@@ -714,32 +717,36 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
     sessions: sessions.map((session) => {
       const version = related(session.test_versions);
       const result = session.employee_assessment_test_results?.[0] ?? null;
+      const answers = (session.employee_assessment_answers ?? [])
+        .flatMap((answer) => {
+          const question = related(answer.questions);
+          return question
+            ? [{
+                answer: renderEmployeeAnswer(answer, question),
+                isCorrect: answer.is_correct,
+                pointsAwarded: answer.points_awarded,
+                question: question.text,
+                questionType: question.question_type,
+                questionIndex: question.order_index,
+              }]
+            : [];
+        })
+        .sort((left, right) => left.questionIndex - right.questionIndex)
+        .map((answer) => ({
+          answer: answer.answer,
+          isCorrect: answer.isCorrect,
+          pointsAwarded: answer.pointsAwarded,
+          question: answer.question,
+          questionType: answer.questionType,
+        }));
+      const answerCounts = countAnswerCorrectness(answers);
 
       return {
-        answers: (session.employee_assessment_answers ?? [])
-          .flatMap((answer) => {
-            const question = related(answer.questions);
-            return question
-              ? [{
-                  answer: renderEmployeeAnswer(answer, question),
-                  isCorrect: answer.is_correct,
-                  pointsAwarded: answer.points_awarded,
-                  question: question.text,
-                  questionType: question.question_type,
-                  questionIndex: question.order_index,
-                }]
-              : [];
-          })
-          .sort((left, right) => left.questionIndex - right.questionIndex)
-          .map((answer) => ({
-            answer: answer.answer,
-            isCorrect: answer.isCorrect,
-            pointsAwarded: answer.pointsAwarded,
-            question: answer.question,
-            questionType: answer.questionType,
-          })),
+        answers,
         completedAt: session.completed_at,
+        correctAnswersCount: answerCounts.correct,
         id: session.id,
+        incorrectAnswersCount: answerCounts.incorrect,
         percentage: session.percentage ?? result?.percentage ?? null,
         resultLevel: result?.level ?? null,
         scoringDetails: buildReportScoringDetails(result?.scoring_result_json),

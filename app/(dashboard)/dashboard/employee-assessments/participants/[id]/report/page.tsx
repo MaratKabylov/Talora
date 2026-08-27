@@ -104,6 +104,13 @@ export default async function EmployeeAssessmentReportPage({
     canManageEmployeeAssessments(context.activeCompany.role) &&
     canCancelEmployeeAssessment(data.participant.status);
   const reportPath = `/dashboard/employee-assessments/participants/${data.participant.id}/report`;
+  const answerCounts = data.sessions.reduce(
+    (counts, session) => ({
+      correct: counts.correct + session.correctAnswersCount,
+      incorrect: counts.incorrect + session.incorrectAnswersCount,
+    }),
+    { correct: 0, incorrect: 0 },
+  );
 
   return (
     <div className="space-y-6">
@@ -389,16 +396,21 @@ export default async function EmployeeAssessmentReportPage({
       <Card>
         <CardHeader>
           <CardTitle>Тесты</CardTitle>
-          <CardDescription>История прохождения тестов в этой оценке.</CardDescription>
+          <CardDescription>
+            История прохождения тестов. Верных ответов: {answerCounts.correct}, неверных:{" "}
+            {answerCounts.incorrect}. Учитываются только ответы с определенной правильностью.
+          </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          <div className="overflow-hidden rounded-lg border">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-muted/50 text-left text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-medium">Тест</th>
                   <th className="px-4 py-3 font-medium">Статус</th>
                   <th className="px-4 py-3 font-medium">Результат</th>
+                  <th className="px-4 py-3 font-medium">Верных</th>
+                  <th className="px-4 py-3 font-medium">Неверных</th>
                   <th className="px-4 py-3 font-medium">Завершен</th>
                 </tr>
               </thead>
@@ -410,6 +422,8 @@ export default async function EmployeeAssessmentReportPage({
                       {TEST_SESSION_STATUS_LABELS[session.status] ?? session.status}
                     </td>
                     <td className="px-4 py-3">{formatScore(session.percentage)}</td>
+                    <td className="px-4 py-3">{session.correctAnswersCount}</td>
+                    <td className="px-4 py-3">{session.incorrectAnswersCount}</td>
                     <td className="px-4 py-3">
                       {session.completedAt
                         ? new Intl.DateTimeFormat("ru-RU").format(new Date(session.completedAt))
@@ -432,7 +446,10 @@ export default async function EmployeeAssessmentReportPage({
               data.sessions.map((session) =>
                 session.answers.length > 0 || session.scoringDetails ? (
                   <details className="rounded-lg border p-4" key={session.id}>
-                    <summary className="cursor-pointer font-medium">{session.testTitle}</summary>
+                    <summary className="cursor-pointer font-medium">
+                      {session.testTitle} / Верных: {session.correctAnswersCount} / Неверных:{" "}
+                      {session.incorrectAnswersCount}
+                    </summary>
                     <div className="mt-4 space-y-4 border-t pt-4">
                       <ScoringResultDetails details={session.scoringDetails} />
                       {session.answers.map((answer, index) => (
