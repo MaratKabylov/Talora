@@ -1,9 +1,11 @@
 import { Fragment } from "react";
+import { CheckCircle2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import type { BuilderQuestion, BuilderSection } from "@/lib/tests/builder-data";
 import type { TestVersion } from "@/lib/tests/data";
+import { cn } from "@/lib/utils";
 
 function QuestionInputPreview({ question }: { question: BuilderQuestion }) {
   if (question.questionType === "open_text") {
@@ -73,22 +75,37 @@ function QuestionInputPreview({ question }: { question: BuilderQuestion }) {
       {question.questionType === "ordering" ? (
         <p className="text-xs font-medium text-muted-foreground">Правильный порядок</p>
       ) : null}
-      {question.options.map((option, index) => (
-        <label
-          className="flex items-start gap-3 rounded-md border bg-background px-3 py-2 text-sm"
-          key={option.id}
-        >
-          {question.questionType === "ordering" ? (
-            <span className="font-medium text-muted-foreground">{index + 1}.</span>
-          ) : (
-            <input
-              disabled
-              type={question.questionType === "multiple_choice" ? "checkbox" : "radio"}
-            />
-          )}
-          <span className="whitespace-pre-wrap">{option.text}</span>
-        </label>
-      ))}
+      {question.options.map((option, index) => {
+        const isCorrectOption = option.isCorrect === true;
+
+        return (
+          <label
+            className={cn(
+              "flex items-start gap-3 rounded-md border bg-background px-3 py-2 text-sm",
+              isCorrectOption && "border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/20",
+            )}
+            key={option.id}
+          >
+            {question.questionType === "ordering" ? (
+              <span className="font-medium text-muted-foreground">{index + 1}.</span>
+            ) : (
+              <input
+                checked={isCorrectOption}
+                disabled
+                readOnly
+                type={question.questionType === "multiple_choice" ? "checkbox" : "radio"}
+              />
+            )}
+            <span className="min-w-0 flex-1 whitespace-pre-wrap">{option.text}</span>
+            {isCorrectOption ? (
+              <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 aria-hidden="true" className="size-4" />
+                Правильный ответ
+              </span>
+            ) : null}
+          </label>
+        );
+      })}
     </div>
   );
 }
