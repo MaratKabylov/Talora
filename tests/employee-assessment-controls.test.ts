@@ -20,6 +20,17 @@ test("employee and candidate routes use the same controlled test session UI", ()
   assert.match(sessionUi, /operation: "expire"/);
 });
 
+test("one-question forced choice enables progression after both choices are selected", () => {
+  const sessionUi = source("components/assessment/candidate-test-session.tsx");
+
+  assert.match(sessionUi, /onChangeCapture=\{handleOneQuestionChange\}/);
+  assert.match(
+    sessionUi,
+    /const isComplete = hasDraftAnswer\([\s\S]*?draftForQuestion\(event\.currentTarget, activeQuestion\)[\s\S]*?setForcedChoiceCompletion/,
+  );
+  assert.match(sessionUi, /\[activeQuestion\.id\]: isComplete/);
+});
+
 test("employee sessions persist the same deadline and single-client lease controls", () => {
   const migration = source(
     "supabase/migrations/20260827170000_employee_assessment_integrity_controls.sql",
@@ -69,4 +80,3 @@ test("employee integrity events use a tenant-scoped audit table", () => {
   assert.match(report, /employee_assessment_session_events/);
   assert.match(report, /employeeIntegritySummary/);
 });
-

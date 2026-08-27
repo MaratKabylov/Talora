@@ -928,6 +928,27 @@ export function AssessmentTestSession({
     scheduleAutosave(questionId, 0);
   }
 
+  function handleOneQuestionChange(event: FormEvent<HTMLFormElement>) {
+    const questionId = questionIdFromTarget(event.target);
+    if (questionId) {
+      startQuestionTimer(questionId);
+    }
+    if (
+      activeQuestion?.id !== questionId ||
+      activeQuestion.questionType !== "forced_choice"
+    ) {
+      return;
+    }
+    const isComplete = hasDraftAnswer(
+      activeQuestion,
+      draftForQuestion(event.currentTarget, activeQuestion),
+    );
+    setForcedChoiceCompletion((current) => ({
+      ...current,
+      [activeQuestion.id]: isComplete,
+    }));
+  }
+
   function handleBlur(event: SyntheticEvent<HTMLFormElement>) {
     const questionId = questionIdFromTarget(event.target);
     if (questionId) {
@@ -1237,6 +1258,7 @@ export function AssessmentTestSession({
                   <form
                     className="space-y-6"
                     key={activeQuestion.id}
+                    onChangeCapture={handleOneQuestionChange}
                     onSubmit={handleOneQuestionSubmit}
                     ref={formRef}
                   >
