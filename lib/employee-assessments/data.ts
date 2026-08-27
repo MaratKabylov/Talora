@@ -148,9 +148,7 @@ type SessionRecord = {
   status: string;
   test_versions: Relation<{
     id: string;
-    test_templates: Relation<{
-      title: string;
-    }>;
+    test_template_id: string;
     title: string;
   }>;
 };
@@ -311,6 +309,7 @@ export type EmployeeAssessmentReportData = {
 function employeeIntegritySummary(
   events: EmployeeIntegrityEventRecord[],
   sessions: SessionRecord[],
+  templateTitles: ReadonlyMap<string, string>,
 ): ReportIntegritySummary {
   const focusLossCount = events.filter((event) => event.event_type === "focus_lost").length;
   const clipboardAttemptCount = events.filter((event) =>
@@ -351,9 +350,14 @@ function employeeIntegritySummary(
   const testTitleBySession = new Map(
     sessions.map((session) => {
       const version = related(session.test_versions);
-      const template = version ? related(version.test_templates) : null;
 
-      return [session.id, resolveReportTestTitle(template?.title, version?.title)];
+      return [
+        session.id,
+        resolveReportTestTitle(
+          version ? templateTitles.get(version.test_template_id) : null,
+          version?.title,
+        ),
+      ];
     }),
   );
 
@@ -658,7 +662,7 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
     supabase
       .from("employee_assessment_participants")
       .select(
-        "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, started_at, completed_at, score, percentage, test_versions(id, title, test_templates(title)), employee_assessment_test_results(id, percentage, raw_score, level, requires_review, scoring_result_json), employee_assessment_answers(id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, order_index, answer_options(id, text, match_text, match_target_id, order_index))))",
+        "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, started_at, completed_at, score, percentage, test_versions(id, test_template_id, title), employee_assessment_test_results(id, percentage, raw_score, level, requires_review, scoring_result_json), employee_assessment_answers(id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, order_index, answer_options(id, text, match_text, match_target_id, order_index))))",
       )
       .eq("company_id", companyId)
       .eq("id", participantId)
@@ -695,11 +699,31 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
   const report = related(record.employee_assessment_reports);
   const sessions = record.employee_assessment_sessions ?? [];
   const integrityEvents = (integrityResult.data ?? []) as unknown as EmployeeIntegrityEventRecord[];
+  const templateIds = Array.from(
+    new Set(
+      sessions.flatMap((session) => {
+        const version = related(session.test_versions);
+        return version ? [version.test_template_id] : [];
+      }),
+    ),
+  );
+  const templatesResult =
+    templateIds.length === 0
+      ? { data: [] as Array<{ id: string; title: string }>, error: null }
+      : await supabase.from("test_templates").select("id, title").in("id", templateIds);
+
+  if (templatesResult.error) {
+    throw new Error("Unable to load employee assessment report test titles.");
+  }
+
+  const templateTitles = new Map(
+    (templatesResult.data ?? []).map((template) => [template.id, template.title]),
+  );
 
   return {
     assessment,
     employee: participant.employee,
-    integrity: employeeIntegritySummary(integrityEvents, sessions),
+    integrity: employeeIntegritySummary(integrityEvents, sessions, templateTitles),
     participant: {
       completedAt: participant.completedAt,
       createdAt: participant.createdAt,
@@ -725,7 +749,6 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
       : null,
     sessions: sessions.map((session) => {
       const version = related(session.test_versions);
-      const template = version ? related(version.test_templates) : null;
       const result = session.employee_assessment_test_results?.[0] ?? null;
       const answers = (session.employee_assessment_answers ?? [])
         .flatMap((answer) => {
@@ -763,7 +786,10 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
         score: session.score ?? result?.raw_score ?? null,
         startedAt: session.started_at,
         status: session.status,
-        testTitle: resolveReportTestTitle(template?.title, version?.title),
+        testTitle: resolveReportTestTitle(
+          version ? templateTitles.get(version.test_template_id) : null,
+          version?.title,
+        ),
       };
     }),
     summary: (record.employee_assessment_competency_summary ?? []).map((summary) => ({

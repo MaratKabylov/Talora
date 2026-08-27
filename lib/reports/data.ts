@@ -74,9 +74,7 @@ type RiskRecord = {
 
 type VersionRecord = {
   scoring_type: string;
-  test_templates: Relation<{
-    title: string;
-  }>;
+  test_template_id: string;
   title: string;
 };
 
@@ -389,7 +387,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       supabase
         .from("test_sessions")
         .select(
-          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, test_versions(title, scoring_type, test_templates(title))",
+          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, test_versions(title, scoring_type, test_template_id)",
         )
         .eq("application_id", applicationId)
         .order("created_at"),
@@ -423,12 +421,37 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   }
 
   const sessions = (sessionsResult.data ?? []) as unknown as SessionRecord[];
+  const templateIds = Array.from(
+    new Set(
+      sessions.flatMap((session) => {
+        const version = related(session.test_versions);
+        return version ? [version.test_template_id] : [];
+      }),
+    ),
+  );
+  const templatesResult =
+    templateIds.length === 0
+      ? { data: [] as Array<{ id: string; title: string }>, error: null }
+      : await supabase.from("test_templates").select("id, title").in("id", templateIds);
+
+  if (templatesResult.error) {
+    throw new Error("Unable to load candidate report test titles.");
+  }
+
+  const templateTitles = new Map(
+    (templatesResult.data ?? []).map((template) => [template.id, template.title]),
+  );
   const testTitleBySession = new Map(
     sessions.map((session) => {
       const version = related(session.test_versions);
-      const template = version ? related(version.test_templates) : null;
 
-      return [session.id, resolveReportTestTitle(template?.title, version?.title)];
+      return [
+        session.id,
+        resolveReportTestTitle(
+          version ? templateTitles.get(version.test_template_id) : null,
+          version?.title,
+        ),
+      ];
     }),
   );
   const sessionIds = sessions.map((session) => session.id);
@@ -478,7 +501,6 @@ export async function getCandidateReportData(companyId: string, applicationId: s
 
   const tests = sessions.map((session) => {
     const version = related(session.test_versions);
-    const template = version ? related(version.test_templates) : null;
     const result = resultsBySession.get(session.id);
     const scoringDetails = buildReportScoringDetails(result?.scoring_result_json);
     const answers = (answersBySession.get(session.id) ?? [])
@@ -531,7 +553,10 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       startedAt: session.started_at,
       status: session.status as ReportTest["status"],
       summary: result?.summary ?? null,
-      title: resolveReportTestTitle(template?.title, version?.title),
+      title: resolveReportTestTitle(
+        version ? templateTitles.get(version.test_template_id) : null,
+        version?.title,
+      ),
     };
   });
   const storedReport = generatedReportResult.data as GeneratedReportRecord | null;
