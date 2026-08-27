@@ -23,6 +23,7 @@ import {
   type ReportScoringDetails,
 } from "@/lib/reports/scoring-details";
 import { countAnswerCorrectness } from "@/lib/reports/answer-counts";
+import { resolveReportTestTitle } from "@/lib/reports/test-title";
 
 type Relation<T> = T | T[] | null;
 
@@ -73,6 +74,9 @@ type RiskRecord = {
 
 type VersionRecord = {
   scoring_type: string;
+  test_templates: Relation<{
+    title: string;
+  }>;
   title: string;
 };
 
@@ -385,7 +389,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       supabase
         .from("test_sessions")
         .select(
-          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, test_versions(title, scoring_type)",
+          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, test_versions(title, scoring_type, test_templates(title))",
         )
         .eq("application_id", applicationId)
         .order("created_at"),
@@ -420,7 +424,12 @@ export async function getCandidateReportData(companyId: string, applicationId: s
 
   const sessions = (sessionsResult.data ?? []) as unknown as SessionRecord[];
   const testTitleBySession = new Map(
-    sessions.map((session) => [session.id, related(session.test_versions)?.title ?? "Тест"]),
+    sessions.map((session) => {
+      const version = related(session.test_versions);
+      const template = version ? related(version.test_templates) : null;
+
+      return [session.id, resolveReportTestTitle(template?.title, version?.title)];
+    }),
   );
   const sessionIds = sessions.map((session) => session.id);
   const { data: answersData, error: answersError } =
@@ -469,6 +478,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
 
   const tests = sessions.map((session) => {
     const version = related(session.test_versions);
+    const template = version ? related(version.test_templates) : null;
     const result = resultsBySession.get(session.id);
     const scoringDetails = buildReportScoringDetails(result?.scoring_result_json);
     const answers = (answersBySession.get(session.id) ?? [])
@@ -521,7 +531,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       startedAt: session.started_at,
       status: session.status as ReportTest["status"],
       summary: result?.summary ?? null,
-      title: version?.title ?? "Тест",
+      title: resolveReportTestTitle(template?.title, version?.title),
     };
   });
   const storedReport = generatedReportResult.data as GeneratedReportRecord | null;
