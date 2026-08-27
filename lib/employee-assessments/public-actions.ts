@@ -3,7 +3,6 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { scoreCompletedEmployeeAssessmentParticipant } from "@/lib/scoring/service";
 import { validateForcedChoiceAnswer } from "@/lib/forced-choice";
 import { validateMultipleChoiceAnswer } from "@/lib/answers/multiple-choice";
 import {
@@ -11,8 +10,13 @@ import {
   validateOrderingAnswer,
 } from "@/lib/structured-questions";
 import { evaluateRemediationBranches } from "@/lib/assessment/remediation";
+import { guardCandidateSessionSubmission } from "@/lib/assessment/session-control";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import {
+  completeEmployeeAssessmentSessionAndGetPath,
+  startEmployeeAssessmentSession,
+} from "./completion";
 import {
   getEmployeeAssessmentByToken,
   getEmployeeAssessmentQuestionPageData,
@@ -84,15 +88,9 @@ function nextPendingSession(assessment: ActiveEmployeeAssessment, excludedSessio
 }
 
 async function startSession(token: string, assessment: ActiveEmployeeAssessment, sessionId: string) {
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from("employee_assessment_sessions")
-    .update({ started_at: new Date().toISOString(), status: "in_progress" })
-    .eq("participant_id", assessment.participantId)
-    .eq("id", sessionId)
-    .eq("status", "not_started");
-
-  if (error) {
+  try {
+    await startEmployeeAssessmentSession(assessment, sessionId);
+  } catch {
     redirectWithError(profilePath(token), "Не удалось начать тест.");
   }
 }
@@ -102,49 +100,44 @@ async function finishSessionAndContinue(
   assessment: ActiveEmployeeAssessment,
   sessionId: string,
 ) {
-  const admin = createAdminClient();
-  const now = new Date().toISOString();
-  const { error } = await admin
-    .from("employee_assessment_sessions")
-    .update({ completed_at: now, status: "completed" })
-    .eq("participant_id", assessment.participantId)
-    .eq("id", sessionId)
-    .eq("status", "in_progress");
-
-  if (error) {
-    redirectWithError(testPath(token, sessionId), "Не удалось завершить тест.");
-  }
-
-  const nextSession = nextPendingSession(assessment, sessionId);
-  if (nextSession) {
-    await startSession(token, assessment, nextSession.id);
-    redirect(testPath(token, nextSession.id));
-  }
-
+  let redirectTo: string;
   try {
-    await scoreCompletedEmployeeAssessmentParticipant(assessment.participantId);
+    redirectTo = await completeEmployeeAssessmentSessionAndGetPath(
+      token,
+      assessment,
+      sessionId,
+      "employee",
+    );
   } catch {
-    redirectWithError(testPath(token, sessionId), "Не удалось рассчитать результат оценки.");
-  }
-
-  const [{ error: invitationError }, { error: participantError }] = await Promise.all([
-    admin
-      .from("employee_assessment_invitations")
-      .update({ status: "completed" })
-      .eq("id", assessment.invitationId)
-      .eq("status", "started"),
-    admin
-      .from("employee_assessment_participants")
-      .update({ completed_at: now, current_stage: "assessment_completed", status: "completed" })
-      .eq("id", assessment.participantId)
-      .eq("status", "in_progress"),
-  ]);
-
-  if (invitationError || participantError) {
     redirectWithError(testPath(token, sessionId), "Не удалось завершить оценку.");
   }
+  redirect(redirectTo);
+}
 
-  redirect(`/employee-assessment/${token}/complete`);
+async function requireOwnedSession(formData: FormData, token: string, sessionId: string) {
+  const clientId = z.string().uuid().safeParse(formString(formData, "clientId"));
+  const deviceId = z.string().uuid().safeParse(formString(formData, "deviceId"));
+  if (!clientId.success || !deviceId.success) {
+    redirectWithError(testPath(token, sessionId), "Не удалось подтвердить активную вкладку теста.");
+  }
+
+  const control = await guardCandidateSessionSubmission({
+    assessmentType: "employee",
+    clientId: clientId.data,
+    deviceId: deviceId.data,
+    sessionId,
+    token,
+  });
+
+  if (control.status === "redirect") {
+    redirect(control.redirectTo);
+  }
+  if (control.status === "blocked") {
+    redirectWithError(
+      testPath(token, sessionId),
+      "Тест уже открыт в другой вкладке или на другом устройстве.",
+    );
+  }
 }
 
 export async function acceptEmployeeAssessmentConsentAction(formData: FormData) {
@@ -365,9 +358,18 @@ export async function saveEmployeeAssessmentSectionAction(formData: FormData) {
     redirect("/");
   }
 
+  await requireOwnedSession(formData, token, sessionId.data);
+
   const data = await getEmployeeAssessmentQuestionPageData(token, sessionId.data);
   if (!data || data.assessment.availability !== "active" || data.session.status !== "in_progress") {
     redirectWithError(startPath(token), "Тест недоступен для прохождения.");
+  }
+
+  if (direction === "previous" && !data.session.test.presentationSettings.allowBack) {
+    redirectWithError(
+      testPath(token, sessionId.data, requestedSection),
+      "Возврат к предыдущим вопросам отключен для этого теста.",
+    );
   }
 
   const sectionIndex = Math.min(Math.max(requestedSection, 0), Math.max(data.sections.length - 1, 0));
@@ -522,6 +524,8 @@ export async function completeEmptyEmployeeAssessmentSessionAction(formData: For
   if (!token || !sessionId.success) {
     redirect("/");
   }
+
+  await requireOwnedSession(formData, token, sessionId.data);
 
   const data = await getEmployeeAssessmentQuestionPageData(token, sessionId.data);
   if (!data || data.questions.length !== 0 || data.session.status !== "in_progress") {

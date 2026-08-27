@@ -17,9 +17,18 @@ import {
   validateMatchingAnswer,
   validateOrderingAnswer,
 } from "@/lib/structured-questions";
+import { completeEmployeeAssessmentSessionAndGetPath } from "@/lib/employee-assessments/completion";
+import {
+  getEmployeeAssessmentByToken,
+  getEmployeeAssessmentQuestionPageData,
+} from "@/lib/employee-assessments/public-data";
 
 import { completeCandidateSessionAndGetPath } from "./completion";
-import { getAssessmentByToken, getAssessmentQuestionPageData } from "./data";
+import {
+  getAssessmentByToken,
+  getAssessmentQuestionPageData,
+  type AssessmentQuestionPageData,
+} from "./data";
 
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
 const SESSION_LEASE_MS = 90_000;
@@ -58,10 +67,10 @@ export type CandidateSessionControlResponse =
   | { redirectTo: string; status: "redirect" };
 
 type InvitationRecord = {
-  application_id: string;
   company_id: string;
   expires_at: string | null;
   id: string;
+  owner_id: string;
   status: string;
 };
 
@@ -81,13 +90,17 @@ type SessionRecord = {
     | null;
 };
 
+type AssessmentType = "candidate" | "employee";
+
 type CandidateSessionAccess = {
   admin: ReturnType<typeof createAdminClient>;
+  assessmentType: AssessmentType;
   invitation: InvitationRecord;
   session: SessionRecord;
 };
 
 type ClientIdentity = {
+  assessmentType?: AssessmentType;
   clientId: string;
   deviceId: string;
   sessionId: string;
@@ -103,11 +116,34 @@ type IntegrityEventInput = ClientIdentity & {
 };
 
 const identitySchema = z.object({
+  assessmentType: z.enum(["candidate", "employee"]).default("candidate"),
   clientId: z.string().uuid(),
   deviceId: z.string().uuid(),
   sessionId: z.string().uuid(),
   token: z.string().regex(TOKEN_PATTERN),
 });
+
+function assessmentType(identity: ClientIdentity): AssessmentType {
+  return identity.assessmentType ?? "candidate";
+}
+
+function assessmentRoot(identity: ClientIdentity) {
+  return assessmentType(identity) === "employee"
+    ? `/employee-assessment/${identity.token}`
+    : `/assessment/${identity.token}`;
+}
+
+function sessionTable(type: AssessmentType) {
+  return type === "employee" ? "employee_assessment_sessions" : "test_sessions";
+}
+
+function answerTable(type: AssessmentType) {
+  return type === "employee" ? "employee_assessment_answers" : "candidate_answers";
+}
+
+function ownerColumn(type: AssessmentType) {
+  return type === "employee" ? "participant_id" : "application_id";
+}
 
 function hashIdentifier(token: string, value: string) {
   return createHash("sha256").update(`${token}:${value}`).digest("hex");
@@ -128,20 +164,24 @@ function presentationSettingsForSession(session: SessionRecord) {
   return normalizePresentationSettings(version?.settings_json);
 }
 
-async function redirectForAssessment(token: string) {
-  const assessment = await getAssessmentByToken(token);
+async function redirectForAssessment(identity: ClientIdentity) {
+  const type = assessmentType(identity);
+  const assessment =
+    type === "employee"
+      ? await getEmployeeAssessmentByToken(identity.token)
+      : await getAssessmentByToken(identity.token);
   if (assessment.availability === "completed") {
-    return `/assessment/${token}/complete`;
+    return `${assessmentRoot(identity)}/complete`;
   }
 
   if (assessment.availability !== "active") {
-    return `/assessment/${token}`;
+    return assessmentRoot(identity);
   }
 
   const activeSession = assessment.sessions.find((session) => session.status === "in_progress");
   return activeSession
-    ? `/assessment/${token}/test/${activeSession.id}`
-    : `/assessment/${token}/profile`;
+    ? `${assessmentRoot(identity)}/test/${activeSession.id}`
+    : `${assessmentRoot(identity)}/profile`;
 }
 
 async function loadCandidateSessionAccess(
@@ -153,9 +193,13 @@ async function loadCandidateSessionAccess(
   }
 
   const admin = createAdminClient();
+  const type = parsed.data.assessmentType;
+  const invitationTable =
+    type === "employee" ? "employee_assessment_invitations" : "invitations";
+  const invitationOwnerColumn = ownerColumn(type);
   const { data: invitationData, error: invitationError } = await admin
-    .from("invitations")
-    .select("id, company_id, application_id, status, expires_at")
+    .from(invitationTable)
+    .select(`id, company_id, ${invitationOwnerColumn}, status, expires_at`)
     .eq("token", parsed.data.token)
     .maybeSingle();
 
@@ -163,7 +207,19 @@ async function loadCandidateSessionAccess(
     return null;
   }
 
-  const invitation = invitationData as InvitationRecord;
+  const invitationRow = invitationData as unknown as Record<string, unknown>;
+  const ownerId = invitationRow[invitationOwnerColumn];
+  if (typeof ownerId !== "string") {
+    return null;
+  }
+  const invitation: InvitationRecord = {
+    company_id: String(invitationRow.company_id),
+    expires_at:
+      typeof invitationRow.expires_at === "string" ? invitationRow.expires_at : null,
+    id: String(invitationRow.id),
+    owner_id: ownerId,
+    status: String(invitationRow.status),
+  };
   if (
     invitation.status !== "started" ||
     (invitation.expires_at && new Date(invitation.expires_at).getTime() <= Date.now())
@@ -172,11 +228,11 @@ async function loadCandidateSessionAccess(
   }
 
   const { data: sessionData, error: sessionError } = await admin
-    .from("test_sessions")
+    .from(sessionTable(type))
     .select(
       "id, test_version_id, status, started_at, deadline_at, active_client_id_hash, active_device_id_hash, lease_expires_at, last_heartbeat_at, test_versions(settings_json)",
     )
-    .eq("application_id", invitation.application_id)
+    .eq(invitationOwnerColumn, invitation.owner_id)
     .eq("id", parsed.data.sessionId)
     .maybeSingle();
 
@@ -202,7 +258,7 @@ async function loadCandidateSessionAccess(
         new Date(session.started_at).getTime() + durationMinutes * 60_000,
       ).toISOString();
       const { error: deadlineError } = await admin
-        .from("test_sessions")
+        .from(sessionTable(type))
         .update({ deadline_at: session.deadline_at })
         .eq("id", session.id)
         .is("deadline_at", null);
@@ -213,7 +269,7 @@ async function loadCandidateSessionAccess(
     }
   }
 
-  return { admin, invitation, session };
+  return { admin, assessmentType: type, invitation, session };
 }
 
 async function insertIntegrityEvent(
@@ -230,9 +286,17 @@ async function insertIntegrityEvent(
     questionId?: string | null;
   },
 ) {
-  const { error } = await access.admin.from("assessment_session_events").upsert(
+  const eventTable =
+    access.assessmentType === "employee"
+      ? "employee_assessment_session_events"
+      : "assessment_session_events";
+  const eventOwner =
+    access.assessmentType === "employee"
+      ? { participant_id: access.invitation.owner_id }
+      : { application_id: access.invitation.owner_id };
+  const { error } = await access.admin.from(eventTable).upsert(
     {
-      application_id: access.invitation.application_id,
+      ...eventOwner,
       client_event_id: input.clientEventId,
       client_occurred_at: input.clientOccurredAt ?? null,
       company_id: access.invitation.company_id,
@@ -259,17 +323,32 @@ async function expireCandidateSession(
     eventType: "timer_expired",
   });
 
-  const assessment = await getAssessmentByToken(identity.token);
-  if (assessment.availability !== "active") {
-    return { redirectTo: await redirectForAssessment(identity.token), status: "redirect" };
-  }
-
-  const redirectTo = await completeCandidateSessionAndGetPath(
-    identity.token,
-    assessment,
-    identity.sessionId,
-    "time_expired",
-  );
+  const redirectTo =
+    access.assessmentType === "employee"
+      ? await (async () => {
+          const assessment = await getEmployeeAssessmentByToken(identity.token);
+          if (assessment.availability !== "active") {
+            return redirectForAssessment(identity);
+          }
+          return completeEmployeeAssessmentSessionAndGetPath(
+            identity.token,
+            assessment,
+            identity.sessionId,
+            "time_expired",
+          );
+        })()
+      : await (async () => {
+          const assessment = await getAssessmentByToken(identity.token);
+          if (assessment.availability !== "active") {
+            return redirectForAssessment(identity);
+          }
+          return completeCandidateSessionAndGetPath(
+            identity.token,
+            assessment,
+            identity.sessionId,
+            "time_expired",
+          );
+        })();
   return { redirectTo, status: "redirect" };
 }
 
@@ -278,7 +357,7 @@ async function touchOwnedLease(
   access: CandidateSessionAccess,
 ): Promise<CandidateSessionControlResponse | null> {
   if (access.session.status !== "in_progress") {
-    return { redirectTo: await redirectForAssessment(identity.token), status: "redirect" };
+    return { redirectTo: await redirectForAssessment(identity), status: "redirect" };
   }
 
   if (isPast(access.session.deadline_at)) {
@@ -289,7 +368,7 @@ async function touchOwnedLease(
   const clientHash = hashIdentifier(identity.token, identity.clientId);
   const deviceHash = hashIdentifier(identity.token, identity.deviceId);
   const { data, error } = await access.admin
-    .from("test_sessions")
+    .from(sessionTable(access.assessmentType))
     .update({ last_heartbeat_at: now, lease_expires_at: leaseExpiry() })
     .eq("id", access.session.id)
     .eq("status", "in_progress")
@@ -310,11 +389,11 @@ export async function claimCandidateSession(
 ): Promise<CandidateSessionControlResponse> {
   const access = await loadCandidateSessionAccess(identity);
   if (!access) {
-    return { redirectTo: `/assessment/${identity.token}`, status: "redirect" };
+    return { redirectTo: assessmentRoot(identity), status: "redirect" };
   }
 
   if (access.session.status !== "in_progress") {
-    return { redirectTo: await redirectForAssessment(identity.token), status: "redirect" };
+    return { redirectTo: await redirectForAssessment(identity), status: "redirect" };
   }
 
   if (isPast(access.session.deadline_at)) {
@@ -341,7 +420,7 @@ export async function claimCandidateSession(
   }
 
   let claimQuery = access.admin
-    .from("test_sessions")
+    .from(sessionTable(access.assessmentType))
     .update({
       active_client_id_hash: clientHash,
       active_device_id_hash: deviceHash,
@@ -398,7 +477,7 @@ export async function heartbeatCandidateSession(
 ): Promise<CandidateSessionControlResponse> {
   const access = await loadCandidateSessionAccess(identity);
   if (!access) {
-    return { redirectTo: `/assessment/${identity.token}`, status: "redirect" };
+    return { redirectTo: assessmentRoot(identity), status: "redirect" };
   }
 
   const blockedOrRedirect = await touchOwnedLease(identity, access);
@@ -410,7 +489,7 @@ export async function recordCandidateSessionEvent(
 ): Promise<CandidateSessionControlResponse> {
   const access = await loadCandidateSessionAccess(input);
   if (!access) {
-    return { redirectTo: `/assessment/${input.token}`, status: "redirect" };
+    return { redirectTo: assessmentRoot(input), status: "redirect" };
   }
 
   const blockedOrRedirect = await touchOwnedLease(input, access);
@@ -620,6 +699,17 @@ async function answerRowForDraft(
   return { answer_json: {}, answer_text: answerText, selected_option_id: null };
 }
 
+async function getControlQuestionPageData(
+  identity: ClientIdentity,
+): Promise<AssessmentQuestionPageData | null> {
+  const data =
+    assessmentType(identity) === "employee"
+      ? await getEmployeeAssessmentQuestionPageData(identity.token, identity.sessionId)
+      : await getAssessmentQuestionPageData(identity.token, identity.sessionId);
+
+  return data as unknown as AssessmentQuestionPageData | null;
+}
+
 export async function autosaveCandidateAnswer(
   identity: ClientIdentity & {
     answer: AssessmentAnswerDraft;
@@ -630,7 +720,7 @@ export async function autosaveCandidateAnswer(
 ): Promise<CandidateSessionControlResponse> {
   const access = await loadCandidateSessionAccess(identity);
   if (!access) {
-    return { redirectTo: `/assessment/${identity.token}`, status: "redirect" };
+    return { redirectTo: assessmentRoot(identity), status: "redirect" };
   }
 
   const blockedOrRedirect = await touchOwnedLease(identity, access);
@@ -648,7 +738,7 @@ export async function autosaveCandidateAnswer(
 
   let oneQuestionData: Awaited<ReturnType<typeof getAssessmentQuestionPageData>> = null;
   if (presentationSettings.presentationMode === "one_question") {
-    oneQuestionData = await getAssessmentQuestionPageData(identity.token, identity.sessionId);
+    oneQuestionData = await getControlQuestionPageData(identity);
     if (!oneQuestionData || oneQuestionData.session.status !== "in_progress") {
       throw new Error("The active assessment question could not be loaded.");
     }
@@ -734,7 +824,7 @@ export async function autosaveCandidateAnswer(
         : null;
   }
 
-  const query = access.admin.from("candidate_answers");
+  const query = access.admin.from(answerTable(access.assessmentType));
   const { error } = answer
     ? await query.upsert(
         {
@@ -764,7 +854,7 @@ export async function autosaveCandidateAnswer(
     answerIsCorrect !== false
   ) {
     const { error: remediationError } = await access.admin
-      .from("candidate_answers")
+      .from(answerTable(access.assessmentType))
       .delete()
       .eq("session_id", identity.sessionId)
       .eq("question_id", question.remediationQuestionId);
@@ -787,7 +877,7 @@ export async function completeOneQuestionCandidateSession(
 ): Promise<CandidateSessionControlResponse> {
   const access = await loadCandidateSessionAccess(identity);
   if (!access) {
-    return { redirectTo: `/assessment/${identity.token}`, status: "redirect" };
+    return { redirectTo: assessmentRoot(identity), status: "redirect" };
   }
 
   const blockedOrRedirect = await touchOwnedLease(identity, access);
@@ -799,9 +889,9 @@ export async function completeOneQuestionCandidateSession(
     throw new Error("This assessment session uses section navigation.");
   }
 
-  const data = await getAssessmentQuestionPageData(identity.token, identity.sessionId);
+  const data = await getControlQuestionPageData(identity);
   if (!data || data.session.status !== "in_progress") {
-    return { redirectTo: await redirectForAssessment(identity.token), status: "redirect" };
+    return { redirectTo: await redirectForAssessment(identity), status: "redirect" };
   }
 
   const missingQuestion = data.sections
@@ -817,12 +907,26 @@ export async function completeOneQuestionCandidateSession(
     throw new Error("All visible questions must be finalized before completion.");
   }
 
-  const redirectTo = await completeCandidateSessionAndGetPath(
-    identity.token,
-    data.assessment,
-    identity.sessionId,
-    "candidate",
-  );
+  const redirectTo =
+    access.assessmentType === "employee"
+      ? await (async () => {
+          const assessment = await getEmployeeAssessmentByToken(identity.token);
+          if (assessment.availability !== "active") {
+            return redirectForAssessment(identity);
+          }
+          return completeEmployeeAssessmentSessionAndGetPath(
+            identity.token,
+            assessment,
+            identity.sessionId,
+            "employee",
+          );
+        })()
+      : await completeCandidateSessionAndGetPath(
+          identity.token,
+          data.assessment,
+          identity.sessionId,
+          "candidate",
+        );
   return { redirectTo, status: "redirect" };
 }
 
@@ -831,7 +935,7 @@ export async function expireCandidateSessionIfNeeded(
 ): Promise<CandidateSessionControlResponse> {
   const access = await loadCandidateSessionAccess(identity);
   if (!access) {
-    return { redirectTo: `/assessment/${identity.token}`, status: "redirect" };
+    return { redirectTo: assessmentRoot(identity), status: "redirect" };
   }
 
   if (!isPast(access.session.deadline_at)) {

@@ -6,6 +6,10 @@ import {
   buildReportScoringDetails,
   type ReportScoringDetails,
 } from "@/lib/reports/scoring-details";
+import type {
+  ReportIntegrityEventType,
+  ReportIntegritySummary,
+} from "@/lib/reports/data";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 import { listAccessibleAssessmentPackages } from "@/lib/jobs/package-access";
 
@@ -146,6 +150,15 @@ type SessionRecord = {
   }>;
 };
 
+type EmployeeIntegrityEventRecord = {
+  client_occurred_at: string | null;
+  event_type: ReportIntegrityEventType;
+  id: number;
+  occurred_at: string;
+  questions: Relation<{ text: string }>;
+  session_id: string;
+};
+
 type ReportParticipantRecord = Omit<ParticipantRecord, "employee_assessment_competency_summary"> & {
   employee_assessment_competency_summary?: Array<
     SummaryRecord & {
@@ -250,6 +263,7 @@ export type EmployeeAssessmentReportData = {
     title: string;
   };
   employee: EmployeeAssessmentParticipant["employee"];
+  integrity: ReportIntegritySummary;
   participant: Omit<EmployeeAssessmentParticipant, "employee" | "latestInvitation">;
   report: {
     fitScore: number | null;
@@ -286,6 +300,77 @@ export type EmployeeAssessmentReportData = {
     score: number | null;
   }>;
 };
+
+function employeeIntegritySummary(
+  events: EmployeeIntegrityEventRecord[],
+  sessions: SessionRecord[],
+): ReportIntegritySummary {
+  const focusLossCount = events.filter((event) => event.event_type === "focus_lost").length;
+  const clipboardAttemptCount = events.filter((event) =>
+    ["clipboard_copy", "clipboard_cut", "clipboard_paste"].includes(event.event_type),
+  ).length;
+  const concurrentSessionAttemptCount = events.filter(
+    (event) => event.event_type === "concurrent_session_blocked",
+  ).length;
+  const recoveredSessionCount = events.filter(
+    (event) => event.event_type === "session_recovered",
+  ).length;
+  const timerExpiredCount = events.filter(
+    (event) => event.event_type === "timer_expired",
+  ).length;
+  const focusLostAtBySession = new Map<string, number>();
+  let focusLossDurationMs = 0;
+
+  for (const event of events) {
+    const occurredAt = new Date(event.occurred_at).getTime();
+    if (event.event_type === "focus_lost" && !focusLostAtBySession.has(event.session_id)) {
+      focusLostAtBySession.set(event.session_id, occurredAt);
+    }
+    if (event.event_type === "focus_returned") {
+      const lostAt = focusLostAtBySession.get(event.session_id);
+      if (lostAt !== undefined) {
+        focusLossDurationMs += Math.max(occurredAt - lostAt, 0);
+        focusLostAtBySession.delete(event.session_id);
+      }
+    }
+  }
+
+  for (const [sessionId, lostAt] of focusLostAtBySession) {
+    const session = sessions.find((entry) => entry.id === sessionId);
+    const endedAt = session?.completed_at ? new Date(session.completed_at).getTime() : Date.now();
+    focusLossDurationMs += Math.max(endedAt - lostAt, 0);
+  }
+
+  const testTitleBySession = new Map(
+    sessions.map((session) => [session.id, related(session.test_versions)?.title ?? "Тест"]),
+  );
+
+  return {
+    clipboardAttemptCount,
+    concurrentSessionAttemptCount,
+    events: events.map((event) => ({
+      clientOccurredAt: event.client_occurred_at,
+      eventType: event.event_type,
+      id: event.id,
+      occurredAt: event.occurred_at,
+      question: related(event.questions)?.text ?? null,
+      testTitle: testTitleBySession.get(event.session_id) ?? "Тест",
+    })),
+    focusLossCount,
+    focusLossDurationSeconds: Math.round(focusLossDurationMs / 1000),
+    recoveredSessionCount,
+    status:
+      concurrentSessionAttemptCount > 0
+        ? "critical"
+        : focusLossCount > 0 ||
+            clipboardAttemptCount > 0 ||
+            recoveredSessionCount > 0 ||
+            timerExpiredCount > 0
+          ? "attention"
+          : "clear",
+    timerExpiredCount,
+  };
+}
 
 function renderEmployeeAnswer(
   answer: EmployeeAnswerRecord,
@@ -557,16 +642,25 @@ export async function getEmployeeComparisonData(companyId: string, assessmentId:
 
 export async function getEmployeeAssessmentReportData(companyId: string, participantId: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("employee_assessment_participants")
-    .select(
-      "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, started_at, completed_at, score, percentage, test_versions(id, title), employee_assessment_test_results(id, percentage, raw_score, level, requires_review, scoring_result_json), employee_assessment_answers(id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, order_index, answer_options(id, text, match_text, match_target_id, order_index))))",
-    )
-    .eq("company_id", companyId)
-    .eq("id", participantId)
-    .maybeSingle();
+  const [participantResult, integrityResult] = await Promise.all([
+    supabase
+      .from("employee_assessment_participants")
+      .select(
+        "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, started_at, completed_at, score, percentage, test_versions(id, title), employee_assessment_test_results(id, percentage, raw_score, level, requires_review, scoring_result_json), employee_assessment_answers(id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, order_index, answer_options(id, text, match_text, match_target_id, order_index))))",
+      )
+      .eq("company_id", companyId)
+      .eq("id", participantId)
+      .maybeSingle(),
+    supabase
+      .from("employee_assessment_session_events")
+      .select("id, session_id, event_type, occurred_at, client_occurred_at, questions(text)")
+      .eq("company_id", companyId)
+      .eq("participant_id", participantId)
+      .order("occurred_at"),
+  ]);
+  const { data, error } = participantResult;
 
-  if (error) {
+  if (error || integrityResult.error) {
     throw new Error("Unable to load employee assessment report.");
   }
 
@@ -587,10 +681,13 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
   }
 
   const report = related(record.employee_assessment_reports);
+  const sessions = record.employee_assessment_sessions ?? [];
+  const integrityEvents = (integrityResult.data ?? []) as unknown as EmployeeIntegrityEventRecord[];
 
   return {
     assessment,
     employee: participant.employee,
+    integrity: employeeIntegritySummary(integrityEvents, sessions),
     participant: {
       completedAt: participant.completedAt,
       createdAt: participant.createdAt,
@@ -614,7 +711,7 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
           strengths: jsonArray(report.strengths_json),
         }
       : null,
-    sessions: (record.employee_assessment_sessions ?? []).map((session) => {
+    sessions: sessions.map((session) => {
       const version = related(session.test_versions);
       const result = session.employee_assessment_test_results?.[0] ?? null;
 

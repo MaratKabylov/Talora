@@ -18,6 +18,7 @@ import {
 } from "@/lib/employee-assessments/constants";
 import { getEmployeeAssessmentReportData } from "@/lib/employee-assessments/data";
 import { COMPETENCIES } from "@/lib/jobs/constants";
+import type { ReportIntegrityEventType } from "@/lib/reports/data";
 import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
 
 type EmployeeReportParams = Promise<{ id: string }>;
@@ -36,6 +37,17 @@ const TEST_SESSION_STATUS_LABELS: Record<string, string> = {
   expired: "Истек",
   in_progress: "В процессе",
   not_started: "Не начат",
+};
+
+const INTEGRITY_EVENT_LABELS: Record<ReportIntegrityEventType, string> = {
+  clipboard_copy: "Попытка копирования",
+  clipboard_cut: "Попытка вырезания",
+  clipboard_paste: "Попытка вставки",
+  concurrent_session_blocked: "Заблокирован параллельный вход",
+  focus_lost: "Страница потеряла фокус",
+  focus_returned: "Сотрудник вернулся на страницу",
+  session_recovered: "Сессия восстановлена после тайм-аута активности",
+  timer_expired: "Тест завершен по таймеру",
 };
 
 function formatScore(value: number | null | undefined) {
@@ -61,6 +73,15 @@ function formatDateTime(value: string) {
     dateStyle: "short",
     timeStyle: "medium",
   }).format(new Date(value));
+}
+
+function formatDuration(seconds: number) {
+  if (seconds < 60) {
+    return `${seconds} сек.`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return rest ? `${minutes} мин. ${rest} сек.` : `${minutes} мин.`;
 }
 
 export default async function EmployeeAssessmentReportPage({
@@ -183,6 +204,90 @@ export default async function EmployeeAssessmentReportPage({
             <p className="text-sm text-muted-foreground">Должность</p>
             <p className="font-medium">{data.employee.roleTitle ?? "-"}</p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>Контроль прохождения</CardTitle>
+              <CardDescription className="mt-1">
+                События показываются отдельно и не изменяют overall score или fit score.
+              </CardDescription>
+            </div>
+            <span
+              className={
+                data.integrity.status === "critical"
+                  ? "rounded-full bg-destructive/10 px-3 py-1 text-sm font-medium text-destructive"
+                  : data.integrity.status === "attention"
+                    ? "rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary"
+                    : "rounded-full bg-muted px-3 py-1 text-sm font-medium"
+              }
+            >
+              {data.integrity.status === "critical"
+                ? "Существенные события"
+                : data.integrity.status === "attention"
+                  ? "Требует внимания"
+                  : "Событий нет"}
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-5 pt-6">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Потери фокуса</p>
+              <p className="mt-1 text-2xl font-semibold">{data.integrity.focusLossCount}</p>
+              <p className="text-xs text-muted-foreground">
+                Вне страницы: {formatDuration(data.integrity.focusLossDurationSeconds)}
+              </p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Clipboard</p>
+              <p className="mt-1 text-2xl font-semibold">{data.integrity.clipboardAttemptCount}</p>
+              <p className="text-xs text-muted-foreground">copy / cut / paste</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Параллельные входы</p>
+              <p className="mt-1 text-2xl font-semibold">
+                {data.integrity.concurrentSessionAttemptCount}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Восстановлений: {data.integrity.recoveredSessionCount}
+              </p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Завершено по таймеру</p>
+              <p className="mt-1 text-2xl font-semibold">{data.integrity.timerExpiredCount}</p>
+              <p className="text-xs text-muted-foreground">По всем тестам пакета</p>
+            </div>
+          </div>
+
+          <details className="rounded-lg border p-4">
+            <summary className="cursor-pointer font-medium">
+              Журнал событий ({data.integrity.events.length})
+            </summary>
+            <div className="mt-4 space-y-3 border-t pt-4">
+              {data.integrity.events.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Контрольные события не зафиксированы.</p>
+              ) : (
+                data.integrity.events.map((event) => (
+                  <div className="rounded-md bg-muted/50 p-3 text-sm" key={event.id}>
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <p className="font-medium">{INTEGRITY_EVENT_LABELS[event.eventType]}</p>
+                      <time className="text-muted-foreground" dateTime={event.occurredAt}>
+                        {formatDateTime(event.occurredAt)}
+                      </time>
+                    </div>
+                    <p className="mt-1 text-muted-foreground">
+                      {event.testTitle}
+                      {event.question ? ` / ${event.question}` : ""}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </details>
         </CardContent>
       </Card>
 

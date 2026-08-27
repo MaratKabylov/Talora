@@ -21,6 +21,10 @@ import {
   completeEmptySessionAction,
   saveCandidateSectionAction,
 } from "@/lib/assessment/actions";
+import {
+  completeEmptyEmployeeAssessmentSessionAction,
+  saveEmployeeAssessmentSectionAction,
+} from "@/lib/employee-assessments/public-actions";
 import type { FlowQuestion, FlowSection } from "@/lib/assessment/data";
 import type { TestPresentationSettings } from "@/lib/tests/presentation-settings";
 
@@ -46,7 +50,8 @@ type ControlResponse =
 type LockState = "checking" | "active" | "blocked" | "error" | "expiring";
 type SaveState = "idle" | "saving" | "saved" | "offline" | "error";
 
-type CandidateTestSessionProps = {
+type AssessmentTestSessionProps = {
+  assessmentType?: "candidate" | "employee";
   answers: Record<string, SavedAnswer>;
   initialDeadlineAt: string | null;
   otherVisibleQuestionCount: number;
@@ -301,7 +306,8 @@ function savedAnswerFromDraft(
   };
 }
 
-export function CandidateTestSession({
+export function AssessmentTestSession({
+  assessmentType = "candidate",
   answers,
   initialDeadlineAt,
   otherVisibleQuestionCount,
@@ -314,7 +320,7 @@ export function CandidateTestSession({
   sessionId,
   testInstructions,
   token,
-}: CandidateTestSessionProps) {
+}: AssessmentTestSessionProps) {
   const [clientId, setClientId] = useState("");
   const [deviceId, setDeviceId] = useState("");
   const [deadlineAt, setDeadlineAt] = useState(initialDeadlineAt);
@@ -377,6 +383,8 @@ export function CandidateTestSession({
     return reviewMode && visibleQuestions.length > 0 ? visibleQuestions.length - 1 : -1;
   });
   const isOneQuestion = presentationSettings.presentationMode === "one_question";
+  const assessmentPath =
+    assessmentType === "employee" ? `/employee-assessment/${token}` : `/assessment/${token}`;
   const activeQuestion =
     isOneQuestion && currentQuestionIndex >= 0
       ? visibleQuestions[currentQuestionIndex] ?? null
@@ -449,12 +457,13 @@ export function CandidateTestSession({
 
   const identity = useCallback(
     () => ({
+      assessmentType,
       clientId: clientIdRef.current,
       deviceId: deviceIdRef.current,
       sessionId,
       token,
     }),
-    [sessionId, token],
+    [assessmentType, sessionId, token],
   );
 
   const pauseQuestionTimer = useCallback(() => {
@@ -604,6 +613,7 @@ export function CandidateTestSession({
 
       try {
         const response = await postControl({
+          assessmentType,
           clientEventId: createId(),
           clientId: nextClientId,
           deviceId: nextDeviceId,
@@ -626,7 +636,7 @@ export function CandidateTestSession({
       cancelled = true;
       channel?.close();
     };
-  }, [applyControlResponse, sessionId, token]);
+  }, [applyControlResponse, assessmentType, sessionId, token]);
 
   useEffect(() => {
     if (!deadlineAt) {
@@ -689,7 +699,7 @@ export function CandidateTestSession({
         );
         applyControlResponse(response);
       } catch {
-        // A failed telemetry write must not discard the candidate's answers.
+        // A failed telemetry write must not discard the participant's answers.
       }
     },
     [applyControlResponse, identity, lockState],
@@ -1028,7 +1038,7 @@ export function CandidateTestSession({
       if (sectionIndex < sectionCount - 1) {
         navigatingRef.current = true;
         window.location.assign(
-          `/assessment/${token}/test/${sessionId}?section=${sectionIndex + 1}${
+          `${assessmentPath}/test/${sessionId}?section=${sectionIndex + 1}${
             presentationSettings.allowBack && reviewMode ? "&review=1" : ""
           }`,
         );
@@ -1062,7 +1072,7 @@ export function CandidateTestSession({
     if (sectionIndex > 0) {
       navigatingRef.current = true;
       window.location.assign(
-        `/assessment/${token}/test/${sessionId}?section=${sectionIndex - 1}&review=1`,
+        `${assessmentPath}/test/${sessionId}?section=${sectionIndex - 1}&review=1`,
       );
     }
   }
@@ -1099,6 +1109,14 @@ export function CandidateTestSession({
             : isOneQuestion
               ? "Ответ сохраняется по кнопке «Ответить и далее»"
               : "Автосохранение включено";
+  const completeEmptyAction =
+    assessmentType === "employee"
+      ? completeEmptyEmployeeAssessmentSessionAction
+      : completeEmptySessionAction;
+  const saveSectionAction =
+    assessmentType === "employee"
+      ? saveEmployeeAssessmentSectionAction
+      : saveCandidateSectionAction;
 
   const controlPanel = (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -1193,7 +1211,7 @@ export function CandidateTestSession({
               <CardDescription>Перейдите к следующему тесту в пакете оценки.</CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <form action={completeEmptySessionAction} onSubmit={() => { navigatingRef.current = true; }}>
+              <form action={completeEmptyAction} onSubmit={() => { navigatingRef.current = true; }}>
                 <input name="token" type="hidden" value={token} />
                 <input name="sessionId" type="hidden" value={sessionId} />
                 <input name="clientId" type="hidden" value={clientId} />
@@ -1369,7 +1387,7 @@ export function CandidateTestSession({
                 )
               ) : (
               <form
-                action={saveCandidateSectionAction}
+                action={saveSectionAction}
                 className="space-y-8"
                 onBlurCapture={handleBlur}
                 onChangeCapture={handleChange}

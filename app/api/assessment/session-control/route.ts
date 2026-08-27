@@ -14,6 +14,7 @@ import { ForcedChoiceAnswerValidationError } from "@/lib/forced-choice";
 import { MultipleChoiceAnswerValidationError } from "@/lib/answers/multiple-choice";
 
 const identityShape = {
+  assessmentType: z.enum(["candidate", "employee"]).default("candidate"),
   clientId: z.string().uuid(),
   deviceId: z.string().uuid(),
   sessionId: z.string().uuid(),

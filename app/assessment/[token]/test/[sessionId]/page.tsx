@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { AssessmentShell, AssessmentUnavailable } from "@/components/assessment/assessment-shell";
-import { CandidateTestSession } from "@/components/assessment/candidate-test-session";
+import { AssessmentTestSession } from "@/components/assessment/candidate-test-session";
 import { TestTakingGuard } from "@/components/assessment/test-taking-guard";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { RichTextContent } from "@/components/ui/rich-text-content";
@@ -125,7 +125,7 @@ export default async function CandidateTestPage({
           />
         ) : null}
 
-        <CandidateTestSession
+        <AssessmentTestSession
           answers={data.answers}
           initialDeadlineAt={data.session.deadlineAt}
           otherVisibleQuestionCount={otherVisibleQuestionCount}

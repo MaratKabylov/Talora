@@ -4,6 +4,10 @@ import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 import { getTestContentBlocks, type TestContentBlock } from "@/lib/tests/content-blocks";
+import {
+  normalizePresentationSettings,
+  type TestPresentationSettings,
+} from "@/lib/tests/presentation-settings";
 import type { QuestionSettings } from "@/lib/tests/remediation";
 import {
   createDeterministicShuffledIds,
@@ -44,6 +48,7 @@ type TestVersionRecord = {
   duration_minutes: number | null;
   id: string;
   instructions: string | null;
+  settings_json: unknown;
   status: string;
   test_templates: Relation<{
     title: string;
@@ -77,6 +82,7 @@ type SessionRecord = {
     title: string;
   }>;
   completed_at: string | null;
+  deadline_at: string | null;
   id: string;
   package_id: string | null;
   package_order_index: number | null;
@@ -119,6 +125,7 @@ type AnswerRecord = {
   is_correct: boolean | null;
   question_id: string;
   selected_option_id: string | null;
+  time_spent_seconds: number | null;
 };
 
 export type EmployeeAssessmentTest = {
@@ -126,12 +133,14 @@ export type EmployeeAssessmentTest = {
   durationMinutes: number | null;
   instructions: string | null;
   orderIndex: number;
+  presentationSettings: TestPresentationSettings;
   title: string;
   versionId: string;
 };
 
 export type EmployeeAssessmentSession = {
   completedAt: string | null;
+  deadlineAt: string | null;
   id: string;
   startedAt: string | null;
   status: SessionRecord["status"];
@@ -220,6 +229,7 @@ export type EmployeeAssessmentQuestionPageData = {
       answerText: string | null;
       isCorrect: boolean | null;
       selectedOptionId: string | null;
+      timeSpentSeconds: number | null;
     }
   >;
   assessment: ActiveEmployeeAssessment;
@@ -244,6 +254,7 @@ function normalizeTestVersion(version: TestVersionRecord, orderIndex: number) {
     durationMinutes: version.duration_minutes,
     instructions: sanitizeRichTextValue(version.instructions),
     orderIndex,
+    presentationSettings: normalizePresentationSettings(version.settings_json),
     title: template?.title ?? version.title,
     versionId: version.id,
   } satisfies EmployeeAssessmentTest;
@@ -326,7 +337,7 @@ export async function getEmployeeAssessmentByToken(
     admin
       .from("employee_assessments")
       .select(
-        "id, title, description, assessment_packages(id, title, description, assessment_package_tests(order_index, test_version_id, test_versions(id, title, description, instructions, duration_minutes, status, test_templates(title))))",
+        "id, title, description, assessment_packages(id, title, description, assessment_package_tests(order_index, test_version_id, test_versions(id, title, description, instructions, duration_minutes, status, settings_json, test_templates(title))))",
       )
       .eq("id", invitation.employee_assessment_id)
       .eq("company_id", invitation.company_id)
@@ -340,7 +351,7 @@ export async function getEmployeeAssessmentByToken(
     admin
       .from("employee_assessment_sessions")
       .select(
-        "id, test_version_id, status, started_at, completed_at, package_id, package_order_index, assessment_packages(title, description), test_versions(id, title, description, instructions, duration_minutes, status, test_templates(title))",
+        "id, test_version_id, status, started_at, deadline_at, completed_at, package_id, package_order_index, assessment_packages(title, description), test_versions(id, title, description, instructions, duration_minutes, status, settings_json, test_templates(title))",
       )
       .eq("participant_id", invitation.participant_id),
   ]);
@@ -379,6 +390,7 @@ export async function getEmployeeAssessmentByToken(
     })
     .map((session) => ({
       completedAt: session.completed_at,
+      deadlineAt: session.deadline_at,
       id: session.id,
       startedAt: session.started_at,
       status: session.status,
@@ -479,7 +491,7 @@ export async function getEmployeeAssessmentQuestionPageData(
         .eq("test_version_id", session.test.versionId),
       admin
         .from("employee_assessment_answers")
-        .select("question_id, selected_option_id, answer_text, answer_json, is_correct")
+        .select("question_id, selected_option_id, answer_text, answer_json, is_correct, time_spent_seconds")
         .eq("session_id", session.id),
     ]);
 
@@ -612,6 +624,7 @@ export async function getEmployeeAssessmentQuestionPageData(
           answerText: answer.answer_text,
           isCorrect: answer.is_correct,
           selectedOptionId: answer.selected_option_id,
+          timeSpentSeconds: answer.time_spent_seconds,
         },
       ]),
     ),
