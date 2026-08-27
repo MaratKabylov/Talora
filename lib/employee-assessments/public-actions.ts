@@ -221,15 +221,9 @@ export async function submitEmployeeAssessmentProfileAction(formData: FormData) 
     redirectWithError(profilePath(parsed.data.token), "Не удалось сохранить анкету сотрудника.");
   }
 
-  const { error: sessionError } = await admin.from("employee_assessment_sessions").upsert(
-    assessment.tests.map((test) => ({
-      employee_id: assessment.employee.id,
-      participant_id: assessment.participantId,
-      status: "not_started",
-      test_version_id: test.versionId,
-    })),
-    { ignoreDuplicates: true, onConflict: "participant_id,test_version_id" },
-  );
+  const { error: sessionError } = await admin.rpc("prepare_employee_assessment_sessions", {
+    target_participant_id: assessment.participantId,
+  });
 
   if (sessionError) {
     redirectWithError(profilePath(parsed.data.token), "Не удалось подготовить тесты.");

@@ -39,20 +39,22 @@ type EmployeeRecord = {
   role_title: string | null;
 };
 
+type TestVersionRecord = {
+  description: string | null;
+  duration_minutes: number | null;
+  id: string;
+  instructions: string | null;
+  status: string;
+  test_templates: Relation<{
+    title: string;
+  }>;
+  title: string;
+};
+
 type PackageTestRecord = {
   order_index: number;
   test_version_id: string;
-  test_versions: Relation<{
-    description: string | null;
-    duration_minutes: number | null;
-    id: string;
-    instructions: string | null;
-    status: string;
-    test_templates: Relation<{
-      title: string;
-    }>;
-    title: string;
-  }>;
+  test_versions: Relation<TestVersionRecord>;
 };
 
 type PackageRecord = {
@@ -70,11 +72,18 @@ type EmployeeAssessmentRecord = {
 };
 
 type SessionRecord = {
+  assessment_packages: Relation<{
+    description: string | null;
+    title: string;
+  }>;
   completed_at: string | null;
   id: string;
+  package_id: string | null;
+  package_order_index: number | null;
   started_at: string | null;
   status: "not_started" | "in_progress" | "completed" | "expired" | "cancelled";
   test_version_id: string;
+  test_versions: Relation<TestVersionRecord>;
 };
 
 type OptionRecord = {
@@ -227,6 +236,19 @@ function hasExpired(record: InvitationRecord) {
   return Boolean(record.expires_at && new Date(record.expires_at).getTime() < Date.now());
 }
 
+function normalizeTestVersion(version: TestVersionRecord, orderIndex: number) {
+  const template = related(version.test_templates);
+
+  return {
+    description: sanitizeRichTextValue(version.description),
+    durationMinutes: version.duration_minutes,
+    instructions: sanitizeRichTextValue(version.instructions),
+    orderIndex,
+    title: template?.title ?? version.title,
+    versionId: version.id,
+  } satisfies EmployeeAssessmentTest;
+}
+
 function normalizeTests(assessment: EmployeeAssessmentRecord) {
   const assessmentPackage = related(assessment.assessment_packages);
   const tests = (assessmentPackage?.assessment_package_tests ?? [])
@@ -237,18 +259,7 @@ function normalizeTests(assessment: EmployeeAssessmentRecord) {
         return [];
       }
 
-      const template = related(version.test_templates);
-
-      return [
-        {
-          description: sanitizeRichTextValue(version.description),
-          durationMinutes: version.duration_minutes,
-          instructions: sanitizeRichTextValue(version.instructions),
-          orderIndex: packageTest.order_index,
-          title: template?.title ?? version.title,
-          versionId: version.id,
-        },
-      ];
+      return [normalizeTestVersion(version, packageTest.order_index)];
     })
     .sort((left, right) => left.orderIndex - right.orderIndex);
 
@@ -328,7 +339,9 @@ export async function getEmployeeAssessmentByToken(
       .maybeSingle(),
     admin
       .from("employee_assessment_sessions")
-      .select("id, test_version_id, status, started_at, completed_at")
+      .select(
+        "id, test_version_id, status, started_at, completed_at, package_id, package_order_index, assessment_packages(title, description), test_versions(id, title, description, instructions, duration_minutes, status, test_templates(title))",
+      )
       .eq("participant_id", invitation.participant_id),
   ]);
 
@@ -346,11 +359,22 @@ export async function getEmployeeAssessmentByToken(
 
   const assessment = assessmentResult.data as unknown as EmployeeAssessmentRecord;
   const employee = employeeResult.data as EmployeeRecord;
-  const { assessmentPackage, tests } = normalizeTests(assessment);
-  const testsByVersion = new Map(tests.map((test) => [test.versionId, test]));
-  const sessions = ((sessionsResult.data ?? []) as SessionRecord[])
-    .flatMap((session) => {
-      const test = testsByVersion.get(session.test_version_id);
+  const { assessmentPackage, tests: currentPackageTests } = normalizeTests(assessment);
+  const currentTestsByVersion = new Map(
+    currentPackageTests.map((test) => [test.versionId, test]),
+  );
+  const sessionRecords = (sessionsResult.data ?? []) as unknown as SessionRecord[];
+  const snapshotPackage = related(
+    sessionRecords.find((session) => session.package_id)?.assessment_packages ?? null,
+  );
+  const sessions = sessionRecords
+    .flatMap((session, index) => {
+      const version = related(session.test_versions);
+      const test =
+        currentTestsByVersion.get(session.test_version_id) ??
+        (version
+          ? normalizeTestVersion(version, session.package_order_index ?? index)
+          : null);
       return test ? [{ ...session, test }] : [];
     })
     .map((session) => ({
@@ -361,8 +385,12 @@ export async function getEmployeeAssessmentByToken(
       test: session.test,
     }))
     .sort((left, right) => left.test.orderIndex - right.test.orderIndex);
+  const tests = sessions.length > 0
+    ? sessions.map((session) => session.test)
+    : currentPackageTests;
 
-  if (!assessmentPackage) {
+  const displayPackage = snapshotPackage ?? assessmentPackage;
+  if (!displayPackage) {
     return { availability: "invalid" };
   }
 
@@ -414,8 +442,8 @@ export async function getEmployeeAssessmentByToken(
     invitationId: invitation.id,
     invitationStatus: invitation.status,
     package: {
-      description: assessmentPackage.description,
-      title: assessmentPackage.title,
+      description: displayPackage.description,
+      title: displayPackage.title,
     },
     participantId: invitation.participant_id,
     sessions,
