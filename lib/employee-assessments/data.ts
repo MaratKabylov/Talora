@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
 import type { InvitationStatus, Recommendation, RiskLevel } from "@/lib/candidates/constants";
 import type { CompetencyKey } from "@/lib/jobs/constants";
@@ -107,14 +108,18 @@ type ReportRecord = {
   strengths_json: unknown;
 };
 
+type EmployeeAnswerOption = {
+  id: string;
+  match_target_id: string;
+  match_text: string | null;
+  order_index: number;
+  question_id: string;
+  text: string;
+};
+
 type EmployeeAnswerQuestion = {
-  answer_options?: Array<{
-    id: string;
-    match_target_id: string;
-    match_text: string | null;
-    order_index: number;
-    text: string;
-  }> | null;
+  answer_options?: EmployeeAnswerOption[] | null;
+  id: string;
   order_index: number;
   question_type: QuestionType;
   text: string;
@@ -126,20 +131,25 @@ type EmployeeAnswerRecord = {
   id: string;
   is_correct: boolean | null;
   points_awarded: number | null;
+  question_id: string;
   questions: Relation<EmployeeAnswerQuestion>;
   selected_option_id: string | null;
+  session_id: string;
+};
+
+type EmployeeTestResultRecord = {
+  id: string;
+  level: string | null;
+  percentage: number | null;
+  raw_score: number | null;
+  requires_review: boolean;
+  scoring_result_json: unknown;
+  session_id: string;
 };
 
 type SessionRecord = {
   completed_at: string | null;
-  employee_assessment_test_results?: Array<{
-    id: string;
-    level: string | null;
-    percentage: number | null;
-    raw_score: number | null;
-    requires_review: boolean;
-    scoring_result_json: unknown;
-  }> | null;
+  employee_assessment_test_results?: EmployeeTestResultRecord[] | null;
   employee_assessment_answers?: EmployeeAnswerRecord[] | null;
   id: string;
   percentage: number | null;
@@ -148,7 +158,6 @@ type SessionRecord = {
   status: string;
   test_versions: Relation<{
     id: string;
-    test_template_id: string;
     title: string;
   }>;
 };
@@ -162,16 +171,13 @@ type EmployeeIntegrityEventRecord = {
   session_id: string;
 };
 
-type ReportParticipantRecord = Omit<ParticipantRecord, "employee_assessment_competency_summary"> & {
-  employee_assessment_competency_summary?: Array<
-    SummaryRecord & {
-      is_below_minimum: boolean;
-      max_score: number | null;
-      score: number | null;
-    }
-  > | null;
-  employee_assessment_reports: Relation<ReportRecord>;
-  employee_assessment_sessions?: SessionRecord[] | null;
+type ReportSummaryRecord = SummaryRecord & {
+  is_below_minimum: boolean;
+  max_score: number | null;
+  score: number | null;
+};
+
+type ReportParticipantRecord = ParticipantRecord & {
   employee_assessments: Relation<{
     id: string;
     title: string;
@@ -309,7 +315,7 @@ export type EmployeeAssessmentReportData = {
 function employeeIntegritySummary(
   events: EmployeeIntegrityEventRecord[],
   sessions: SessionRecord[],
-  templateTitles: ReadonlyMap<string, string>,
+  templateTitlesByVersionId: ReadonlyMap<string, string>,
 ): ReportIntegritySummary {
   const focusLossCount = events.filter((event) => event.event_type === "focus_lost").length;
   const clipboardAttemptCount = events.filter((event) =>
@@ -354,7 +360,7 @@ function employeeIntegritySummary(
       return [
         session.id,
         resolveReportTestTitle(
-          version ? templateTitles.get(version.test_template_id) : null,
+          version ? templateTitlesByVersionId.get(version.id) : null,
           version?.title,
         ),
       ];
@@ -658,26 +664,65 @@ export async function getEmployeeComparisonData(companyId: string, assessmentId:
 
 export async function getEmployeeAssessmentReportData(companyId: string, participantId: string) {
   const supabase = await createClient();
-  const [participantResult, integrityResult] = await Promise.all([
+  const [participantResult, reportResult, summaryResult, sessionsResult, integrityResult] =
+    await Promise.all([
     supabase
       .from("employee_assessment_participants")
       .select(
-        "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, started_at, completed_at, score, percentage, test_versions(id, test_template_id, title), employee_assessment_test_results(id, percentage, raw_score, level, requires_review, scoring_result_json), employee_assessment_answers(id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, order_index, answer_options(id, text, match_text, match_target_id, order_index))))",
+        "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title)",
       )
       .eq("company_id", companyId)
       .eq("id", participantId)
       .maybeSingle(),
+    supabase
+      .from("employee_assessment_reports")
+      .select(
+        "id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text",
+      )
+      .eq("participant_id", participantId)
+      .maybeSingle(),
+    supabase
+      .from("employee_assessment_competency_summary")
+      .select("competency_key, score, max_score, percentage, is_below_minimum")
+      .eq("participant_id", participantId),
+    supabase
+      .from("employee_assessment_sessions")
+      .select("id, status, started_at, completed_at, score, percentage, test_versions(id, title)")
+      .eq("participant_id", participantId)
+      .order("created_at"),
     supabase
       .from("employee_assessment_session_events")
       .select("id, session_id, event_type, occurred_at, client_occurred_at, questions(text)")
       .eq("company_id", companyId)
       .eq("participant_id", participantId)
       .order("occurred_at"),
-  ]);
+    ]);
   const { data, error } = participantResult;
+  const requiredFailure = [
+    { error, query: "participant" },
+    { error: reportResult.error, query: "report" },
+    { error: summaryResult.error, query: "summary" },
+    { error: sessionsResult.error, query: "sessions" },
+  ].find((entry) => entry.error);
 
-  if (error || integrityResult.error) {
+  if (requiredFailure?.error) {
+    console.error("Employee assessment report query failed", {
+      code: requiredFailure.error.code,
+      details: requiredFailure.error.details,
+      hint: requiredFailure.error.hint,
+      message: requiredFailure.error.message,
+      query: requiredFailure.query,
+    });
     throw new Error("Unable to load employee assessment report.");
+  }
+
+  if (integrityResult.error) {
+    console.error("Employee assessment report integrity query failed", {
+      code: integrityResult.error.code,
+      details: integrityResult.error.details,
+      hint: integrityResult.error.hint,
+      message: integrityResult.error.message,
+    });
   }
 
   if (!data) {
@@ -695,35 +740,157 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
   if (!participant) {
     return null;
   }
+  const admin = createAdminClient();
 
-  const report = related(record.employee_assessment_reports);
-  const sessions = record.employee_assessment_sessions ?? [];
+  const report = reportResult.data as ReportRecord | null;
+  const rawSessions = (sessionsResult.data ?? []) as unknown as SessionRecord[];
+  const sessionIds = rawSessions.map((session) => session.id);
+  const [testResultsResult, answersResult] =
+    sessionIds.length === 0
+      ? [
+          { data: [] as EmployeeTestResultRecord[], error: null },
+          { data: [] as EmployeeAnswerRecord[], error: null },
+        ]
+      : await Promise.all([
+          supabase
+            .from("employee_assessment_test_results")
+            .select(
+              "id, session_id, percentage, raw_score, level, requires_review, scoring_result_json",
+            )
+            .in("session_id", sessionIds),
+          supabase
+            .from("employee_assessment_answers")
+            .select(
+              "id, session_id, question_id, selected_option_id, answer_text, answer_json, is_correct, points_awarded",
+            )
+            .in("session_id", sessionIds),
+        ]);
+  const detailFailure = [
+    { error: testResultsResult.error, query: "test-results" },
+    { error: answersResult.error, query: "answers" },
+  ].find((entry) => entry.error);
+
+  if (detailFailure?.error) {
+    console.error("Employee assessment report detail query failed", {
+      code: detailFailure.error.code,
+      details: detailFailure.error.details,
+      hint: detailFailure.error.hint,
+      message: detailFailure.error.message,
+      query: detailFailure.query,
+    });
+    throw new Error("Unable to load employee assessment report details.");
+  }
+
+  const rawAnswers = (answersResult.data ?? []) as unknown as Array<
+    Omit<EmployeeAnswerRecord, "questions">
+  >;
+  const questionIds = Array.from(new Set(rawAnswers.map((answer) => answer.question_id)));
+  const [questionsResult, optionsResult] =
+    questionIds.length === 0
+      ? [
+          { data: [] as EmployeeAnswerQuestion[], error: null },
+          { data: [] as EmployeeAnswerOption[], error: null },
+        ]
+      : await Promise.all([
+          admin
+            .from("questions")
+            .select("id, text, question_type, order_index")
+            .in("id", questionIds),
+          admin
+            .from("answer_options")
+            .select("id, question_id, text, match_text, match_target_id, order_index")
+            .in("question_id", questionIds),
+        ]);
+
+  if (questionsResult.error) {
+    console.error("Employee assessment report questions query failed", {
+      code: questionsResult.error.code,
+      details: questionsResult.error.details,
+      hint: questionsResult.error.hint,
+      message: questionsResult.error.message,
+    });
+  }
+
+  if (optionsResult.error) {
+    console.error("Employee assessment report answer options query failed", {
+      code: optionsResult.error.code,
+      details: optionsResult.error.details,
+      hint: optionsResult.error.hint,
+      message: optionsResult.error.message,
+    });
+  }
+
+  const resultsBySession = new Map(
+    ((testResultsResult.data ?? []) as unknown as EmployeeTestResultRecord[]).map((result) => [
+      result.session_id,
+      result,
+    ]),
+  );
+  const optionsByQuestionId = new Map<string, EmployeeAnswerOption[]>();
+  for (const option of (optionsResult.data ?? []) as unknown as EmployeeAnswerOption[]) {
+    const options = optionsByQuestionId.get(option.question_id) ?? [];
+    options.push(option);
+    optionsByQuestionId.set(option.question_id, options);
+  }
+  const questionsById = new Map(
+    ((questionsResult.data ?? []) as unknown as EmployeeAnswerQuestion[]).map((question) => [
+      question.id,
+      {
+        ...question,
+        answer_options: (optionsByQuestionId.get(question.id) ?? []).sort(
+          (left, right) => left.order_index - right.order_index,
+        ),
+      },
+    ]),
+  );
+  const answersBySession = new Map<string, EmployeeAnswerRecord[]>();
+  for (const answer of rawAnswers) {
+    const answers = answersBySession.get(answer.session_id) ?? [];
+    answers.push({ ...answer, questions: questionsById.get(answer.question_id) ?? null });
+    answersBySession.set(answer.session_id, answers);
+  }
+  const sessions = rawSessions.map((session) => {
+    const result = resultsBySession.get(session.id);
+    return {
+      ...session,
+      employee_assessment_answers: answersBySession.get(session.id) ?? [],
+      employee_assessment_test_results: result ? [result] : [],
+    };
+  });
   const integrityEvents = (integrityResult.data ?? []) as unknown as EmployeeIntegrityEventRecord[];
-  const templateIds = Array.from(
+  const versionIds = Array.from(
     new Set(
       sessions.flatMap((session) => {
         const version = related(session.test_versions);
-        return version ? [version.test_template_id] : [];
+        return version ? [version.id] : [];
       }),
     ),
   );
+  const versionsResult =
+    versionIds.length === 0
+      ? { data: [] as Array<{ id: string; test_template_id: string }>, error: null }
+      : await admin.from("test_versions").select("id, test_template_id").in("id", versionIds);
+  const templateIds = Array.from(
+    new Set((versionsResult.data ?? []).map((version) => version.test_template_id)),
+  );
   const templatesResult =
-    templateIds.length === 0
+    versionsResult.error || templateIds.length === 0
       ? { data: [] as Array<{ id: string; title: string }>, error: null }
-      : await supabase.from("test_templates").select("id, title").in("id", templateIds);
-
-  if (templatesResult.error) {
-    throw new Error("Unable to load employee assessment report test titles.");
-  }
-
-  const templateTitles = new Map(
+      : await admin.from("test_templates").select("id, title").in("id", templateIds);
+  const templateTitlesById = new Map(
     (templatesResult.data ?? []).map((template) => [template.id, template.title]),
+  );
+  const templateTitlesByVersionId = new Map(
+    (versionsResult.data ?? []).flatMap((version) => {
+      const title = templateTitlesById.get(version.test_template_id);
+      return title ? [[version.id, title] as const] : [];
+    }),
   );
 
   return {
     assessment,
     employee: participant.employee,
-    integrity: employeeIntegritySummary(integrityEvents, sessions, templateTitles),
+    integrity: employeeIntegritySummary(integrityEvents, sessions, templateTitlesByVersionId),
     participant: {
       completedAt: participant.completedAt,
       createdAt: participant.createdAt,
@@ -787,12 +954,12 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
         startedAt: session.started_at,
         status: session.status,
         testTitle: resolveReportTestTitle(
-          version ? templateTitles.get(version.test_template_id) : null,
+          version ? templateTitlesByVersionId.get(version.id) : null,
           version?.title,
         ),
       };
     }),
-    summary: (record.employee_assessment_competency_summary ?? []).map((summary) => ({
+    summary: ((summaryResult.data ?? []) as unknown as ReportSummaryRecord[]).map((summary) => ({
       competencyKey: summary.competency_key,
       isBelowMinimum: summary.is_below_minimum,
       maxScore: summary.max_score,

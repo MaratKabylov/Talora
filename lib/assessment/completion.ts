@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { finalizeCompletedCandidateAssessment } from "@/lib/scoring/finalization";
 
 import { getAssessmentByToken, type ActiveAssessment } from "./data";
 
@@ -80,6 +81,15 @@ export async function completeCandidateSessionAndGetPath(
 
   if (error) {
     throw new Error("Unable to complete candidate test session.");
+  }
+
+  const finalization = await finalizeCompletedCandidateAssessment({
+    applicationId: assessment.applicationId,
+    invitationId: assessment.invitationId,
+  });
+
+  if (finalization !== "not_ready") {
+    return `/assessment/${token}/complete`;
   }
 
   const refreshed = await getAssessmentByToken(token);

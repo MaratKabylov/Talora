@@ -73,8 +73,8 @@ type RiskRecord = {
 };
 
 type VersionRecord = {
+  id: string;
   scoring_type: string;
-  test_template_id: string;
   title: string;
 };
 
@@ -387,7 +387,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       supabase
         .from("test_sessions")
         .select(
-          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, test_versions(title, scoring_type, test_template_id)",
+          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, test_versions(id, title, scoring_type)",
         )
         .eq("application_id", applicationId)
         .order("created_at"),
@@ -421,25 +421,33 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   }
 
   const sessions = (sessionsResult.data ?? []) as unknown as SessionRecord[];
-  const templateIds = Array.from(
+  const versionIds = Array.from(
     new Set(
       sessions.flatMap((session) => {
         const version = related(session.test_versions);
-        return version ? [version.test_template_id] : [];
+        return version ? [version.id] : [];
       }),
     ),
   );
+  const versionsResult =
+    versionIds.length === 0
+      ? { data: [] as Array<{ id: string; test_template_id: string }>, error: null }
+      : await supabase.from("test_versions").select("id, test_template_id").in("id", versionIds);
+  const templateIds = Array.from(
+    new Set((versionsResult.data ?? []).map((version) => version.test_template_id)),
+  );
   const templatesResult =
-    templateIds.length === 0
+    versionsResult.error || templateIds.length === 0
       ? { data: [] as Array<{ id: string; title: string }>, error: null }
       : await supabase.from("test_templates").select("id, title").in("id", templateIds);
-
-  if (templatesResult.error) {
-    throw new Error("Unable to load candidate report test titles.");
-  }
-
-  const templateTitles = new Map(
+  const templateTitlesById = new Map(
     (templatesResult.data ?? []).map((template) => [template.id, template.title]),
+  );
+  const templateTitlesByVersionId = new Map(
+    (versionsResult.data ?? []).flatMap((version) => {
+      const title = templateTitlesById.get(version.test_template_id);
+      return title ? [[version.id, title] as const] : [];
+    }),
   );
   const testTitleBySession = new Map(
     sessions.map((session) => {
@@ -448,7 +456,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       return [
         session.id,
         resolveReportTestTitle(
-          version ? templateTitles.get(version.test_template_id) : null,
+          version ? templateTitlesByVersionId.get(version.id) : null,
           version?.title,
         ),
       ];
@@ -554,7 +562,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       status: session.status as ReportTest["status"],
       summary: result?.summary ?? null,
       title: resolveReportTestTitle(
-        version ? templateTitles.get(version.test_template_id) : null,
+        version ? templateTitlesByVersionId.get(version.id) : null,
         version?.title,
       ),
     };

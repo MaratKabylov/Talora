@@ -1,6 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
-import { scoreCompletedApplication } from "@/lib/scoring/service";
 import { getDisplayOptions } from "@/lib/answers/option-shuffle";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 import { getTestContentBlocks } from "@/lib/tests/content-blocks";
@@ -386,31 +385,6 @@ export async function getAssessmentByToken(token: string): Promise<AssessmentAva
 
   if (!assessmentPackage) {
     return { availability: "invalid" };
-  }
-
-  if (
-    invitation.status !== "completed" &&
-    sessions.length > 0 &&
-    sessions.every((session) => session.status === "completed")
-  ) {
-    const completedAt = new Date().toISOString();
-    await scoreCompletedApplication(invitation.application_id);
-    const [{ error: invitationUpdateError }, { error: applicationUpdateError }] =
-      await Promise.all([
-        admin.from("invitations").update({ status: "completed" }).eq("id", invitation.id),
-        admin
-          .from("candidate_applications")
-          .update({
-            completed_at: completedAt,
-            current_stage: "assessment_completed",
-            status: "completed",
-          })
-          .eq("id", invitation.application_id),
-      ]);
-
-    if (!invitationUpdateError && !applicationUpdateError) {
-      invitation.status = "completed";
-    }
   }
 
   return {

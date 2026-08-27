@@ -1,4 +1,3 @@
-import { scoreCompletedEmployeeAssessmentParticipant } from "@/lib/scoring/service";
 import { getDisplayOptions } from "@/lib/answers/option-shuffle";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -404,34 +403,6 @@ export async function getEmployeeAssessmentByToken(
   const displayPackage = snapshotPackage ?? assessmentPackage;
   if (!displayPackage) {
     return { availability: "invalid" };
-  }
-
-  if (
-    invitation.status !== "completed" &&
-    sessions.length > 0 &&
-    sessions.every((session) => session.status === "completed")
-  ) {
-    const completedAt = new Date().toISOString();
-    await scoreCompletedEmployeeAssessmentParticipant(invitation.participant_id);
-    const [{ error: invitationUpdateError }, { error: participantUpdateError }] =
-      await Promise.all([
-        admin
-          .from("employee_assessment_invitations")
-          .update({ status: "completed" })
-          .eq("id", invitation.id),
-        admin
-          .from("employee_assessment_participants")
-          .update({
-            completed_at: completedAt,
-            current_stage: "assessment_completed",
-            status: "completed",
-          })
-          .eq("id", invitation.participant_id),
-      ]);
-
-    if (!invitationUpdateError && !participantUpdateError) {
-      invitation.status = "completed";
-    }
   }
 
   return {
