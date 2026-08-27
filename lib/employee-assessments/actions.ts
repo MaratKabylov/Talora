@@ -175,6 +175,10 @@ function getInvitationErrorMessage(message: string) {
     return "Функция приглашения сотрудников не настроена в базе. Примените последние миграции Supabase.";
   }
 
+  if (message.includes("gen_random_bytes")) {
+    return "Не удалось сгенерировать ссылку. Примените последние миграции Supabase.";
+  }
+
   return "Не удалось создать приглашение сотрудника. Проверьте оценку и миграции Supabase.";
 }
 
