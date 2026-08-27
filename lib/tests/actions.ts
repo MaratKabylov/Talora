@@ -66,6 +66,26 @@ function getTestPath(templateId: string) {
   return `/dashboard/tests/${templateId}`;
 }
 
+function testVersionArchiveErrorMessage(message: string) {
+  if (message.includes("TEST_VERSION_ARCHIVE_NOT_SUPERSEDED")) {
+    return "Текущую опубликованную версию нельзя архивировать. Сначала опубликуйте новую версию.";
+  }
+  if (message.includes("TEST_VERSION_ARCHIVE_PACKAGE_REFERENCES")) {
+    return "Версия используется в пакете оценки. Сначала замените ее в пакете на новую версию.";
+  }
+  if (message.includes("TEST_VERSION_ARCHIVE_ACTIVE_SESSIONS")) {
+    return "Версию нельзя архивировать, пока по ней есть незавершенные прохождения.";
+  }
+  if (message.includes("TEST_VERSION_ARCHIVE_TEMPLATE_INACTIVE")) {
+    return "Архивировать версии можно только в активном тесте.";
+  }
+  if (message.includes("TEST_VERSION_ARCHIVE_FORBIDDEN")) {
+    return "У вашей роли нет права архивировать эту версию.";
+  }
+
+  return "Не удалось архивировать версию теста.";
+}
+
 function parseTemplate(formData: FormData) {
   return templateSchema.safeParse({
     category: formString(formData, "category"),
@@ -501,6 +521,42 @@ export async function archiveTestDraftVersionAction(formData: FormData) {
   revalidatePath(path);
   revalidatePath("/dashboard/tests");
   redirectWithFeedback(path, "message", "Черновая версия перемещена в архив.");
+}
+
+export async function archivePublishedTestVersionAction(formData: FormData) {
+  const templateId = parseId(formData, "templateId");
+  const versionId = parseId(formData, "versionId");
+
+  if (!templateId.success || !versionId.success) {
+    redirect("/dashboard/tests");
+  }
+
+  const context = await requireCompanyContext();
+  const path = getTestPath(templateId.data);
+
+  if (!canManageTests(context.activeCompany.role)) {
+    redirectWithFeedback(path, "error", "У вашей роли нет права архивировать версии.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("archive_old_test_version", {
+    acting_platform_role: null,
+    acting_user_id: context.user.id,
+    target_template_id: templateId.data,
+    target_version_id: versionId.data,
+  });
+
+  if (error) {
+    redirectWithFeedback(path, "error", testVersionArchiveErrorMessage(error.message));
+  }
+
+  revalidatePath(path);
+  revalidatePath("/dashboard/tests");
+  redirectWithFeedback(
+    path,
+    "message",
+    "Старая версия перемещена в архив. Исторические отчеты и результаты сохранены.",
+  );
 }
 
 export async function publishTestVersionAction(formData: FormData) {

@@ -344,6 +344,23 @@ function systemTestRevertErrorMessage(message: string) {
   return "Не удалось отменить публикацию. Обновите страницу и повторите попытку.";
 }
 
+function systemTestVersionArchiveErrorMessage(message: string) {
+  if (message.includes("TEST_VERSION_ARCHIVE_NOT_SUPERSEDED")) {
+    return "Текущую опубликованную версию нельзя архивировать. Сначала опубликуйте новую версию.";
+  }
+  if (message.includes("TEST_VERSION_ARCHIVE_PACKAGE_REFERENCES")) {
+    return "Версия используется в пакете оценки. Сначала замените ее в пакете на новую версию.";
+  }
+  if (message.includes("TEST_VERSION_ARCHIVE_ACTIVE_SESSIONS")) {
+    return "Версию нельзя архивировать, пока по ней есть незавершенные прохождения.";
+  }
+  if (message.includes("TEST_VERSION_ARCHIVE_TEMPLATE_INACTIVE")) {
+    return "Архивировать версии можно только в активном системном тесте.";
+  }
+
+  return "Не удалось архивировать версию системного теста.";
+}
+
 function systemTestDeleteErrorMessage(message: string) {
   if (message.includes("SYSTEM_TEST_DELETE_PACKAGE_REFERENCES")) {
     return "Удаление невозможно: одна из версий добавлена в пакет оценки.";
@@ -686,6 +703,35 @@ export async function archiveSystemTestDraftVersionAction(formData: FormData) {
   await auditSystemVersion(context, "archive_system_test_version", versionId.data, templateId.data);
   revalidateSystemTestPaths(templateId.data);
   redirectWithFeedback(path, "message", "Черновая версия перемещена в архив.");
+}
+
+export async function archivePublishedSystemTestVersionAction(formData: FormData) {
+  const templateId = parseId(formData, "templateId");
+  const versionId = parseId(formData, "versionId");
+  if (!templateId.success || !versionId.success) {
+    redirect("/admin/tests");
+  }
+
+  const path = getTestPath(templateId.data);
+  const { admin, context } = await requireSystemTestManager(path);
+  const { error } = await admin.rpc("archive_old_test_version", {
+    acting_platform_role: context.role,
+    acting_user_id: context.user.id,
+    target_template_id: templateId.data,
+    target_version_id: versionId.data,
+  });
+
+  if (error) {
+    redirectWithFeedback(path, "error", systemTestVersionArchiveErrorMessage(error.message));
+  }
+
+  revalidateSystemTestPublicationPaths(templateId.data);
+  revalidatePath("/admin/audit");
+  redirectWithFeedback(
+    path,
+    "message",
+    "Старая версия перемещена в архив. Исторические отчеты и результаты сохранены.",
+  );
 }
 
 export async function publishSystemTestVersionAction(formData: FormData) {

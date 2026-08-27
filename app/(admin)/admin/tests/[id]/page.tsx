@@ -10,6 +10,7 @@ import { TestVersionFields } from "@/components/tests/test-version-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  archivePublishedSystemTestVersionAction,
   archiveSystemTestDraftVersionAction,
   createSystemDraftFromPublishedVersionAction,
   createSystemTestVersionAction,
@@ -54,6 +55,14 @@ export default async function AdminSystemTestPage({
   const mayManage = canManageSystemTests(context.role);
   const isEditable = mayManage && template.status === "active";
   const draftVersion = template.versions.find((version) => version.status === "draft");
+  const activeVersions = template.versions.filter((version) => version.status !== "archived");
+  const archivedVersions = template.versions.filter((version) => version.status === "archived");
+  const latestPublishedVersionNumber = Math.max(
+    0,
+    ...template.versions
+      .filter((version) => version.status === "published")
+      .map((version) => version.versionNumber),
+  );
   const nextVersionNumber = (template.latestVersion?.versionNumber ?? 0) + 1;
   const revertiblePublishedVersion =
     isEditable && !draftVersion && template.latestVersion?.status === "published"
@@ -130,10 +139,10 @@ export default async function AdminSystemTestPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          {template.versions.length === 0 ? (
+          {activeVersions.length === 0 ? (
             <EmptyState
-              description="Создайте черновую версию, наполните ее в конструкторе и опубликуйте."
-              title="Версии пока не созданы"
+              description="Создайте новую версию или откройте архив версий ниже."
+              title="Активных версий пока нет"
             />
           ) : (
             <div className="overflow-hidden rounded-lg border">
@@ -149,7 +158,7 @@ export default async function AdminSystemTestPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {template.versions.map((version) => (
+                  {activeVersions.map((version) => (
                     <tr className="border-t" key={version.id}>
                       <td className="px-4 py-3">
                         <p className="font-medium">v{version.versionNumber}</p>
@@ -187,6 +196,17 @@ export default async function AdminSystemTestPage({
                               </Button>
                             </form>
                           ) : null}
+                          {isEditable &&
+                          version.status === "published" &&
+                          version.versionNumber < latestPublishedVersionNumber ? (
+                            <form action={archivePublishedSystemTestVersionAction}>
+                              <input name="templateId" type="hidden" value={template.id} />
+                              <input name="versionId" type="hidden" value={version.id} />
+                              <Button size="sm" type="submit" variant="outline">
+                                В архив
+                              </Button>
+                            </form>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -197,6 +217,61 @@ export default async function AdminSystemTestPage({
           )}
         </CardContent>
       </Card>
+
+      {archivedVersions.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Архив версий</CardTitle>
+            <CardDescription>
+              Архивные опубликованные версии остаются неизменяемыми и доступны в исторических
+              отчетах и результатах.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="overflow-hidden rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Версия</th>
+                    <th className="px-4 py-3 font-medium">Оценка</th>
+                    <th className="px-4 py-3 font-medium">Время</th>
+                    <th className="px-4 py-3 font-medium">Опубликована</th>
+                    <th className="px-4 py-3 text-right font-medium">Содержание</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {archivedVersions.map((version) => (
+                    <tr className="border-t" key={version.id}>
+                      <td className="px-4 py-3">
+                        <p className="font-medium">v{version.versionNumber}</p>
+                        <p className="text-muted-foreground">{version.title}</p>
+                      </td>
+                      <td className="px-4 py-3">{SCORING_TYPE_LABELS[version.scoringType]}</td>
+                      <td className="px-4 py-3">
+                        {version.durationMinutes ? `${version.durationMinutes} мин.` : "Не указано"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {version.publishedAt
+                          ? new Intl.DateTimeFormat("ru-RU").format(new Date(version.publishedAt))
+                          : "Не публиковалась"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          className={buttonVariants({ size: "sm", variant: "outline" })}
+                          href={`/admin/tests/${template.id}/preview?version=${version.id}`}
+                          target="_blank"
+                        >
+                          Preview
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {revertiblePublishedVersion && revertibleVersionUsage ? (
         <Card>

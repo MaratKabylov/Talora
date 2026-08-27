@@ -153,6 +153,7 @@ create table if not exists public.test_versions (
   status text not null default 'draft' check (status in ('draft','published','archived')),
   settings_json jsonb not null default '{}'::jsonb,
   published_at timestamptz,
+  archived_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (status <> 'published' or duration_minutes is not null),
