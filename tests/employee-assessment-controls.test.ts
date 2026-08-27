@@ -20,6 +20,15 @@ test("employee and candidate routes use the same controlled test session UI", ()
   assert.match(sessionUi, /operation: "expire"/);
 });
 
+test("the shared session timer has a deterministic hydration value", () => {
+  const sessionUi = source("components/assessment/candidate-test-session.tsx");
+
+  assert.match(
+    sessionUi,
+    /const \[remainingSeconds, setRemainingSeconds\] = useState<number \| null>\(null\);/,
+  );
+});
+
 test("one-question forced choice enables progression after both choices are selected", () => {
   const sessionUi = source("components/assessment/candidate-test-session.tsx");
 

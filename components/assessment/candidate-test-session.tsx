@@ -326,11 +326,7 @@ export function AssessmentTestSession({
   const [deadlineAt, setDeadlineAt] = useState(initialDeadlineAt);
   const [integrityNotice, setIntegrityNotice] = useState<string | null>(null);
   const [lockState, setLockState] = useState<LockState>("checking");
-  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(() =>
-    initialDeadlineAt
-      ? Math.max(0, Math.ceil((new Date(initialDeadlineAt).getTime() - Date.now()) / 1000))
-      : null,
-  );
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [sessionAnswers, setSessionAnswers] = useState(answers);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [savedAt, setSavedAt] = useState<string | null>(null);
