@@ -1,6 +1,17 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+body.test-taking-protected {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body.test-taking-protected input,
+body.test-taking-protected textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

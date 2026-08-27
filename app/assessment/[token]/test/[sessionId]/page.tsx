@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { AssessmentShell, AssessmentUnavailable } from "@/components/assessment/assessment-shell";
 import { CandidateTestSession } from "@/components/assessment/candidate-test-session";
+import { TestTakingGuard } from "@/components/assessment/test-taking-guard";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { getAssessmentByToken, getAssessmentQuestionPageData } from "@/lib/assessment/data";
@@ -83,8 +84,9 @@ export default async function CandidateTestPage({
   const progress = section ? ((sectionIndex + 1) / data.sections.length) * 100 : 0;
 
   return (
-    <AssessmentShell companyName={data.assessment.companyName}>
-      <div className="space-y-6">
+    <TestTakingGuard>
+      <AssessmentShell companyName={data.assessment.companyName}>
+        <div className="space-y-6">
         <div>
           <p className="text-sm text-muted-foreground">{data.assessment.job.title}</p>
           <h1 className="mt-2 text-xl font-semibold sm:text-2xl">{data.session.test.title}</h1>
@@ -137,7 +139,8 @@ export default async function CandidateTestPage({
           testInstructions={data.session.test.instructions}
           token={token}
         />
-      </div>
-    </AssessmentShell>
+        </div>
+      </AssessmentShell>
+    </TestTakingGuard>
   );
 }

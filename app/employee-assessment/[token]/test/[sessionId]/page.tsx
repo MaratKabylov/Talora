@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { AssessmentShell, AssessmentUnavailable } from "@/components/assessment/assessment-shell";
 import { QuestionResponseFields } from "@/components/assessment/question-response-fields";
+import { TestTakingGuard } from "@/components/assessment/test-taking-guard";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,8 +86,9 @@ export default async function EmployeeAssessmentTestPage({
   const progress = section ? ((sectionIndex + 1) / data.sections.length) * 100 : 0;
 
   return (
-    <AssessmentShell companyName={data.assessment.companyName}>
-      <div className="space-y-6">
+    <TestTakingGuard>
+      <AssessmentShell companyName={data.assessment.companyName}>
+        <div className="space-y-6">
         <div>
           <p className="text-sm text-muted-foreground">{data.assessment.assessment.title}</p>
           <h1 className="mt-2 text-xl font-semibold sm:text-2xl">{data.session.test.title}</h1>
@@ -247,7 +249,8 @@ export default async function EmployeeAssessmentTestPage({
             </CardContent>
           </Card>
         )}
-      </div>
-    </AssessmentShell>
+        </div>
+      </AssessmentShell>
+    </TestTakingGuard>
   );
 }
