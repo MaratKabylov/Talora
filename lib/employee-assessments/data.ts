@@ -138,6 +138,7 @@ type SessionRecord = {
   id: string;
   percentage: number | null;
   score: number | null;
+  started_at: string | null;
   status: string;
   test_versions: Relation<{
     id: string;
@@ -273,6 +274,7 @@ export type EmployeeAssessmentReportData = {
     resultLevel: string | null;
     scoringDetails: ReportScoringDetails | null;
     score: number | null;
+    startedAt: string | null;
     status: string;
     testTitle: string;
   }>;
@@ -558,7 +560,7 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
   const { data, error } = await supabase
     .from("employee_assessment_participants")
     .select(
-      "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, completed_at, score, percentage, test_versions(id, title), employee_assessment_test_results(id, percentage, raw_score, level, requires_review, scoring_result_json), employee_assessment_answers(id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, order_index, answer_options(id, text, match_text, match_target_id, order_index))))",
+      "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessments(id, title), employee_assessment_reports(id, overall_score, fit_score, recommendation, strengths_json, risks_json, suggested_roles_json, interview_questions_json, report_text), employee_assessment_competency_summary(competency_key, score, max_score, percentage, is_below_minimum), employee_assessment_sessions(id, status, started_at, completed_at, score, percentage, test_versions(id, title), employee_assessment_test_results(id, percentage, raw_score, level, requires_review, scoring_result_json), employee_assessment_answers(id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, order_index, answer_options(id, text, match_text, match_target_id, order_index))))",
     )
     .eq("company_id", companyId)
     .eq("id", participantId)
@@ -645,6 +647,7 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
         resultLevel: result?.level ?? null,
         scoringDetails: buildReportScoringDetails(result?.scoring_result_json),
         score: session.score ?? result?.raw_score ?? null,
+        startedAt: session.started_at,
         status: session.status,
         testTitle: version?.title ?? "Тест",
       };

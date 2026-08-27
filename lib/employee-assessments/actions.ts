@@ -99,6 +99,27 @@ const invitationSchema = z.object({
   roleTitle: optionalText(160),
 });
 
+type EmployeeInvitationTarget = {
+  employee_assessment_id: string;
+  employees:
+    | {
+        department: string | null;
+        email: string;
+        full_name: string;
+        phone: string | null;
+        role_title: string | null;
+      }
+    | {
+        department: string | null;
+        email: string;
+        full_name: string;
+        phone: string | null;
+        role_title: string | null;
+      }[]
+    | null;
+  status: string;
+};
+
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
@@ -185,8 +206,12 @@ function getInvitationErrorMessage(message: string) {
 function getReturnPath(formData: FormData) {
   const returnTo = formString(formData, "returnTo");
   const assessmentPathPattern = /^\/dashboard\/employee-assessments\/[0-9a-f-]{36}$/i;
+  const participantPathPattern =
+    /^\/dashboard\/employee-assessments\/participants\/[0-9a-f-]{36}\/report$/i;
 
-  return assessmentPathPattern.test(returnTo) ? returnTo : "/dashboard/employee-assessments";
+  return assessmentPathPattern.test(returnTo) || participantPathPattern.test(returnTo)
+    ? returnTo
+    : "/dashboard/employee-assessments";
 }
 
 export async function createEmployeeAssessmentAction(formData: FormData) {
@@ -432,4 +457,100 @@ export async function cancelEmployeeAssessmentInvitationAction(formData: FormDat
   revalidatePath(path);
   revalidatePath("/dashboard/employee-assessments");
   redirectWithFeedback(path, "message", "Приглашение отменено.");
+}
+
+export async function resendEmployeeAssessmentInvitationAction(formData: FormData) {
+  const participantId = z.string().uuid().safeParse(formString(formData, "participantId"));
+  const path = getReturnPath(formData);
+
+  if (!participantId.success) {
+    redirect(path);
+  }
+
+  const context = await requireCompanyContext();
+  if (!canManageEmployeeAssessments(context.activeCompany.role)) {
+    redirectWithFeedback(path, "error", "У вашей роли нет права повторно приглашать сотрудников.");
+  }
+
+  const supabase = await createClient();
+  const { data, error: participantError } = await supabase
+    .from("employee_assessment_participants")
+    .select(
+      "employee_assessment_id, status, employees(full_name, email, phone, department, role_title)",
+    )
+    .eq("company_id", context.activeCompany.id)
+    .eq("id", participantId.data)
+    .maybeSingle();
+  const participant = data as EmployeeInvitationTarget | null;
+  const employee = Array.isArray(participant?.employees)
+    ? participant.employees[0]
+    : participant?.employees;
+
+  if (participantError || !participant || !employee) {
+    redirectWithFeedback(path, "error", "Участие сотрудника не найдено или недоступно.");
+  }
+
+  if (participant.status !== "invited") {
+    redirectWithFeedback(path, "error", "Повторное приглашение доступно только до начала оценки.");
+  }
+
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { error } = await supabase.rpc("invite_employee_to_assessment", {
+    employee_department: employee.department,
+    employee_email: employee.email,
+    employee_full_name: employee.full_name,
+    employee_phone: employee.phone,
+    employee_role_title: employee.role_title,
+    invitation_expires_at: expiresAt,
+    target_company_id: context.activeCompany.id,
+    target_employee_assessment_id: participant.employee_assessment_id,
+  });
+
+  if (error) {
+    redirectWithFeedback(path, "error", getInvitationErrorMessage(error.message));
+  }
+
+  revalidatePath(path);
+  revalidatePath(`/dashboard/employee-assessments/${participant.employee_assessment_id}`);
+  revalidatePath("/dashboard/employee-assessments");
+  redirectWithFeedback(
+    path,
+    "message",
+    "Новое приглашение создано на 7 дней. Предыдущая ссылка больше не действует.",
+  );
+}
+
+export async function cancelEmployeeAssessmentAction(formData: FormData) {
+  const participantId = z.string().uuid().safeParse(formString(formData, "participantId"));
+  const path = getReturnPath(formData);
+
+  if (!participantId.success) {
+    redirect(path);
+  }
+
+  const context = await requireCompanyContext();
+  if (!canManageEmployeeAssessments(context.activeCompany.role)) {
+    redirectWithFeedback(path, "error", "У вашей роли нет права отменять прохождение оценки.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_employee_assessment", {
+    target_company_id: context.activeCompany.id,
+    target_participant_id: participantId.data,
+  });
+
+  if (error) {
+    const message = error.message.includes("can no longer be cancelled")
+      ? "Это прохождение уже нельзя отменить."
+      : error.message.includes("not found")
+        ? "Участие сотрудника не найдено или недоступно."
+        : error.message.includes("cannot cancel employee assessments")
+          ? "У вашей роли нет права отменять прохождение оценки."
+          : "Не удалось отменить прохождение. Проверьте миграции базы данных.";
+    redirectWithFeedback(path, "error", message);
+  }
+
+  revalidatePath(path);
+  revalidatePath("/dashboard/employee-assessments");
+  redirectWithFeedback(path, "message", "Прохождение оценки отменено.");
 }

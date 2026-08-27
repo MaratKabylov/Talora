@@ -1,13 +1,17 @@
 import Link from "next/link";
 
 import { EmptyState } from "@/components/empty-state";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   INVITATION_STATUS_LABELS,
   RECOMMENDATION_LABELS,
   RISK_LEVEL_LABELS,
 } from "@/lib/candidates/constants";
-import { cancelEmployeeAssessmentInvitationAction } from "@/lib/employee-assessments/actions";
+import {
+  cancelEmployeeAssessmentInvitationAction,
+  resendEmployeeAssessmentInvitationAction,
+} from "@/lib/employee-assessments/actions";
 import {
   EMPLOYEE_PARTICIPANT_STATUS_LABELS,
 } from "@/lib/employee-assessments/constants";
@@ -38,6 +42,18 @@ function canCancelInvitation(participant: EmployeeAssessmentParticipant) {
     (participant.latestInvitation?.status === "created" ||
       participant.latestInvitation?.status === "sent" ||
       participant.latestInvitation?.status === "opened")
+  );
+}
+
+function canResendInvitation(participant: EmployeeAssessmentParticipant) {
+  const invitation = participant.latestInvitation;
+
+  return Boolean(
+    invitation &&
+      participant.employee.email &&
+      participant.status === "invited" &&
+      invitation.status !== "started" &&
+      invitation.status !== "completed",
   );
 }
 
@@ -145,25 +161,37 @@ export function EmployeeAssessmentParticipantsTable({
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap justify-end gap-2">
-                    {hasReport(participant) ? (
-                      <Link
-                        className={buttonVariants({ size: "sm", variant: "outline" })}
-                        href={`/dashboard/employee-assessments/participants/${participant.id}/report`}
-                      >
-                        Отчет
-                      </Link>
+                    <Link
+                      className={buttonVariants({ size: "sm", variant: "outline" })}
+                      href={`/dashboard/employee-assessments/participants/${participant.id}/report`}
+                    >
+                      {hasReport(participant) ? "Отчет" : "Карточка"}
+                    </Link>
+                    {mayManage && invitation && canCancelInvitation(participant) ? (
+                      <CopyEmployeeInvitationLinkButton token={invitation.token} />
+                    ) : null}
+                    {mayManage && canResendInvitation(participant) ? (
+                      <form action={resendEmployeeAssessmentInvitationAction}>
+                        <input name="participantId" type="hidden" value={participant.id} />
+                        <input name="returnTo" type="hidden" value={returnTo} />
+                        <PendingSubmitButton
+                          pendingText="Создаем..."
+                          size="sm"
+                          type="submit"
+                          variant="outline"
+                        >
+                          Отправить повторно
+                        </PendingSubmitButton>
+                      </form>
                     ) : null}
                     {mayManage && invitation && canCancelInvitation(participant) ? (
-                      <>
-                        <CopyEmployeeInvitationLinkButton token={invitation.token} />
-                        <form action={cancelEmployeeAssessmentInvitationAction}>
-                          <input name="invitationId" type="hidden" value={invitation.id} />
-                          <input name="returnTo" type="hidden" value={returnTo} />
-                          <Button size="sm" type="submit" variant="ghost">
-                            Отменить
-                          </Button>
-                        </form>
-                      </>
+                      <form action={cancelEmployeeAssessmentInvitationAction}>
+                        <input name="invitationId" type="hidden" value={invitation.id} />
+                        <input name="returnTo" type="hidden" value={returnTo} />
+                        <Button size="sm" type="submit" variant="ghost">
+                          Отменить
+                        </Button>
+                      </form>
                     ) : null}
                   </div>
                 </td>

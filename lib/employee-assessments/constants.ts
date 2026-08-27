@@ -44,3 +44,7 @@ export type EmployeeParticipantStatus = (typeof EMPLOYEE_PARTICIPANT_STATUS_VALU
 export function canManageEmployeeAssessments(role: CompanyRole) {
   return role === "owner" || role === "admin" || role === "recruiter" || role === "super_admin";
 }
+
+export function canCancelEmployeeAssessment(status: EmployeeParticipantStatus) {
+  return status === "invited" || status === "in_progress";
+}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CancelEmployeeAssessmentForm } from "@/components/employee-assessments/cancel-employee-assessment-form";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { ScoringResultDetails } from "@/components/scoring-result-details";
 import { buttonVariants } from "@/components/ui/button";
@@ -10,6 +11,11 @@ import {
   RISK_LEVEL_LABELS,
 } from "@/lib/candidates/constants";
 import { requireCompanyContext } from "@/lib/auth/context";
+import {
+  canCancelEmployeeAssessment,
+  canManageEmployeeAssessments,
+  EMPLOYEE_PARTICIPANT_STATUS_LABELS,
+} from "@/lib/employee-assessments/constants";
 import { getEmployeeAssessmentReportData } from "@/lib/employee-assessments/data";
 import { COMPETENCIES } from "@/lib/jobs/constants";
 import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
@@ -23,6 +29,14 @@ type EmployeeReportSearchParams = Promise<{
 const COMPETENCY_LABELS = new Map(
   COMPETENCIES.map((competency) => [competency.key, competency.label]),
 );
+
+const TEST_SESSION_STATUS_LABELS: Record<string, string> = {
+  cancelled: "Отменен",
+  completed: "Завершен",
+  expired: "Истек",
+  in_progress: "В процессе",
+  not_started: "Не начат",
+};
 
 function formatScore(value: number | null | undefined) {
   return value === null || value === undefined
@@ -42,6 +56,13 @@ function objectLabel(value: unknown) {
   return `${String(label ?? "Пункт")}${typeof percentage === "number" ? `: ${formatScore(percentage)}` : ""}`;
 }
 
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    dateStyle: "short",
+    timeStyle: "medium",
+  }).format(new Date(value));
+}
+
 export default async function EmployeeAssessmentReportPage({
   params,
   searchParams,
@@ -58,27 +79,52 @@ export default async function EmployeeAssessmentReportPage({
     notFound();
   }
 
+  const mayCancel =
+    canManageEmployeeAssessments(context.activeCompany.role) &&
+    canCancelEmployeeAssessment(data.participant.status);
+  const reportPath = `/dashboard/employee-assessments/participants/${data.participant.id}/report`;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">{context.activeCompany.name}</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Отчет сотрудника</h1>
+          <p className="text-sm text-muted-foreground">
+            Карточка сотрудника / {data.assessment.title}
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">{data.employee.fullName}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {data.employee.fullName} / {data.assessment.title}
+            {[data.employee.email, data.employee.phone, data.employee.department, data.employee.roleTitle]
+              .filter(Boolean)
+              .join(" / ")}
           </p>
         </div>
-        <Link
-          className={buttonVariants({ variant: "outline" })}
-          href={`/dashboard/employee-assessments/${data.assessment.id}`}
-        >
-          К оценке
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          {mayCancel ? (
+            <CancelEmployeeAssessmentForm
+              participantId={data.participant.id}
+              returnTo={reportPath}
+            />
+          ) : null}
+          <Link
+            className={buttonVariants({ variant: "outline" })}
+            href={`/dashboard/employee-assessments/${data.assessment.id}`}
+          >
+            К оценке
+          </Link>
+        </div>
       </div>
 
       <FeedbackMessage error={feedback.error} message={feedback.message} />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <Card>
+          <CardHeader>
+            <CardDescription>Статус</CardDescription>
+            <CardTitle className="text-xl">
+              {EMPLOYEE_PARTICIPANT_STATUS_LABELS[data.participant.status]}
+            </CardTitle>
+          </CardHeader>
+        </Card>
         <Card>
           <CardHeader>
             <CardDescription>Overall score</CardDescription>
@@ -255,12 +301,16 @@ export default async function EmployeeAssessmentReportPage({
                 {data.sessions.map((session) => (
                   <tr className="border-t" key={session.id}>
                     <td className="px-4 py-3 font-medium">{session.testTitle}</td>
-                    <td className="px-4 py-3">{session.status}</td>
+                    <td className="px-4 py-3">
+                      {TEST_SESSION_STATUS_LABELS[session.status] ?? session.status}
+                    </td>
                     <td className="px-4 py-3">{formatScore(session.percentage)}</td>
                     <td className="px-4 py-3">
                       {session.completedAt
                         ? new Intl.DateTimeFormat("ru-RU").format(new Date(session.completedAt))
-                        : "-"}
+                        : session.startedAt
+                          ? `Начат ${formatDateTime(session.startedAt)}`
+                          : "-"}
                     </td>
                   </tr>
                 ))}
