@@ -706,12 +706,12 @@ export async function scoreCompletedApplication(
       suggested_roles_json: [],
     };
 
+  const expectedRevision = persistenceContext?.expectedRevision ?? application.scoring_revision ?? 0;
   const { data: persisted, error: persistenceError } = await admin.rpc(
-    "persist_scoring_snapshot",
+    "try_persist_scoring_snapshot",
     {
       p_audit: persistenceContext?.audit ?? null,
-      p_expected_revision:
-        persistenceContext?.expectedRevision ?? application.scoring_revision ?? 0,
+      p_expected_revision: expectedRevision,
       p_parent_id: application.id,
       p_scope: "candidate",
       p_snapshot: {
@@ -735,6 +735,20 @@ export async function scoreCompletedApplication(
   if (persistenceError || !persisted) {
     throw new Error(persistenceError?.message ?? "Unable to persist candidate scoring snapshot.");
   }
+  const persistenceResult = persisted as {
+    audit_id?: string | null;
+    conflict?: boolean;
+    revision?: number;
+  };
+  const persistedRevision = Number(persistenceResult.revision ?? 0);
+  if (
+    persistenceResult.conflict &&
+    (persistenceContext !== undefined || persistedRevision <= expectedRevision)
+  ) {
+    throw new Error(
+      `Scoring revision conflict: expected ${expectedRevision}, found ${persistedRevision}.`,
+    );
+  }
 
   return {
     behaviorFit,
@@ -744,8 +758,8 @@ export async function scoreCompletedApplication(
     overallScore,
     recommendation,
     requiresReview,
-    auditId: (persisted as { audit_id?: string | null }).audit_id ?? null,
-    revision: Number((persisted as { revision?: number }).revision ?? 0),
+    auditId: persistenceResult.audit_id ?? null,
+    revision: persistedRevision,
     riskLevel,
   };
 }
@@ -1073,12 +1087,12 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
       suggested_roles_json: [],
     };
 
+  const expectedRevision = persistenceContext?.expectedRevision ?? participant.scoring_revision ?? 0;
   const { data: persisted, error: persistenceError } = await admin.rpc(
-    "persist_scoring_snapshot",
+    "try_persist_scoring_snapshot",
     {
       p_audit: persistenceContext?.audit ?? null,
-      p_expected_revision:
-        persistenceContext?.expectedRevision ?? participant.scoring_revision ?? 0,
+      p_expected_revision: expectedRevision,
       p_parent_id: participant.id,
       p_scope: "employee",
       p_snapshot: {
@@ -1101,14 +1115,28 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
   if (persistenceError || !persisted) {
     throw new Error(persistenceError?.message ?? "Unable to persist employee scoring snapshot.");
   }
+  const persistenceResult = persisted as {
+    audit_id?: string | null;
+    conflict?: boolean;
+    revision?: number;
+  };
+  const persistedRevision = Number(persistenceResult.revision ?? 0);
+  if (
+    persistenceResult.conflict &&
+    (persistenceContext !== undefined || persistedRevision <= expectedRevision)
+  ) {
+    throw new Error(
+      `Scoring revision conflict: expected ${expectedRevision}, found ${persistedRevision}.`,
+    );
+  }
 
   return {
     fitScore,
     overallScore,
     recommendation,
     requiresReview,
-    auditId: (persisted as { audit_id?: string | null }).audit_id ?? null,
-    revision: Number((persisted as { revision?: number }).revision ?? 0),
+    auditId: persistenceResult.audit_id ?? null,
+    revision: persistedRevision,
     riskLevel,
   };
 }

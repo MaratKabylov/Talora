@@ -26,7 +26,7 @@ test("recalculation delegates to normal parent pipelines and audits both snapsho
   assert.match(entryPoint, /scoreCompletedApplication\(applicationId, \{/);
   assert.match(entryPoint, /scoreCompletedEmployeeAssessmentParticipant\(participantId, \{/);
   assert.match(entryPoint, /expectedRevision: before\.revision/);
-  assert.match(service, /\.rpc\(\s*"persist_scoring_snapshot"/);
+  assert.match(service, /\.rpc\(\s*"try_persist_scoring_snapshot"/);
   assert.match(entryPoint, /previous_engine_version/);
   assert.match(entryPoint, /previous_revision/);
   assert.match(entryPoint, /status: "failed"/);

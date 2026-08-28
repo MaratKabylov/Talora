@@ -35,6 +35,7 @@ test("scoring uses an atomic recoverable claim before persistence", () => {
   assert.match(finalization, /\.or\(availableClaimFilter\(\)\)/);
   assert.match(finalization, /sessionsResult\.data\.some/);
   assert.match(finalization, /releaseScoringClaim/);
+  assert.match(finalization, /parent\?\.status !== "completed"/);
 });
 
 test("database scoring revision guard remains enabled", () => {

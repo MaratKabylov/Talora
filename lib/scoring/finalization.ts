@@ -172,8 +172,20 @@ async function finalizeCompletedAssessment(
       .select("id")
       .maybeSingle();
 
-    if (completionError || !completedParent) {
+    if (completionError) {
       throw new Error("Unable to mark assessment as completed.");
+    }
+
+    if (!completedParent) {
+      const { data: parent, error: parentError } = await admin
+        .from(config.parentTable)
+        .select("status")
+        .eq("id", config.parentId)
+        .maybeSingle();
+
+      if (parentError || parent?.status !== "completed") {
+        throw new Error("Unable to mark assessment as completed.");
+      }
     }
 
     await completeInvitation(config);
