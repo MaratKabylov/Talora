@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { ACTIVE_COMPANY_COOKIE } from "@/lib/company/constants";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type CompanyRole = "owner" | "admin" | "recruiter" | "viewer" | "super_admin";
@@ -39,9 +40,51 @@ type ProfileRecord = {
 
 type MembershipRecord = {
   company_id: string;
+  company_name: string;
+  role: CompanyRole;
+};
+
+type LegacyMembershipRecord = {
+  company_id: string;
   companies: { id: string; name: string } | { id: string; name: string }[] | null;
   role: CompanyRole;
 };
+
+async function readCompanyMemberships(userId: string): Promise<MembershipRecord[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("list_my_company_memberships");
+
+  if (!error) {
+    return (data ?? []) as MembershipRecord[];
+  }
+
+  // Keep deployments usable while the accompanying migration is being applied.
+  // The fallback remains server-only and is constrained to the verified JWT subject.
+  if (error.code === "PGRST202") {
+    const admin = createAdminClient();
+    const { data: legacyData, error: legacyError } = await admin
+      .from("company_users")
+      .select("company_id, role, companies(id, name)")
+      .eq("user_id", userId)
+      .eq("status", "active");
+
+    if (legacyError) {
+      throw new Error("Unable to read company memberships.", { cause: legacyError });
+    }
+
+    return ((legacyData ?? []) as LegacyMembershipRecord[]).flatMap((membership) => {
+      const company = Array.isArray(membership.companies)
+        ? membership.companies[0]
+        : membership.companies;
+
+      return company
+        ? [{ company_id: company.id, company_name: company.name, role: membership.role }]
+        : [];
+    });
+  }
+
+  throw new Error("Unable to read company memberships.", { cause: error });
+}
 
 export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
   const supabase = await createClient();
@@ -52,37 +95,16 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
     return null;
   }
 
-  const [{ data: profileData }, { data: membershipData, error: membershipError }] =
-    await Promise.all([
-      supabase.from("profiles").select("id, email, full_name, phone").eq("id", userId).maybeSingle(),
-      supabase
-        .from("company_users")
-        .select("company_id, role, companies(id, name)")
-        .eq("user_id", userId)
-        .eq("status", "active"),
-    ]);
+  const [{ data: profileData }, membershipData] = await Promise.all([
+    supabase.from("profiles").select("id, email, full_name, phone").eq("id", userId).maybeSingle(),
+    readCompanyMemberships(userId),
+  ]);
 
-  if (membershipError) {
-    throw new Error("Unable to read company memberships.");
-  }
-
-  const companies = ((membershipData ?? []) as MembershipRecord[]).flatMap((membership) => {
-    const company = Array.isArray(membership.companies)
-      ? membership.companies[0]
-      : membership.companies;
-
-    if (!company) {
-      return [];
-    }
-
-    return [
-      {
-        id: company.id,
-        name: company.name,
-        role: membership.role,
-      },
-    ];
-  });
+  const companies = membershipData.map((membership) => ({
+    id: membership.company_id,
+    name: membership.company_name,
+    role: membership.role,
+  }));
 
   const cookieStore = await cookies();
   const activeCompanyId = cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value;
