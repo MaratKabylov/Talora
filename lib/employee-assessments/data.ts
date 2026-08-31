@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
 import type { InvitationStatus, Recommendation, RiskLevel } from "@/lib/candidates/constants";
 import type { CompetencyKey } from "@/lib/jobs/constants";
@@ -8,7 +7,6 @@ import {
   type ReportScoringDetails,
 } from "@/lib/reports/scoring-details";
 import { countAnswerCorrectness } from "@/lib/reports/answer-counts";
-import { resolveReportTestTitle } from "@/lib/reports/test-title";
 import type {
   ReportIntegrityEventType,
   ReportIntegritySummary,
@@ -110,8 +108,8 @@ type ReportRecord = {
 
 type EmployeeAnswerOption = {
   id: string;
-  match_target_id: string;
-  match_text: string | null;
+  match_target_id?: string | null;
+  match_text?: string | null;
   order_index: number;
   question_id: string;
   text: string;
@@ -156,10 +154,12 @@ type SessionRecord = {
   score: number | null;
   started_at: string | null;
   status: string;
-  test_versions: Relation<{
-    id: string;
-    title: string;
-  }>;
+  test_version_id: string;
+};
+
+type ReportTestVersionRecord = {
+  id: string;
+  test_template_id: string;
 };
 
 type EmployeeIntegrityEventRecord = {
@@ -315,7 +315,7 @@ export type EmployeeAssessmentReportData = {
 function employeeIntegritySummary(
   events: EmployeeIntegrityEventRecord[],
   sessions: SessionRecord[],
-  templateTitlesByVersionId: ReadonlyMap<string, string>,
+  testTitlesByVersionId: ReadonlyMap<string, string>,
 ): ReportIntegritySummary {
   const focusLossCount = events.filter((event) => event.event_type === "focus_lost").length;
   const clipboardAttemptCount = events.filter((event) =>
@@ -354,17 +354,10 @@ function employeeIntegritySummary(
   }
 
   const testTitleBySession = new Map(
-    sessions.map((session) => {
-      const version = related(session.test_versions);
-
-      return [
-        session.id,
-        resolveReportTestTitle(
-          version ? templateTitlesByVersionId.get(version.id) : null,
-          version?.title,
-        ),
-      ];
-    }),
+    sessions.map((session) => [
+      session.id,
+      testTitlesByVersionId.get(session.test_version_id)!,
+    ]),
   );
 
   return {
@@ -687,7 +680,7 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
       .eq("participant_id", participantId),
     supabase
       .from("employee_assessment_sessions")
-      .select("id, status, started_at, completed_at, score, percentage, test_versions(id, title)")
+      .select("id, test_version_id, status, started_at, completed_at, score, percentage")
       .eq("participant_id", participantId)
       .order("created_at"),
     supabase
@@ -740,8 +733,6 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
   if (!participant) {
     return null;
   }
-  const admin = createAdminClient();
-
   const report = reportResult.data as ReportRecord | null;
   const rawSessions = (sessionsResult.data ?? []) as unknown as SessionRecord[];
   const sessionIds = rawSessions.map((session) => session.id);
@@ -792,13 +783,13 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
           { data: [] as EmployeeAnswerOption[], error: null },
         ]
       : await Promise.all([
-          admin
+          supabase
             .from("questions")
             .select("id, text, question_type, order_index")
             .in("id", questionIds),
-          admin
+          supabase
             .from("answer_options")
-            .select("id, question_id, text, match_text, match_target_id, order_index")
+            .select("id, question_id, text, order_index")
             .in("question_id", questionIds),
         ]);
 
@@ -809,15 +800,15 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
       hint: questionsResult.error.hint,
       message: questionsResult.error.message,
     });
+    throw new Error("Unable to load employee assessment report questions.");
   }
 
-  if (optionsResult.error) {
-    console.error("Employee assessment report answer options query failed", {
-      code: optionsResult.error.code,
-      details: optionsResult.error.details,
-      hint: optionsResult.error.hint,
-      message: optionsResult.error.message,
+  if ((questionsResult.data ?? []).length !== questionIds.length) {
+    console.error("Employee assessment report questions are incomplete", {
+      expectedQuestionIds: questionIds,
+      loadedQuestionIds: (questionsResult.data ?? []).map((question) => question.id),
     });
+    throw new Error("Unable to load employee assessment report questions.");
   }
 
   const resultsBySession = new Map(
@@ -827,7 +818,10 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
     ]),
   );
   const optionsByQuestionId = new Map<string, EmployeeAnswerOption[]>();
-  for (const option of (optionsResult.data ?? []) as unknown as EmployeeAnswerOption[]) {
+  const answerOptions = optionsResult.error
+    ? []
+    : ((optionsResult.data ?? []) as unknown as EmployeeAnswerOption[]);
+  for (const option of answerOptions) {
     const options = optionsByQuestionId.get(option.question_id) ?? [];
     options.push(option);
     optionsByQuestionId.set(option.question_id, options);
@@ -858,39 +852,68 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
     };
   });
   const integrityEvents = (integrityResult.data ?? []) as unknown as EmployeeIntegrityEventRecord[];
-  const versionIds = Array.from(
-    new Set(
-      sessions.flatMap((session) => {
-        const version = related(session.test_versions);
-        return version ? [version.id] : [];
-      }),
-    ),
-  );
+  const versionIds = Array.from(new Set(sessions.map((session) => session.test_version_id)));
   const versionsResult =
     versionIds.length === 0
-      ? { data: [] as Array<{ id: string; test_template_id: string }>, error: null }
-      : await admin.from("test_versions").select("id, test_template_id").in("id", versionIds);
+      ? { data: [] as ReportTestVersionRecord[], error: null }
+      : await supabase.from("test_versions").select("id, test_template_id").in("id", versionIds);
+
+  if (versionsResult.error) {
+    console.error("Employee assessment report test versions query failed", {
+      code: versionsResult.error.code,
+      details: versionsResult.error.details,
+      hint: versionsResult.error.hint,
+      message: versionsResult.error.message,
+    });
+    throw new Error("Unable to load employee assessment report test titles.");
+  }
+
+  const versions = (versionsResult.data ?? []) as ReportTestVersionRecord[];
+  if (versions.length !== versionIds.length) {
+    console.error("Employee assessment report test versions are incomplete", {
+      expectedVersionIds: versionIds,
+      loadedVersionIds: versions.map((version) => version.id),
+    });
+    throw new Error("Unable to load employee assessment report test titles.");
+  }
+
   const templateIds = Array.from(
-    new Set((versionsResult.data ?? []).map((version) => version.test_template_id)),
+    new Set(versions.map((version) => version.test_template_id)),
   );
   const templatesResult =
-    versionsResult.error || templateIds.length === 0
+    templateIds.length === 0
       ? { data: [] as Array<{ id: string; title: string }>, error: null }
-      : await admin.from("test_templates").select("id, title").in("id", templateIds);
+      : await supabase.from("test_templates").select("id, title").in("id", templateIds);
+
+  if (templatesResult.error) {
+    console.error("Employee assessment report test templates query failed", {
+      code: templatesResult.error.code,
+      details: templatesResult.error.details,
+      hint: templatesResult.error.hint,
+      message: templatesResult.error.message,
+    });
+    throw new Error("Unable to load employee assessment report test titles.");
+  }
+
   const templateTitlesById = new Map(
     (templatesResult.data ?? []).map((template) => [template.id, template.title]),
   );
-  const templateTitlesByVersionId = new Map(
-    (versionsResult.data ?? []).flatMap((version) => {
-      const title = templateTitlesById.get(version.test_template_id);
-      return title ? [[version.id, title] as const] : [];
-    }),
+  if (templateTitlesById.size !== templateIds.length) {
+    console.error("Employee assessment report test templates are incomplete", {
+      expectedTemplateIds: templateIds,
+      loadedTemplateIds: Array.from(templateTitlesById.keys()),
+    });
+    throw new Error("Unable to load employee assessment report test titles.");
+  }
+
+  const testTitlesByVersionId = new Map(
+    versions.map((version) => [version.id, templateTitlesById.get(version.test_template_id)!]),
   );
 
   return {
     assessment,
     employee: participant.employee,
-    integrity: employeeIntegritySummary(integrityEvents, sessions, templateTitlesByVersionId),
+    integrity: employeeIntegritySummary(integrityEvents, sessions, testTitlesByVersionId),
     participant: {
       completedAt: participant.completedAt,
       createdAt: participant.createdAt,
@@ -915,9 +938,9 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
         }
       : null,
     sessions: sessions.map((session) => {
-      const version = related(session.test_versions);
       const result = session.employee_assessment_test_results?.[0] ?? null;
-      const answers = (session.employee_assessment_answers ?? [])
+      const storedAnswers = session.employee_assessment_answers ?? [];
+      const answers = storedAnswers
         .flatMap((answer) => {
           const question = related(answer.questions);
           return question
@@ -939,7 +962,9 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
           question: answer.question,
           questionType: answer.questionType,
         }));
-      const answerCounts = countAnswerCorrectness(answers);
+      const answerCounts = countAnswerCorrectness(
+        storedAnswers.map((answer) => ({ isCorrect: answer.is_correct })),
+      );
 
       return {
         answers,
@@ -953,10 +978,7 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
         score: session.score ?? result?.raw_score ?? null,
         startedAt: session.started_at,
         status: session.status,
-        testTitle: resolveReportTestTitle(
-          version ? templateTitlesByVersionId.get(version.id) : null,
-          version?.title,
-        ),
+        testTitle: testTitlesByVersionId.get(session.test_version_id)!,
       };
     }),
     summary: ((summaryResult.data ?? []) as unknown as ReportSummaryRecord[]).map((summary) => ({
