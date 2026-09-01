@@ -12,6 +12,18 @@ export const ASSESSMENT_REPORT_GROUPS = [
 
 export type AssessmentReportGroup = (typeof ASSESSMENT_REPORT_GROUPS)[number];
 
+export type AssessmentThreshold = {
+  kind: "competency_minimum" | "test_passing_score";
+  status: "passed" | "failed";
+  value: number;
+};
+
+export type AssessmentValueStatus =
+  | "available"
+  | "insufficient_data"
+  | "requires_review"
+  | "not_applicable";
+
 export type AssessmentDimensionResult = {
   assessmentDomain: AssessmentDomain;
   id: string;
@@ -35,8 +47,10 @@ export type AssessmentDimensionResult = {
   sourceType: "criterion" | "scale" | "forced_choice" | "composite" | "legacy_competency";
   testTitle: string | null;
   testVersionId: string | null;
+  threshold: AssessmentThreshold | null;
   thresholdStatus: "passed" | "failed" | "not_configured" | "not_applicable";
   title: string;
+  valueStatus: AssessmentValueStatus;
 };
 
 export type AssessmentDimensionGroup = {

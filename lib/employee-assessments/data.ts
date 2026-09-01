@@ -3,8 +3,10 @@ import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
 import {
   collectAssessmentDimensions,
   extractScoringDefinitionMetadata,
+  type LegacyDimensionInput,
 } from "@/lib/assessment-results/collect-dimensions";
 import { buildAssessmentHighlights } from "@/lib/assessment-results/highlights";
+import { mergeLegacyPresentationInputs } from "@/lib/assessment-results/legacy-inputs";
 import { summarizeAssessmentDimensions } from "@/lib/assessment-results/summarize-dimensions";
 import type {
   AssessmentDimensionGroup,
@@ -13,6 +15,7 @@ import type {
 } from "@/lib/assessment-results/types";
 import type { InvitationStatus, Recommendation, RiskLevel } from "@/lib/candidates/constants";
 import type { CompetencyKey } from "@/lib/jobs/constants";
+import type { InterpretationDirection } from "@/lib/scoring/interpretation-policy";
 import {
   buildReportScoringDetails,
   type ReportScoringDetails,
@@ -103,6 +106,7 @@ type ParticipantRecord = {
 
 type SummaryRecord = {
   competency_key: CompetencyKey;
+  interpretation_direction: InterpretationDirection | null;
   percentage: number | null;
 };
 
@@ -649,7 +653,7 @@ export async function getEmployeeComparisonData(companyId: string, assessmentId:
     supabase
       .from("employee_assessment_participants")
       .select(
-        "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessment_competency_summary(competency_key, percentage)",
+        "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessment_competency_summary(competency_key, percentage, interpretation_direction)",
       )
       .eq("company_id", companyId)
       .eq("employee_assessment_id", assessmentId)
@@ -739,35 +743,39 @@ export async function getEmployeeComparisonData(companyId: string, assessmentId:
         return null;
       }
 
-      const participantLegacy = legacyScores
-        .filter((score) => score.participant_id === record.id)
-        .flatMap((score) => {
+      const participantLinkedLegacy: LegacyDimensionInput[] = [];
+      const participantUnlinkedLegacy: LegacyDimensionInput[] = [];
+      for (const score of legacyScores.filter((candidate) => candidate.participant_id === record.id)) {
           const result = score.result_id ? resultById.get(score.result_id) : null;
           const session = result ? sessionById.get(result.session_id) : null;
           const version = session ? versionById.get(session.test_version_id) : null;
-          return result && session
-            ? [{
-                isBelowMinimum: false,
-                key: score.competency_key,
-                maxScore: score.max_score,
-                minimumScore: null,
-                percentage: score.percentage,
-                score: score.score,
-                sessionId: session.id,
-                testTitle: version?.title ?? null,
-                testVersionId: session.test_version_id,
-              }]
-            : [];
-        });
+          const row: LegacyDimensionInput = {
+            isBelowMinimum: false,
+            key: score.competency_key,
+            maxScore: score.max_score,
+            minimumScore: null,
+            percentage: score.percentage,
+            score: score.score,
+            sessionId: result && session ? session.id : null,
+            testTitle: result && session ? version?.title ?? null : null,
+            testVersionId: result && session ? session.test_version_id : null,
+          };
+          if (result && session) participantLinkedLegacy.push(row);
+          else participantUnlinkedLegacy.push(row);
+      }
+      const participantSummary = (record.employee_assessment_competency_summary ?? []).map((summary) => ({
+        interpretationDirection: summary.interpretation_direction,
+        isBelowMinimum: false,
+        key: summary.competency_key,
+        minimumScore: null,
+        percentage: summary.percentage,
+      }));
       const dimensions = collectAssessmentDimensions({
-        legacy: participantLegacy.length > 0
-          ? participantLegacy
-          : (record.employee_assessment_competency_summary ?? []).map((summary) => ({
-              isBelowMinimum: false,
-              key: summary.competency_key,
-              minimumScore: null,
-              percentage: summary.percentage,
-            })),
+        legacy: mergeLegacyPresentationInputs({
+          linkedRows: participantLinkedLegacy,
+          summaryRows: participantSummary,
+          unlinkedRows: participantUnlinkedLegacy,
+        }),
         sessions: (sessionsByParticipant.get(record.id) ?? []).map((session) => {
           const version = versionById.get(session.test_version_id);
           return {
@@ -855,7 +863,7 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
       .maybeSingle(),
     supabase
       .from("employee_assessment_competency_summary")
-      .select("competency_key, score, max_score, percentage, is_below_minimum")
+      .select("competency_key, score, max_score, percentage, is_below_minimum, interpretation_direction")
       .eq("participant_id", participantId),
     supabase
       .from("employee_assessment_sessions")
@@ -1145,27 +1153,28 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
     ]),
   );
   const sessionsById = new Map(sessions.map((session) => [session.id, session]));
-  const sessionLegacy = ((competencyScoresResult.data ?? []) as EmployeeLegacyScoreRecord[]).flatMap(
-    (score) => {
+  const linkedLegacy: LegacyDimensionInput[] = [];
+  const unlinkedLegacy: LegacyDimensionInput[] = [];
+  for (const score of (competencyScoresResult.data ?? []) as EmployeeLegacyScoreRecord[]) {
       const result = score.result_id ? resultsById.get(score.result_id) : null;
       const session = result ? sessionsById.get(result.session_id) : null;
-      return result && session
-        ? [{
-            isBelowMinimum: false,
-            key: score.competency_key,
-            maxScore: score.max_score,
-            minimumScore: minimumScoreByCompetency.get(score.competency_key as CompetencyKey) ?? null,
-            percentage: score.percentage,
-            score: score.score,
-            sessionId: session.id,
-            testTitle: testTitlesByVersionId.get(session.test_version_id) ?? null,
-            testVersionId: session.test_version_id,
-          }]
-        : [];
-    },
-  );
+      const row: LegacyDimensionInput = {
+        isBelowMinimum: false,
+        key: score.competency_key,
+        maxScore: score.max_score,
+        minimumScore: minimumScoreByCompetency.get(score.competency_key as CompetencyKey) ?? null,
+        percentage: score.percentage,
+        score: score.score,
+        sessionId: result && session ? session.id : null,
+        testTitle: result && session ? testTitlesByVersionId.get(session.test_version_id) ?? null : null,
+        testVersionId: result && session ? session.test_version_id : null,
+      };
+      if (result && session) linkedLegacy.push(row);
+      else unlinkedLegacy.push(row);
+  }
   const legacySummary = ((summaryResult.data ?? []) as unknown as ReportSummaryRecord[]).map(
     (summary) => ({
+      interpretationDirection: summary.interpretation_direction,
       isBelowMinimum: summary.is_below_minimum,
       key: summary.competency_key,
       maxScore: summary.max_score,
@@ -1175,7 +1184,7 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
     }),
   );
   const dimensions = collectAssessmentDimensions({
-    legacy: sessionLegacy.length > 0 ? sessionLegacy : legacySummary,
+    legacy: mergeLegacyPresentationInputs({ linkedRows: linkedLegacy, summaryRows: legacySummary, unlinkedRows: unlinkedLegacy }),
     sessions: sessions.map((session) => {
       const version = versionById.get(session.test_version_id);
       return {

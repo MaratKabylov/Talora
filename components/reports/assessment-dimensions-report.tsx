@@ -31,10 +31,21 @@ function formatDimensionValue(dimension: AssessmentDimensionResult) {
 }
 
 function thresholdLabel(dimension: AssessmentDimensionResult) {
-  if (dimension.thresholdStatus === "failed") return "Ниже обязательного минимума";
-  if (dimension.thresholdStatus === "passed") return "Минимум выполнен";
-  if (dimension.thresholdStatus === "not_configured") return "Порог не задан";
-  return "Профильная шкала";
+  if (!dimension.threshold) {
+    if (dimension.valueStatus === "insufficient_data") return "Недостаточно данных";
+    if (dimension.valueStatus === "requires_review") return "Требуется проверка";
+    if (dimension.valueStatus === "not_applicable") return "Не применимо";
+    return null;
+  }
+  const value = dimension.threshold.value.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  if (dimension.threshold.kind === "test_passing_score") {
+    return dimension.threshold.status === "passed"
+      ? `Проходной балл достигнут (≥ ${value}%)`
+      : `Ниже проходного балла (${value}%)`;
+  }
+  return dimension.threshold.status === "passed"
+    ? `Обязательный минимум выполнен (≥ ${value}%)`
+    : `Ниже обязательного минимума (${value}%)`;
 }
 
 function normMetricLabel(metric: NonNullable<AssessmentDimensionResult["norm"]>["metric"]) {
@@ -101,7 +112,7 @@ export function AssessmentDimensionGroups({ groups }: { groups: AssessmentDimens
       {groups.map((group) => {
         const description = profileDescription(group.key);
         const showStatus = group.dimensions.some(
-          (dimension) => dimension.thresholdStatus !== "not_applicable",
+          (dimension) => dimension.threshold !== null || dimension.valueStatus !== "available",
         );
         const showNorm = group.dimensions.some((dimension) => dimension.norm !== null);
         return (
@@ -153,14 +164,12 @@ export function AssessmentDimensionGroups({ groups }: { groups: AssessmentDimens
                         {showStatus ? (
                           <td
                             className={
-                              dimension.thresholdStatus === "failed"
+                              dimension.threshold?.status === "failed"
                                 ? "px-4 py-3 text-destructive"
                                 : "px-4 py-3 text-muted-foreground"
                             }
                           >
-                            {dimension.thresholdStatus === "not_applicable"
-                              ? "—"
-                              : thresholdLabel(dimension)}
+                            {thresholdLabel(dimension) ?? "—"}
                           </td>
                         ) : null}
                       </tr>

@@ -3,8 +3,10 @@ import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
 import {
   collectAssessmentDimensions,
   extractScoringDefinitionMetadata,
+  type LegacyDimensionInput,
 } from "@/lib/assessment-results/collect-dimensions";
 import { buildAssessmentHighlights } from "@/lib/assessment-results/highlights";
+import { mergeLegacyPresentationInputs } from "@/lib/assessment-results/legacy-inputs";
 import {
   getLegacyAssessmentDimension,
   isLegacyMotivationDimension,
@@ -99,6 +101,7 @@ type SessionRecord = {
   deadline_at: string | null;
   id: string;
   percentage: number | null;
+  package_passing_score: number | null;
   started_at: string | null;
   status: string;
   submission_reason: "candidate" | "time_expired" | null;
@@ -419,7 +422,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       supabase
         .from("test_sessions")
         .select(
-          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, test_versions(id, title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)",
+          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, package_passing_score, test_versions(id, title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)",
         )
         .eq("application_id", applicationId)
         .order("created_at"),
@@ -578,24 +581,28 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       minimum_score: number | null;
     }>).map((weight) => [weight.competency_key, weight.minimum_score]),
   );
-  const sessionLegacy = ((competencyScoresResult.data ?? []) as CompetencyScoreRecord[]).flatMap((score) => {
+  const linkedLegacy: LegacyDimensionInput[] = [];
+  const unlinkedLegacy: LegacyDimensionInput[] = [];
+  for (const score of (competencyScoresResult.data ?? []) as CompetencyScoreRecord[]) {
     const result = score.result_id ? resultsById.get(score.result_id) : null;
     const session = result ? sessionsById.get(result.session_id) : null;
     const version = session ? related(session.test_versions) : null;
-    return result && session
-      ? [{
-          isBelowMinimum: false,
-          key: score.competency_key,
-          maxScore: score.max_score,
-          minimumScore: minimumScoreByCompetency.get(score.competency_key as CompetencyKey) ?? null,
-          percentage: score.percentage,
-          score: score.score,
-          sessionId: result.session_id,
-          testTitle: templateTitlesByVersionId.get(result.test_version_id) ?? version?.title ?? null,
-          testVersionId: result.test_version_id,
-        }]
-      : [];
-  });
+    const row: LegacyDimensionInput = {
+      isBelowMinimum: false,
+      key: score.competency_key,
+      maxScore: score.max_score,
+      minimumScore: minimumScoreByCompetency.get(score.competency_key as CompetencyKey) ?? null,
+      percentage: score.percentage,
+      score: score.score,
+      sessionId: result && session ? result.session_id : null,
+      testTitle: result && session
+        ? templateTitlesByVersionId.get(result.test_version_id) ?? version?.title ?? null
+        : null,
+      testVersionId: result && session ? result.test_version_id : null,
+    };
+    if (result && session) linkedLegacy.push(row);
+    else unlinkedLegacy.push(row);
+  }
   const summaryLegacy = ((summaryResult.data ?? []) as unknown as SummaryRecord[]).map((summary) => ({
     interpretationDirection: summary.interpretation_direction,
     isBelowMinimum: summary.is_below_minimum,
@@ -604,12 +611,12 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     percentage: summary.percentage,
   }));
   const dimensions = collectAssessmentDimensions({
-    legacy: sessionLegacy.length > 0 ? sessionLegacy : summaryLegacy,
+    legacy: mergeLegacyPresentationInputs({ linkedRows: linkedLegacy, summaryRows: summaryLegacy, unlinkedRows: unlinkedLegacy }),
     sessions: sessions.map((session) => {
       const version = related(session.test_versions);
       return {
         definition: extractScoringDefinitionMetadata(version?.scoring_config_json),
-        passingScore: version ? passingScoreByVersion.get(version.id) ?? null : null,
+        passingScore: session.package_passing_score ?? (version ? passingScoreByVersion.get(version.id) ?? null : null),
         scoringResult: resultsBySession.get(session.id)?.scoring_result_json,
         sessionId: session.id,
         testTitle: version ? templateTitlesByVersionId.get(version.id) ?? version.title : null,

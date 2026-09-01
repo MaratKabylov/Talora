@@ -40,7 +40,7 @@ export function buildAssessmentHighlights(
         text: `Наиболее выражены: ${names(ranked.slice(0, 2))}.`,
         title: "Рабочие компетенции",
       });
-      const failed = ranked.filter((dimension) => dimension.thresholdStatus === "failed").slice(0, 2);
+      const failed = ranked.filter((dimension) => dimension.threshold?.status === "failed").slice(0, 2);
       if (failed.length > 0) {
         highlights.push({
           group: group.key,

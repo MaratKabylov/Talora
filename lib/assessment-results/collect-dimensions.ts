@@ -20,6 +20,7 @@ export type LegacyDimensionInput = {
   maxScore?: number | null;
   minimumScore?: number | null;
   percentage: number | null;
+  summaryPercentage?: number | null;
   score?: number | null;
   sessionId?: string | null;
   testTitle?: string | null;
@@ -211,13 +212,30 @@ function resultDimensions(
       sourceType,
     );
     const overall = isOverallScore(result, definition, sourceType, score.id);
-    const thresholdStatus = interpretationDirection === "neutral"
-      ? "not_applicable" as const
-      : !overall || session.passingScore === null || session.passingScore === undefined
-        ? "not_configured" as const
-        : result.overallScore !== null && result.overallScore >= session.passingScore
-          ? "passed" as const
-          : "failed" as const;
+    const valueStatus = result.status === "requires_review"
+      ? "requires_review" as const
+      : score.status === "not_applicable"
+        ? "not_applicable" as const
+        : score.status === "ok" && (score.normalized_score !== null || score.raw_score !== null)
+          ? "available" as const
+          : "insufficient_data" as const;
+    const threshold = interpretationDirection !== "neutral" &&
+        overall &&
+        session.passingScore !== null &&
+        session.passingScore !== undefined &&
+        valueStatus === "available" &&
+        score.normalized_score !== null
+      ? {
+          kind: "test_passing_score" as const,
+          status: score.normalized_score >= session.passingScore ? "passed" as const : "failed" as const,
+          value: session.passingScore,
+        }
+      : null;
+    const thresholdStatus = threshold?.status ?? (
+      interpretationDirection === "neutral" || valueStatus === "not_applicable"
+        ? "not_applicable" as const
+        : "not_configured" as const
+    );
     const title = scaleMetadata.get(score.id)?.title ??
       compositeMetadata.get(score.id)?.title ??
       DERIVED_SCORE_TITLES[score.id] ??
@@ -241,19 +259,55 @@ function resultDimensions(
       sourceType,
       testTitle: session.testTitle ?? null,
       testVersionId,
+      threshold,
       thresholdStatus,
       title,
+      valueStatus,
     };
   });
 }
 
-function legacyDirection(input: LegacyDimensionInput, profile: boolean) {
-  if (profile || input.interpretationDirection === "neutral" || input.interpretationDirection === "target_range") {
+function legacyDirection(inputs: readonly LegacyDimensionInput[], profile: boolean) {
+  if (profile) {
     return "neutral" as const;
   }
-  return input.interpretationDirection === "lower_is_better"
-    ? "lower_better" as const
-    : "higher_better" as const;
+  const directions = new Set(inputs.map((input) => input.interpretationDirection).filter(Boolean));
+  if (
+    directions.has("neutral") ||
+    directions.has("target_range") ||
+    (directions.has("higher_is_better") && directions.has("lower_is_better"))
+  ) {
+    return "neutral" as const;
+  }
+  return directions.has("lower_is_better") ? "lower_better" as const : "higher_better" as const;
+}
+
+function finitePercentage(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.round(Math.min(100, Math.max(0, value)) * 100) / 100
+    : null;
+}
+
+function aggregateLegacyPercentage(rows: readonly LegacyDimensionInput[]) {
+  const percentages = rows.flatMap((row) => {
+    const percentage = finitePercentage(row.percentage);
+    return percentage === null ? [] : [{ percentage, weight: row.maxScore }];
+  });
+  if (percentages.length === 1) return percentages[0].percentage;
+  if (percentages.length > 1 && percentages.every((row) => typeof row.weight === "number" && Number.isFinite(row.weight) && row.weight > 0)) {
+    const totalWeight = percentages.reduce((total, row) => total + Number(row.weight), 0);
+    return finitePercentage(
+      percentages.reduce((total, row) => total + row.percentage * Number(row.weight), 0) / totalWeight,
+    );
+  }
+  const summaryPercentage = rows
+    .map((row) => finitePercentage(row.summaryPercentage))
+    .find((value) => value !== null);
+  if (summaryPercentage !== undefined && summaryPercentage !== null) return summaryPercentage;
+  if (percentages.length === 0) return null;
+  return finitePercentage(
+    percentages.reduce((total, row) => total + row.percentage, 0) / percentages.length,
+  );
 }
 
 function aggregateLegacyDimensions(inputs: readonly LegacyDimensionInput[]) {
@@ -282,22 +336,20 @@ function aggregateLegacyDimensions(inputs: readonly LegacyDimensionInput[]) {
     const score = numericRows.length > 0
       ? numericRows.reduce((total, row) => total + Number(row.score), 0)
       : null;
-    const maxScore = numericRows.length > 0
-      ? numericRows.reduce((total, row) => total + Number(row.maxScore), 0)
-      : null;
-    const percentage = score !== null && maxScore !== null && maxScore > 0
-      ? Math.round((score / maxScore) * 10_000) / 100
-      : rows.length === 1
-        ? first.percentage
-        : null;
+    const percentage = aggregateLegacyPercentage(rows);
     const minimumScore = rows.find((row) => row.minimumScore !== null && row.minimumScore !== undefined)?.minimumScore;
-    const thresholdStatus = profile
-      ? "not_applicable" as const
-      : minimumScore === null || minimumScore === undefined
-        ? "not_configured" as const
-        : percentage !== null && percentage >= minimumScore
-          ? "passed" as const
-          : "failed" as const;
+    const valueStatus = percentage === null ? "insufficient_data" as const : "available" as const;
+    const threshold = !profile &&
+        minimumScore !== null &&
+        minimumScore !== undefined &&
+        valueStatus === "available"
+      ? {
+          kind: "competency_minimum" as const,
+          status: percentage! >= minimumScore ? "passed" as const : "failed" as const,
+          value: minimumScore,
+        }
+      : null;
+    const thresholdStatus = threshold?.status ?? (profile ? "not_applicable" as const : "not_configured" as const);
     const sessionIds = new Set(rows.flatMap((row) => row.sessionId ? [row.sessionId] : []));
     const versionIds = new Set(rows.flatMap((row) => row.testVersionId ? [row.testVersionId] : []));
     const testTitles = new Set(rows.flatMap((row) => row.testTitle ? [row.testTitle] : []));
@@ -306,7 +358,7 @@ function aggregateLegacyDimensions(inputs: readonly LegacyDimensionInput[]) {
       assessmentDomain: domain,
       id,
       interpretation: null,
-      interpretationDirection: legacyDirection(first, profile),
+      interpretationDirection: legacyDirection(rows, profile),
       key: first.key,
       norm: null,
       normalizedScore: percentage,
@@ -318,8 +370,10 @@ function aggregateLegacyDimensions(inputs: readonly LegacyDimensionInput[]) {
       sourceType: "legacy_competency",
       testTitle: testTitles.size === 1 ? Array.from(testTitles)[0] : null,
       testVersionId: versionIds.size === 1 ? Array.from(versionIds)[0] : null,
+      threshold,
       thresholdStatus,
       title: registry?.title ?? humanizeKey(first.key),
+      valueStatus,
     };
   });
 }

@@ -289,6 +289,9 @@ test("scoring: Motivation-9 gives MOST +1, LEAST -1 and the middle scale 0", () 
   assert.equal(result.motivation_growth.rawScore, 1);
   assert.equal(result.motivation_income.rawScore, -1);
   assert.equal(result.motivation_team.rawScore, 0);
+  assert.equal(normalizeForcedChoiceScore(result.motivation_income), 0);
+  assert.equal(normalizeForcedChoiceScore(result.motivation_team), 50);
+  assert.equal(normalizeForcedChoiceScore(result.motivation_growth), 100);
 });
 
 test("fit score: all Motivation-9 keys are excluded even if weights are configured", () => {

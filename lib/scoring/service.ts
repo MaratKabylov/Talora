@@ -94,6 +94,13 @@ type EmployeeSessionScoringRecord = SessionRecord & {
   package_weight: number | null;
 };
 
+type CandidateSessionScoringRecord = SessionRecord & {
+  package_contributes_to_overall: boolean | null;
+  package_is_required: boolean | null;
+  package_passing_score: number | null;
+  package_weight: number | null;
+};
+
 type WeightRecord = {
   competency_key: CompetencyKey;
   is_required: boolean;
@@ -387,7 +394,7 @@ export async function scoreCompletedApplication(
   const [sessionsResult, packageTestsResult, weightsResult] = await Promise.all([
     admin
       .from("test_sessions")
-      .select("id, status, test_version_id, test_versions(title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)")
+      .select("id, status, test_version_id, package_weight, package_is_required, package_passing_score, package_contributes_to_overall, test_versions(title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)")
       .eq("application_id", applicationId),
     admin
       .from("assessment_package_tests")
@@ -403,11 +410,28 @@ export async function scoreCompletedApplication(
     throw new Error("Unable to load scoring configuration.");
   }
 
-  const packageTests = (packageTestsResult.data ?? []) as PackageTestRecord[];
+  const allSessions = (sessionsResult.data ?? []) as unknown as CandidateSessionScoringRecord[];
+  const hasFrozenPackageConfiguration =
+    allSessions.length > 0 &&
+    allSessions.every(
+      (session) =>
+        session.package_weight !== null &&
+        session.package_is_required !== null &&
+        session.package_contributes_to_overall !== null,
+    );
+  const packageTests = hasFrozenPackageConfiguration
+    ? allSessions.map((session) => ({
+        contributes_to_overall: session.package_contributes_to_overall!,
+        is_required: session.package_is_required!,
+        passing_score: session.package_passing_score,
+        test_version_id: session.test_version_id,
+        weight: session.package_weight!,
+      }))
+    : (packageTestsResult.data ?? []) as PackageTestRecord[];
   const packageTestsByVersion = new Map(packageTests.map((test) => [test.test_version_id, test]));
-  const sessions = ((sessionsResult.data ?? []) as unknown as SessionRecord[]).filter((session) =>
-    packageTestsByVersion.has(session.test_version_id),
-  );
+  const sessions = hasFrozenPackageConfiguration
+    ? allSessions
+    : allSessions.filter((session) => packageTestsByVersion.has(session.test_version_id));
 
   if (
     sessions.length !== packageTests.length ||

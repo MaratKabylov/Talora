@@ -9,6 +9,7 @@ import {
   extractScoringDefinitionMetadata,
 } from "../lib/assessment-results/collect-dimensions.ts";
 import { buildAssessmentHighlights } from "../lib/assessment-results/highlights.ts";
+import { mergeLegacyPresentationInputs } from "../lib/assessment-results/legacy-inputs.ts";
 import { resolveAssessmentReportGroup } from "../lib/assessment-results/report-groups.ts";
 import { summarizeAssessmentDimensions } from "../lib/assessment-results/summarize-dimensions.ts";
 
@@ -397,6 +398,126 @@ test("mixed legacy/v2 deduplicates only the matching session and aggregates lega
   assert.equal(legacy?.normalizedScore, 66.67);
 });
 
+test("legacy aggregation uses persisted percentages instead of reconstructing them from raw scores", () => {
+  const single = collectAssessmentDimensions({
+    legacy: [{
+      isBelowMinimum: false,
+      key: "responsibility",
+      maxScore: 1,
+      percentage: 0,
+      score: -1,
+    }],
+  });
+  assert.equal(single[0].normalizedScore, 0);
+
+  const weighted = collectAssessmentDimensions({
+    legacy: [
+      { isBelowMinimum: false, key: "responsibility", maxScore: 1, percentage: 0, score: -1 },
+      { isBelowMinimum: false, key: "responsibility", maxScore: 1, percentage: 50, score: 0 },
+      { isBelowMinimum: false, key: "responsibility", maxScore: 1, percentage: 100, score: 1 },
+    ],
+  });
+  assert.equal(weighted[0].normalizedScore, 50);
+
+  const summaryFallback = collectAssessmentDimensions({
+    legacy: [
+      { isBelowMinimum: false, key: "responsibility", percentage: 10, summaryPercentage: 67 },
+      { isBelowMinimum: false, key: "responsibility", percentage: 90, summaryPercentage: 67 },
+    ],
+  });
+  assert.equal(summaryFallback[0].normalizedScore, 67);
+});
+
+test("legacy input merge preserves unlinked rows, fills missing summary keys, and keeps v2 compatibility", () => {
+  const summaryRows = [
+    {
+      interpretationDirection: "lower_is_better" as const,
+      isBelowMinimum: false,
+      key: "responsibility",
+      percentage: 64,
+    },
+    {
+      interpretationDirection: "neutral" as const,
+      isBelowMinimum: false,
+      key: "motivation_autonomy",
+      percentage: 72,
+    },
+  ];
+  const merged = mergeLegacyPresentationInputs({
+    linkedRows: [{
+      isBelowMinimum: false,
+      key: "responsibility",
+      percentage: 70,
+      sessionId: "legacy-session",
+    }],
+    summaryRows,
+    unlinkedRows: [{
+      isBelowMinimum: false,
+      key: "responsibility",
+      percentage: 50,
+    }],
+  });
+  assert.equal(merged.length, 3);
+  assert.equal(merged.filter((row) => row.key === "responsibility").length, 2);
+  assert.ok(merged.filter((row) => row.key === "responsibility").every(
+    (row) => row.interpretationDirection === "lower_is_better" && row.summaryPercentage === 64,
+  ));
+  const [conflict] = mergeLegacyPresentationInputs({
+    linkedRows: [{
+      interpretationDirection: "higher_is_better",
+      isBelowMinimum: false,
+      key: "responsibility",
+      percentage: 70,
+    }],
+    summaryRows: [{
+      interpretationDirection: "lower_is_better",
+      isBelowMinimum: false,
+      key: "responsibility",
+      percentage: 70,
+    }],
+  });
+  assert.equal(conflict.interpretationDirection, "neutral");
+
+  const dimensions = collectAssessmentDimensions({
+    legacy: mergeLegacyPresentationInputs({
+      linkedRows: [
+        { isBelowMinimum: false, key: "responsibility", percentage: 30, sessionId: "v2-session" },
+        { isBelowMinimum: false, key: "communication", percentage: 55, sessionId: "legacy-session" },
+      ],
+      unlinkedRows: [
+        { isBelowMinimum: false, key: "responsibility", percentage: 45 },
+        { isBelowMinimum: false, key: "learning_ability", percentage: 60 },
+      ],
+    }),
+    sessions: [{
+      definition: extractScoringDefinitionMetadata({
+        scales: [{ displayOrder: 1, id: "responsibility", title: "Responsibility v2" }],
+      }),
+      scoringResult: objectiveResult({
+        assessmentDomain: "behavior",
+        criterionScores: [],
+        resultShape: "profile",
+        scaleScores: [score("responsibility", 76)],
+      }),
+      sessionId: "v2-session",
+    }],
+  });
+  assert.ok(dimensions.some((dimension) => dimension.sourceType === "scale" && dimension.key === "responsibility"));
+  assert.ok(dimensions.some((dimension) => dimension.sourceType === "legacy_competency" && dimension.key === "responsibility"));
+  assert.ok(dimensions.some((dimension) => dimension.key === "communication"));
+  assert.ok(dimensions.some((dimension) => dimension.key === "learning_ability"));
+});
+
+test("legacy interpretation direction conflicts resolve to neutral", () => {
+  const [dimension] = collectAssessmentDimensions({
+    legacy: [
+      { interpretationDirection: "higher_is_better", isBelowMinimum: false, key: "responsibility", percentage: 70 },
+      { interpretationDirection: "lower_is_better", isBelowMinimum: false, key: "responsibility", percentage: 60 },
+    ],
+  });
+  assert.equal(dimension.interpretationDirection, "neutral");
+});
+
 test("matching legacy competency and v2 scale keys do not duplicate within a behavior session", () => {
   const dimensions = collectAssessmentDimensions({
     legacy: [
@@ -461,12 +582,89 @@ test("threshold, interpretation, norm, and definition order remain distinct", ()
     }],
   });
   assert.equal(dimension.thresholdStatus, "failed");
+  assert.deepEqual(dimension.threshold, {
+    kind: "test_passing_score",
+    status: "failed",
+    value: 75,
+  });
   assert.equal(dimension.interpretation?.label, "Выше среднего");
   assert.deepEqual(dimension.norm, {
     metric: "percentile",
     populationLabel: "Специалисты продаж",
     value: 81,
   });
+});
+
+test("thresholds are typed and unavailable values are never failed", () => {
+  const [legacy] = collectAssessmentDimensions({
+    legacy: [{
+      isBelowMinimum: false,
+      key: "responsibility",
+      minimumScore: 70,
+      percentage: 72,
+    }],
+  });
+  assert.deepEqual(legacy.threshold, {
+    kind: "competency_minimum",
+    status: "passed",
+    value: 70,
+  });
+
+  const unavailableResult = objectiveResult({
+    criterionScores: [{
+      ...score("criterion_total"),
+      normalized_score: null,
+      raw_score: null,
+      status: "insufficient_data",
+    }],
+    overallScore: null,
+    status: "insufficient_data",
+  });
+  const [unavailable] = collectAssessmentDimensions({
+    sessions: [{
+      definition: extractScoringDefinitionMetadata({
+        overallScore: { sourceId: "criterion_total", sourceType: "criterion" },
+      }),
+      passingScore: 70,
+      scoringResult: unavailableResult,
+    }],
+  });
+  assert.equal(unavailable.valueStatus, "insufficient_data");
+  assert.equal(unavailable.threshold, null);
+  assert.notEqual(unavailable.thresholdStatus, "failed");
+});
+
+test("candidate and employee paths merge all legacy inputs and expose direction and threshold semantics", () => {
+  const employeeDataSource = readFileSync(new URL("../lib/employee-assessments/data.ts", import.meta.url), "utf8");
+  const candidateDataSource = readFileSync(new URL("../lib/reports/data.ts", import.meta.url), "utf8");
+  const sharedUiSource = readFileSync(
+    new URL("../components/reports/assessment-dimensions-report.tsx", import.meta.url),
+    "utf8",
+  );
+
+  for (const source of [employeeDataSource, candidateDataSource]) {
+    assert.match(source, /mergeLegacyPresentationInputs/);
+    assert.doesNotMatch(source, /sessionLegacy\.length\s*>\s*0/);
+    assert.match(source, /interpretation_direction/);
+  }
+  assert.match(sharedUiSource, /Обязательный минимум выполнен/);
+  assert.match(sharedUiSource, /Проходной балл достигнут/);
+  assert.match(sharedUiSource, /Недостаточно данных/);
+  assert.match(sharedUiSource, /dimension\.threshold !== null/);
+});
+
+test("candidate sessions freeze package scoring configuration with a legacy fallback", () => {
+  const migration = readFileSync(
+    new URL("../supabase/migrations/20260901120000_freeze_candidate_assessment_package_sessions.sql", import.meta.url),
+    "utf8",
+  );
+  const scoringSource = readFileSync(new URL("../lib/scoring/service.ts", import.meta.url), "utf8");
+  const reportSource = readFileSync(new URL("../lib/reports/data.ts", import.meta.url), "utf8");
+  assert.match(migration, /package_passing_score/);
+  assert.match(migration, /package_contributes_to_overall/);
+  assert.match(migration, /freeze_test_session_package_configuration/);
+  assert.match(scoringSource, /hasFrozenPackageConfiguration/);
+  assert.match(reportSource, /session\.package_passing_score \?\?/);
 });
 
 test("business code does not infer motivation semantics from a string prefix", () => {
