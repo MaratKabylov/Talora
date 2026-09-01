@@ -61,7 +61,8 @@ export default async function NewAdminPackagePage({ searchParams }: { searchPara
             <CardHeader>
               <CardTitle>Состав пакета</CardTitle>
               <CardDescription>
-                Выберите опубликованные версии системных тестов. Сумма весов должна быть 100%.
+                Выберите опубликованные версии системных тестов. Сумма весов тестов, участвующих в
+                overall, должна быть 100%.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5 pt-6">

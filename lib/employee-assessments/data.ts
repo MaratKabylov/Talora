@@ -1,5 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
+import {
+  collectAssessmentDimensions,
+  extractScoringDefinitionMetadata,
+} from "@/lib/assessment-results/collect-dimensions";
+import { buildAssessmentHighlights } from "@/lib/assessment-results/highlights";
+import { summarizeAssessmentDimensions } from "@/lib/assessment-results/summarize-dimensions";
+import type {
+  AssessmentDimensionGroup,
+  AssessmentDimensionResult,
+  AssessmentHighlight,
+} from "@/lib/assessment-results/types";
 import type { InvitationStatus, Recommendation, RiskLevel } from "@/lib/candidates/constants";
 import type { CompetencyKey } from "@/lib/jobs/constants";
 import {
@@ -158,7 +169,11 @@ type SessionRecord = {
 };
 
 type ReportTestVersionRecord = {
+  assessment_domain: string | null;
   id: string;
+  result_shape: string | null;
+  scoring_config_json: unknown;
+  scoring_schema_version: string | null;
   test_template_id: string;
 };
 
@@ -254,7 +269,14 @@ export type EmployeeAssessmentPageData = {
 };
 
 export type EmployeeComparisonParticipant = Omit<EmployeeAssessmentParticipant, "latestInvitation"> & {
-  competencies: Partial<Record<CompetencyKey, number | null>>;
+  dimensions: Record<
+    string,
+    {
+      domain: AssessmentDimensionResult["assessmentDomain"];
+      group: AssessmentDimensionResult["reportGroup"];
+      value: number | null;
+    }
+  >;
 };
 
 export type EmployeeComparisonData = {
@@ -263,7 +285,23 @@ export type EmployeeComparisonData = {
     status: EmployeeAssessmentStatus;
     title: string;
   };
+  dimensions: Array<{
+    group: AssessmentDimensionResult["reportGroup"];
+    key: string;
+    title: string;
+  }>;
   participants: EmployeeComparisonParticipant[];
+};
+
+type EmployeeComparisonSessionRecord = {
+  id: string;
+  participant_id: string;
+  test_version_id: string;
+};
+
+type EmployeeComparisonResultRecord = {
+  scoring_result_json: unknown;
+  session_id: string;
 };
 
 export type EmployeeAssessmentReportData = {
@@ -272,6 +310,9 @@ export type EmployeeAssessmentReportData = {
     title: string;
   };
   employee: EmployeeAssessmentParticipant["employee"];
+  dimensions: AssessmentDimensionResult[];
+  groups: AssessmentDimensionGroup[];
+  highlights: AssessmentHighlight[];
   integrity: ReportIntegritySummary;
   participant: Omit<EmployeeAssessmentParticipant, "employee" | "latestInvitation">;
   report: {
@@ -302,13 +343,6 @@ export type EmployeeAssessmentReportData = {
     startedAt: string | null;
     status: string;
     testTitle: string;
-  }>;
-  summary: Array<{
-    competencyKey: CompetencyKey;
-    isBelowMinimum: boolean;
-    maxScore: number | null;
-    percentage: number | null;
-    score: number | null;
   }>;
 };
 
@@ -616,23 +650,102 @@ export async function getEmployeeComparisonData(companyId: string, assessmentId:
     return null;
   }
 
-  const participants = ((participantsResult.data ?? []) as unknown as ParticipantRecord[])
+  const rawParticipants = (participantsResult.data ?? []) as unknown as ParticipantRecord[];
+  const participantIds = rawParticipants.map((participant) => participant.id);
+  const sessionsResult =
+    participantIds.length === 0
+      ? { data: [] as EmployeeComparisonSessionRecord[], error: null }
+      : await supabase
+          .from("employee_assessment_sessions")
+          .select("id, participant_id, test_version_id")
+          .in("participant_id", participantIds);
+  if (sessionsResult.error) {
+    throw new Error("Unable to load employee comparison dimensions.");
+  }
+
+  const sessions = (sessionsResult.data ?? []) as EmployeeComparisonSessionRecord[];
+  const sessionIds = sessions.map((session) => session.id);
+  const versionIds = Array.from(new Set(sessions.map((session) => session.test_version_id)));
+  const [resultsResult, versionsResult] = await Promise.all([
+    sessionIds.length === 0
+      ? { data: [] as EmployeeComparisonResultRecord[], error: null }
+      : supabase
+          .from("employee_assessment_test_results")
+          .select("session_id, scoring_result_json")
+          .in("session_id", sessionIds),
+    versionIds.length === 0
+      ? { data: [] as ReportTestVersionRecord[], error: null }
+      : supabase
+          .from("test_versions")
+          .select(
+            "id, test_template_id, scoring_schema_version, assessment_domain, result_shape, scoring_config_json",
+          )
+          .in("id", versionIds),
+  ]);
+  if (resultsResult.error || versionsResult.error) {
+    throw new Error("Unable to load employee comparison dimensions.");
+  }
+
+  const resultBySession = new Map(
+    ((resultsResult.data ?? []) as EmployeeComparisonResultRecord[]).map((result) => [
+      result.session_id,
+      result.scoring_result_json,
+    ]),
+  );
+  const versionById = new Map(
+    ((versionsResult.data ?? []) as ReportTestVersionRecord[]).map((version) => [version.id, version]),
+  );
+  const sessionsByParticipant = new Map<string, EmployeeComparisonSessionRecord[]>();
+  for (const session of sessions) {
+    const participantSessions = sessionsByParticipant.get(session.participant_id) ?? [];
+    participantSessions.push(session);
+    sessionsByParticipant.set(session.participant_id, participantSessions);
+  }
+  const dimensionMetadata = new Map<string, EmployeeComparisonData["dimensions"][number]>();
+
+  const participants = rawParticipants
     .map((record) => {
       const participant = normalizeParticipant(record);
       if (!participant) {
         return null;
       }
 
+      const dimensions = collectAssessmentDimensions({
+        legacy: (record.employee_assessment_competency_summary ?? []).map((summary) => ({
+          isBelowMinimum: false,
+          key: summary.competency_key,
+          minimumScore: null,
+          percentage: summary.percentage,
+        })),
+        sessions: (sessionsByParticipant.get(record.id) ?? []).map((session) => ({
+          definition: extractScoringDefinitionMetadata(
+            versionById.get(session.test_version_id)?.scoring_config_json,
+          ),
+          scoringResult: resultBySession.get(session.id),
+        })),
+      });
+      for (const dimension of dimensions) {
+        dimensionMetadata.set(dimension.key, {
+          group: dimension.reportGroup,
+          key: dimension.key,
+          title: dimension.title,
+        });
+      }
+
       return {
         completedAt: participant.completedAt,
         createdAt: participant.createdAt,
         currentStage: participant.currentStage,
-        competencies: Object.fromEntries(
-          (record.employee_assessment_competency_summary ?? []).map((summary) => [
-            summary.competency_key,
-            summary.percentage,
+        dimensions: Object.fromEntries(
+          dimensions.map((dimension) => [
+            dimension.key,
+            {
+              domain: dimension.assessmentDomain,
+              group: dimension.reportGroup,
+              value: dimension.normalizedScore,
+            },
           ]),
-        ) as Partial<Record<CompetencyKey, number | null>>,
+        ),
         employee: participant.employee,
         fitScore: participant.fitScore,
         id: participant.id,
@@ -651,6 +764,10 @@ export async function getEmployeeComparisonData(companyId: string, assessmentId:
       status: EmployeeAssessmentStatus;
       title: string;
     },
+    dimensions: Array.from(dimensionMetadata.values()).sort(
+      (left, right) =>
+        left.group.localeCompare(right.group) || left.title.localeCompare(right.title, "ru"),
+    ),
     participants,
   } satisfies EmployeeComparisonData;
 }
@@ -803,6 +920,16 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
     throw new Error("Unable to load employee assessment report questions.");
   }
 
+  if (optionsResult.error) {
+    console.error("Employee assessment report answer options query failed", {
+      code: optionsResult.error.code,
+      details: optionsResult.error.details,
+      hint: optionsResult.error.hint,
+      message: optionsResult.error.message,
+    });
+    throw new Error("Unable to load employee assessment report answer options.");
+  }
+
   if ((questionsResult.data ?? []).length !== questionIds.length) {
     console.error("Employee assessment report questions are incomplete", {
       expectedQuestionIds: questionIds,
@@ -818,9 +945,19 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
     ]),
   );
   const optionsByQuestionId = new Map<string, EmployeeAnswerOption[]>();
-  const answerOptions = optionsResult.error
-    ? []
-    : ((optionsResult.data ?? []) as unknown as EmployeeAnswerOption[]);
+  const answerOptions = (optionsResult.data ?? []) as unknown as EmployeeAnswerOption[];
+  const loadedOptionIds = new Set(answerOptions.map((option) => option.id));
+  const missingSelectedOptionIds = rawAnswers.flatMap((answer) =>
+    answer.selected_option_id && !loadedOptionIds.has(answer.selected_option_id)
+      ? [answer.selected_option_id]
+      : [],
+  );
+  if (missingSelectedOptionIds.length > 0) {
+    console.error("Employee assessment report selected answer options are inaccessible", {
+      missingSelectedOptionIds,
+    });
+    throw new Error("Unable to load employee assessment report answer options.");
+  }
   for (const option of answerOptions) {
     const options = optionsByQuestionId.get(option.question_id) ?? [];
     options.push(option);
@@ -856,7 +993,12 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
   const versionsResult =
     versionIds.length === 0
       ? { data: [] as ReportTestVersionRecord[], error: null }
-      : await supabase.from("test_versions").select("id, test_template_id").in("id", versionIds);
+      : await supabase
+          .from("test_versions")
+          .select(
+            "id, test_template_id, scoring_schema_version, assessment_domain, result_shape, scoring_config_json",
+          )
+          .in("id", versionIds);
 
   if (versionsResult.error) {
     console.error("Employee assessment report test versions query failed", {
@@ -909,10 +1051,53 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
   const testTitlesByVersionId = new Map(
     versions.map((version) => [version.id, templateTitlesById.get(version.test_template_id)!]),
   );
+  const weightsResult = await supabase
+    .from("employee_assessment_competency_weights")
+    .select("competency_key, minimum_score")
+    .eq("employee_assessment_id", assessment.id);
+  if (weightsResult.error) {
+    console.error("Employee assessment report thresholds query failed", {
+      code: weightsResult.error.code,
+      details: weightsResult.error.details,
+      hint: weightsResult.error.hint,
+      message: weightsResult.error.message,
+    });
+    throw new Error("Unable to load employee assessment report thresholds.");
+  }
+  const minimumScoreByCompetency = new Map(
+    ((weightsResult.data ?? []) as Array<{ competency_key: CompetencyKey; minimum_score: number | null }>).map(
+      (weight) => [weight.competency_key, weight.minimum_score],
+    ),
+  );
+  const versionById = new Map(versions.map((version) => [version.id, version]));
+  const legacySummary = ((summaryResult.data ?? []) as unknown as ReportSummaryRecord[]).map(
+    (summary) => ({
+      isBelowMinimum: summary.is_below_minimum,
+      key: summary.competency_key,
+      maxScore: summary.max_score,
+      minimumScore: minimumScoreByCompetency.get(summary.competency_key) ?? null,
+      percentage: summary.percentage,
+      score: summary.score,
+    }),
+  );
+  const dimensions = collectAssessmentDimensions({
+    legacy: legacySummary,
+    sessions: sessions.map((session) => ({
+      definition: extractScoringDefinitionMetadata(
+        versionById.get(session.test_version_id)?.scoring_config_json,
+      ),
+      scoringResult: session.employee_assessment_test_results?.[0]?.scoring_result_json,
+    })),
+  });
+  const groups = summarizeAssessmentDimensions(dimensions);
+  const highlights = buildAssessmentHighlights(groups);
 
   return {
     assessment,
+    dimensions,
     employee: participant.employee,
+    groups,
+    highlights,
     integrity: employeeIntegritySummary(integrityEvents, sessions, testTitlesByVersionId),
     participant: {
       completedAt: participant.completedAt,
@@ -981,12 +1166,5 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
         testTitle: testTitlesByVersionId.get(session.test_version_id)!,
       };
     }),
-    summary: ((summaryResult.data ?? []) as unknown as ReportSummaryRecord[]).map((summary) => ({
-      competencyKey: summary.competency_key,
-      isBelowMinimum: summary.is_below_minimum,
-      maxScore: summary.max_score,
-      percentage: summary.percentage,
-      score: summary.score,
-    })),
   } satisfies EmployeeAssessmentReportData;
 }

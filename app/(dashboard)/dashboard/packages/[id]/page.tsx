@@ -86,7 +86,7 @@ export default async function PackagePage({
         <CardHeader>
           <CardTitle>Тесты в пакете</CardTitle>
           <CardDescription>
-            Вес тестов используется для расчета overall score. Сумма весов должна быть 100%.
+            Только отмеченные тесты участвуют в overall score. Сумма их весов должна быть 100%.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">

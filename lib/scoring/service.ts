@@ -44,6 +44,10 @@ import {
   SCORING_SCHEMA_VERSION,
   type ScoringResultV2,
 } from "@/lib/scoring/types";
+import {
+  calculateContributingOverall,
+  packageTestContributesToOverall,
+} from "@/lib/packages/overall-contribution";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Relation<T> = T | T[] | null;
@@ -84,6 +88,7 @@ type EmployeeParticipantScoringRecord = {
 };
 
 type EmployeeSessionScoringRecord = SessionRecord & {
+  package_contributes_to_overall: boolean | null;
   package_is_required: boolean | null;
   package_passing_score: number | null;
   package_weight: number | null;
@@ -386,7 +391,7 @@ export async function scoreCompletedApplication(
       .eq("application_id", applicationId),
     admin
       .from("assessment_package_tests")
-      .select("test_version_id, weight, is_required, passing_score")
+      .select("test_version_id, weight, is_required, passing_score, contributes_to_overall")
       .eq("package_id", job.assessment_package_id),
     admin
       .from("job_competency_weights")
@@ -549,21 +554,25 @@ export async function scoreCompletedApplication(
 
   // Profile and manually reviewed tests are preserved in results without lowering overall score.
   const autoScoredTests = sessionScores.filter(
-    (score) =>
-      !score.requiresReview &&
-      score.scoringType !== "competency_profile" &&
-      score.percentage !== null,
+    (score) => {
+      const version = related(score.session.test_versions);
+      return (
+        !score.requiresReview &&
+        score.percentage !== null &&
+        packageTestContributesToOverall({
+          contributesToOverall: score.packageTest.contributes_to_overall,
+          resultShape: version?.result_shape,
+          scoringType: score.scoringType,
+        })
+      );
+    },
   );
-  const overallWeight = autoScoredTests.reduce((sum, score) => sum + Number(score.packageTest.weight), 0);
-  const overallScore =
-    overallWeight > 0
-      ? round(
-          autoScoredTests.reduce(
-            (sum, score) => sum + (score.percentage ?? 0) * Number(score.packageTest.weight),
-            0,
-          ) / overallWeight,
-        )
-      : null;
+  const overallScore = calculateContributingOverall(
+    autoScoredTests.map((score) => ({
+      percentage: score.percentage,
+      weight: Number(score.packageTest.weight),
+    })),
+  );
 
   // Motivation needs a job-side target profile before it can fairly influence fit.
   const fitScore = calculateFitScore(summaryRows, weights);
@@ -794,11 +803,11 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
   const [sessionsResult, packageTestsResult, weightsResult] = await Promise.all([
     admin
       .from("employee_assessment_sessions")
-      .select("id, status, test_version_id, package_weight, package_is_required, package_passing_score, test_versions(title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)")
+      .select("id, status, test_version_id, package_weight, package_is_required, package_passing_score, package_contributes_to_overall, test_versions(title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)")
       .eq("participant_id", participantId),
     admin
       .from("assessment_package_tests")
-      .select("test_version_id, weight, is_required, passing_score")
+      .select("test_version_id, weight, is_required, passing_score, contributes_to_overall")
       .eq("package_id", assessment.assessment_package_id),
     admin
       .from("employee_assessment_competency_weights")
@@ -816,10 +825,12 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
     allSessions.every(
       (session) =>
         session.package_weight !== null &&
-        session.package_is_required !== null,
+        session.package_is_required !== null &&
+        session.package_contributes_to_overall !== null,
     );
   const packageTests = hasFrozenPackageConfiguration
-    ? allSessions.map((session) => ({
+      ? allSessions.map((session) => ({
+        contributes_to_overall: session.package_contributes_to_overall!,
         is_required: session.package_is_required!,
         passing_score: session.package_passing_score,
         test_version_id: session.test_version_id,
@@ -975,21 +986,25 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
 
 
   const autoScoredTests = sessionScores.filter(
-    (score) =>
-      !score.requiresReview &&
-      score.scoringType !== "competency_profile" &&
-      score.percentage !== null,
+    (score) => {
+      const version = related(score.session.test_versions);
+      return (
+        !score.requiresReview &&
+        score.percentage !== null &&
+        packageTestContributesToOverall({
+          contributesToOverall: score.packageTest.contributes_to_overall,
+          resultShape: version?.result_shape,
+          scoringType: score.scoringType,
+        })
+      );
+    },
   );
-  const overallWeight = autoScoredTests.reduce((sum, score) => sum + Number(score.packageTest.weight), 0);
-  const overallScore =
-    overallWeight > 0
-      ? round(
-          autoScoredTests.reduce(
-            (sum, score) => sum + (score.percentage ?? 0) * Number(score.packageTest.weight),
-            0,
-          ) / overallWeight,
-        )
-      : null;
+  const overallScore = calculateContributingOverall(
+    autoScoredTests.map((score) => ({
+      percentage: score.percentage,
+      weight: Number(score.packageTest.weight),
+    })),
+  );
 
   const fitScore = calculateFitScore(summaryRows, weights) ?? overallScore;
 

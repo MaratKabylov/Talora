@@ -1,4 +1,5 @@
 import type { CompanyRole } from "@/lib/auth/context";
+import { isLegacyMotivationDimension } from "../assessment-results/legacy-registry.ts";
 
 export const JOB_STATUS_VALUES = ["draft", "active", "paused", "closed", "archived"] as const;
 
@@ -55,7 +56,7 @@ export type EmploymentType = (typeof EMPLOYMENT_TYPE_VALUES)[number];
 export type CompetencyKey = (typeof COMPETENCIES)[number]["key"];
 
 export const MOTIVATION_COMPETENCIES = COMPETENCIES.filter((competency) =>
-  competency.key.startsWith("motivation_"),
+  isLegacyMotivationDimension(competency.key),
 );
 
 export const MOTIVATION_9_COMPETENCIES = MOTIVATION_COMPETENCIES.filter(
@@ -67,7 +68,7 @@ const MOTIVATION_9_KEYS = new Set<CompetencyKey>(
 );
 
 export function isMotivationCompetencyKey(key: string) {
-  return key.startsWith("motivation_");
+  return isLegacyMotivationDimension(key);
 }
 
 export function isMotivation9CompetencyKey(key: CompetencyKey) {

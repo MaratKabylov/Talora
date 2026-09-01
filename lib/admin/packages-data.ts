@@ -12,6 +12,7 @@ import { requirePlatformContext } from "./context";
 type Relation<T> = T | T[] | null;
 
 type PackageTestRecord = {
+  contributes_to_overall: boolean;
   id: string;
   is_required: boolean;
   order_index: number;
@@ -46,8 +47,11 @@ type TemplateRecord = {
   id: string;
   is_system: boolean;
   test_versions?: Array<{
+    assessment_domain: string | null;
     duration_minutes: number | null;
     id: string;
+    result_shape: string | null;
+    scoring_type: string;
     status: string;
     title: string;
     version_number: number;
@@ -68,6 +72,7 @@ function normalizePackageTest(record: PackageTestRecord): AssessmentPackageTest 
   }
 
   return {
+    contributesToOverall: record.contributes_to_overall,
     durationMinutes: version.duration_minutes,
     id: record.id,
     isRequired: record.is_required,
@@ -100,7 +105,7 @@ function systemPackageQuery() {
   return createAdminClient()
     .from("assessment_packages")
     .select(
-      "id, company_id, title, description, is_system, created_at, updated_at, assessment_package_tests(id, test_version_id, order_index, weight, is_required, passing_score, test_versions(id, title, version_number, duration_minutes, test_templates(id, title, is_system)))",
+      "id, company_id, title, description, is_system, created_at, updated_at, assessment_package_tests(id, test_version_id, order_index, weight, is_required, passing_score, contributes_to_overall, test_versions(id, title, version_number, duration_minutes, scoring_type, assessment_domain, result_shape, test_templates(id, title, is_system)))",
     )
     .eq("is_system", true)
     .is("company_id", null);
@@ -125,7 +130,7 @@ export async function listAdminPublishedSystemTestVersionOptions(): Promise<
   const { data, error } = await admin
     .from("test_templates")
     .select(
-      "id, title, is_system, test_versions(id, version_number, title, duration_minutes, status)",
+      "id, title, is_system, test_versions(id, version_number, title, duration_minutes, status, scoring_type, assessment_domain, result_shape)",
     )
     .eq("is_system", true)
     .is("company_id", null)
@@ -141,8 +146,11 @@ export async function listAdminPublishedSystemTestVersionOptions(): Promise<
       (template.test_versions ?? [])
         .filter((version) => version.status === "published")
         .map((version) => ({
+          assessmentDomain: version.assessment_domain,
           durationMinutes: version.duration_minutes,
           isSystem: true,
+          resultShape: version.result_shape,
+          scoringType: version.scoring_type,
           templateId: template.id,
           templateTitle: template.title,
           versionId: version.id,

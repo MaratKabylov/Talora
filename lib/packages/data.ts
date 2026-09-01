@@ -4,15 +4,19 @@ import { createClient } from "@/lib/supabase/server";
 type Relation<T> = T | T[] | null;
 
 type PackageTestRecord = {
+  contributes_to_overall: boolean;
   id: string;
   is_required: boolean;
   order_index: number;
   passing_score: number | null;
   test_version_id: string;
   test_versions: Relation<{
+    assessment_domain: string | null;
     duration_minutes: number | null;
     id: string;
     status: string;
+    result_shape: string | null;
+    scoring_type: string;
     test_templates: Relation<{
       id: string;
       is_system: boolean;
@@ -39,9 +43,12 @@ type TemplateRecord = {
   id: string;
   is_system: boolean;
   test_versions?: Array<{
+    assessment_domain: string | null;
     duration_minutes: number | null;
     id: string;
     published_at: string | null;
+    result_shape: string | null;
+    scoring_type: string;
     status: string;
     title: string;
     version_number: number;
@@ -54,6 +61,7 @@ type SystemAccessRecord = {
 };
 
 export type AssessmentPackageTest = {
+  contributesToOverall: boolean;
   durationMinutes: number | null;
   id: string;
   isRequired: boolean;
@@ -77,8 +85,11 @@ export type AssessmentPackage = {
 };
 
 export type PublishedTestVersionOption = {
+  assessmentDomain: string | null;
   durationMinutes: number | null;
   isSystem: boolean;
+  resultShape: string | null;
+  scoringType: string;
   templateId: string;
   templateTitle: string;
   versionId: string;
@@ -99,6 +110,7 @@ function normalizePackageTest(record: PackageTestRecord): AssessmentPackageTest 
   }
 
   return {
+    contributesToOverall: record.contributes_to_overall,
     durationMinutes: version.duration_minutes,
     id: record.id,
     isRequired: record.is_required,
@@ -130,7 +142,7 @@ function normalizePackage(record: PackageRecord): AssessmentPackage {
 }
 
 function packageSelect() {
-  return "id, company_id, title, description, is_system, created_at, updated_at, assessment_package_tests(id, test_version_id, order_index, weight, is_required, passing_score, test_versions(id, title, version_number, duration_minutes, status, test_templates(id, title, is_system)))";
+  return "id, company_id, title, description, is_system, created_at, updated_at, assessment_package_tests(id, test_version_id, order_index, weight, is_required, passing_score, contributes_to_overall, test_versions(id, title, version_number, duration_minutes, status, scoring_type, assessment_domain, result_shape, test_templates(id, title, is_system)))";
 }
 
 async function listGrantedSystemTemplateIds(
@@ -232,7 +244,7 @@ export async function listPublishedTestVersionOptions(companyId: string) {
   const [companyTemplatesResult, systemTemplatesResult] = await Promise.all([
     supabase
       .from("test_templates")
-      .select("id, title, is_system, test_versions(id, version_number, title, duration_minutes, status, published_at)")
+      .select("id, title, is_system, test_versions(id, version_number, title, duration_minutes, status, published_at, scoring_type, assessment_domain, result_shape)")
       .eq("company_id", companyId)
       .eq("is_system", false)
       .eq("status", "active")
@@ -240,7 +252,7 @@ export async function listPublishedTestVersionOptions(companyId: string) {
     systemTemplateIds.length > 0
       ? supabase
           .from("test_templates")
-          .select("id, title, is_system, test_versions(id, version_number, title, duration_minutes, status, published_at)")
+          .select("id, title, is_system, test_versions(id, version_number, title, duration_minutes, status, published_at, scoring_type, assessment_domain, result_shape)")
           .in("id", systemTemplateIds)
           .eq("is_system", true)
           .is("company_id", null)
@@ -261,8 +273,11 @@ export async function listPublishedTestVersionOptions(companyId: string) {
       (template.test_versions ?? [])
         .filter((version) => version.status === "published")
         .map((version) => ({
+          assessmentDomain: version.assessment_domain,
           durationMinutes: version.duration_minutes,
           isSystem: template.is_system,
+          resultShape: version.result_shape,
+          scoringType: version.scoring_type,
           templateId: template.id,
           templateTitle: template.title,
           versionId: version.id,

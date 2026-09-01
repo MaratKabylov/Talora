@@ -77,8 +77,8 @@ export default async function AdminPackagePage({
         <CardHeader>
           <CardTitle>Тесты в пакете</CardTitle>
           <CardDescription>
-            Пакет закрепляет конкретные опубликованные версии. Вес используется при расчете общего
-            результата, сумма весов должна быть 100%.
+            Пакет закрепляет конкретные опубликованные версии. Веса тестов, отмеченных для overall,
+            должны в сумме составлять 100%.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">

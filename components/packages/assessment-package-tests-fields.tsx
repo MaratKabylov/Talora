@@ -1,8 +1,10 @@
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import type {
   AssessmentPackageTest,
   PublishedTestVersionOption,
 } from "@/lib/packages/data";
+import { contributesToOverallByDefault } from "@/lib/packages/overall-contribution";
 
 function formatDuration(value: number | null) {
   return value ? `${value} мин.` : "-";
@@ -31,13 +33,14 @@ export function AssessmentPackageTestsFields({
 
   return (
     <div className="overflow-x-auto rounded-lg border">
-      <table className="min-w-[960px] w-full text-sm">
+      <table className="min-w-[1080px] w-full text-sm">
         <thead className="bg-muted/50 text-left text-muted-foreground">
           <tr>
             <th className="w-24 px-4 py-3 text-center font-medium">Включить</th>
             <th className="px-4 py-3 font-medium">Тест</th>
             <th className="w-28 px-4 py-3 font-medium">Порядок</th>
             <th className="w-32 px-4 py-3 font-medium">Вес, %</th>
+            <th className="w-32 px-4 py-3 text-center font-medium">В overall</th>
             <th className="w-32 px-4 py-3 font-medium">Проходной, %</th>
             <th className="w-32 px-4 py-3 text-center font-medium">Обязателен</th>
           </tr>
@@ -65,6 +68,11 @@ export function AssessmentPackageTestsFields({
                     {version.versionTitle} / v{version.versionNumber} / {formatDuration(version.durationMinutes)}
                     {version.isSystem ? " / системный" : ""}
                   </p>
+                  {version.resultShape ? (
+                    <p className="text-xs text-muted-foreground">
+                      Формат результата: {version.resultShape}
+                    </p>
+                  ) : null}
                 </td>
                 <td className="px-4 py-2">
                   <Input
@@ -89,6 +97,28 @@ export function AssessmentPackageTestsFields({
                     step="0.01"
                     type="number"
                   />
+                </td>
+                <td className="px-4 py-2">
+                  <Select
+                    className="h-9"
+                    defaultValue={
+                      selected
+                        ? String(selected.contributesToOverall)
+                        : version.resultShape === "hybrid"
+                          ? ""
+                          : String(contributesToOverallByDefault(version))
+                    }
+                    disabled={disabled}
+                    name={`overall_${inputSuffix}`}
+                    required
+                    title="Участвует в расчёте общего балла"
+                  >
+                    <option disabled value="">
+                      Выберите
+                    </option>
+                    <option value="true">Участвует</option>
+                    <option value="false">Не участвует</option>
+                  </Select>
                 </td>
                 <td className="px-4 py-2">
                   <Input
@@ -142,6 +172,7 @@ export function AssessmentPackageTestsSummary({
             <th className="px-4 py-3 font-medium">Тест</th>
             <th className="px-4 py-3 font-medium">Порядок</th>
             <th className="px-4 py-3 font-medium">Вес</th>
+            <th className="px-4 py-3 font-medium">Overall</th>
             <th className="px-4 py-3 font-medium">Проходной</th>
             <th className="px-4 py-3 font-medium">Обязателен</th>
           </tr>
@@ -157,6 +188,9 @@ export function AssessmentPackageTestsSummary({
               </td>
               <td className="px-4 py-3">{test.orderIndex}</td>
               <td className="px-4 py-3">{test.weightPercent}%</td>
+              <td className="px-4 py-3">
+                {test.contributesToOverall ? "Участвует" : "Не участвует в общем балле"}
+              </td>
               <td className="px-4 py-3">{test.passingScore === null ? "-" : `${test.passingScore}%`}</td>
               <td className="px-4 py-3">{test.isRequired ? "Да" : "Нет"}</td>
             </tr>

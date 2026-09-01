@@ -13,28 +13,16 @@ import {
   EMPLOYEE_PARTICIPANT_STATUS_VALUES,
 } from "@/lib/employee-assessments/constants";
 import type { EmployeeComparisonParticipant } from "@/lib/employee-assessments/data";
-import { COMPETENCIES, type CompetencyKey } from "@/lib/jobs/constants";
 
 export type EmployeeComparisonFilters = {
   department: string;
+  group: string;
   recommendation: string;
   riskLevel: string;
   roleTitle: string;
   sort: "fit_asc" | "fit_desc";
   status: string;
 };
-
-const DISPLAY_COMPETENCY_KEYS: CompetencyKey[] = [
-  "learning_ability",
-  "attention_to_detail",
-  "logical_reasoning",
-  "work_behavior",
-  "communication",
-];
-
-const COMPETENCY_LABELS = new Map(
-  COMPETENCIES.map((competency) => [competency.key, competency.label]),
-);
 
 function formatDate(value: string | null) {
   return value ? new Intl.DateTimeFormat("ru-RU").format(new Date(value)) : "-";
@@ -59,15 +47,17 @@ export function EmployeeComparisonFilterForm({
   assessmentId,
   departments,
   filters,
+  reportGroups,
   roleTitles,
 }: {
   assessmentId: string;
   departments: string[];
   filters: EmployeeComparisonFilters;
+  reportGroups: Array<{ key: string; title: string }>;
   roleTitles: string[];
 }) {
   return (
-    <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+    <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-8">
       <Select defaultValue={filters.sort} name="sort">
         <option value="fit_desc">Fit score: сначала высокий</option>
         <option value="fit_asc">Fit score: сначала низкий</option>
@@ -77,6 +67,13 @@ export function EmployeeComparisonFilterForm({
         {EMPLOYEE_PARTICIPANT_STATUS_VALUES.map((status) => (
           <option key={status} value={status}>
             {EMPLOYEE_PARTICIPANT_STATUS_LABELS[status]}
+          </option>
+        ))}
+      </Select>
+      <Select defaultValue={filters.group} name="group">
+        {reportGroups.map((group) => (
+          <option key={group.key} value={group.key}>
+            {group.title}
           </option>
         ))}
       </Select>
@@ -128,8 +125,10 @@ export function EmployeeComparisonFilterForm({
 }
 
 export function EmployeeComparisonTable({
+  dimensions,
   participants,
 }: {
+  dimensions: Array<{ key: string; title: string }>;
   participants: EmployeeComparisonParticipant[];
 }) {
   if (participants.length === 0) {
@@ -142,7 +141,7 @@ export function EmployeeComparisonTable({
 
   return (
     <div className="overflow-x-auto rounded-lg border">
-      <table className="min-w-[1320px] w-full text-sm">
+      <table className="min-w-[1100px] w-full text-sm">
         <thead className="bg-muted/50 text-left text-muted-foreground">
           <tr>
             <th className="px-4 py-3 font-medium">Сотрудник</th>
@@ -152,9 +151,9 @@ export function EmployeeComparisonTable({
             <th className="px-4 py-3 font-medium">Статус</th>
             <th className="px-4 py-3 font-medium">Overall</th>
             <th className="px-4 py-3 font-medium">Fit</th>
-            {DISPLAY_COMPETENCY_KEYS.map((key) => (
-              <th className="px-4 py-3 font-medium" key={key}>
-                {COMPETENCY_LABELS.get(key)}
+            {dimensions.map((dimension) => (
+              <th className="px-4 py-3 font-medium" key={dimension.key}>
+                {dimension.title}
               </th>
             ))}
             <th className="px-4 py-3 font-medium">Риск</th>
@@ -179,9 +178,9 @@ export function EmployeeComparisonTable({
               </td>
               <td className="px-4 py-3">{formatScore(participant.overallScore)}</td>
               <td className="px-4 py-3 font-medium">{formatScore(participant.fitScore)}</td>
-              {DISPLAY_COMPETENCY_KEYS.map((key) => (
-                <td className="px-4 py-3" key={key}>
-                  {formatScore(participant.competencies[key])}
+              {dimensions.map((dimension) => (
+                <td className="px-4 py-3" key={dimension.key}>
+                  {formatScore(participant.dimensions[dimension.key]?.value)}
                 </td>
               ))}
               <td className="px-4 py-3">

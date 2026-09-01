@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isLegacyMotivationDimension } from "../assessment-results/legacy-registry.ts";
 
 import { findScoreBand, validateScoreBands } from "./score-bands.ts";
 
@@ -113,7 +114,7 @@ export function defaultInterpretationDirection(input: {
   if (
     input.assessmentDomain === "personality" ||
     input.assessmentDomain === "motivation" ||
-    input.competencyKey?.startsWith("motivation_")
+    (input.competencyKey ? isLegacyMotivationDimension(input.competencyKey) : false)
   ) {
     return "neutral";
   }

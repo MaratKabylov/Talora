@@ -47,6 +47,7 @@ export type LegacySessionRecord = {
 };
 
 export type LegacyPackageTestRecord = {
+  contributes_to_overall?: boolean | null;
   is_required: boolean;
   passing_score: number | null;
   test_version_id: string;

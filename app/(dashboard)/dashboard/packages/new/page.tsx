@@ -56,7 +56,8 @@ export default async function NewPackagePage({
           <CardHeader>
             <CardTitle>Тесты в пакете</CardTitle>
             <CardDescription>
-              Отметьте опубликованные версии тестов. Сумма весов включенных тестов должна быть 100%.
+              Отметьте опубликованные версии тестов. Сумма весов тестов, участвующих в overall,
+              должна быть 100%.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5 pt-6">

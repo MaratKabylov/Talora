@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireCompanyContext } from "@/lib/auth/context";
+import { contributingWeightPercent } from "@/lib/packages/overall-contribution";
 import { createClient } from "@/lib/supabase/server";
 
 import { canManageAssessmentPackages } from "./constants";
@@ -40,6 +41,10 @@ const packageSchema = z.object({
 });
 
 const packageTestSchema = z.object({
+  contributesToOverall: z.preprocess(
+    (value) => (value === "true" ? true : value === "false" ? false : value),
+    z.boolean({ error: "Укажите, участвует ли тест в overall." }),
+  ),
   isRequired: z.boolean(),
   orderIndex: z.preprocess(
     (value) => {
@@ -74,11 +79,11 @@ const packageTestsSchema = z.array(packageTestSchema).superRefine((tests, contex
     return;
   }
 
-  const sum = tests.reduce((total, test) => total + test.weightPercent, 0);
+  const sum = contributingWeightPercent(tests);
   if (Math.abs(sum - 100) > 0.01) {
     context.addIssue({
       code: "custom",
-      message: `Сумма весов тестов должна быть 100%. Сейчас: ${sum.toLocaleString("ru-RU")}%.`,
+      message: `Сумма весов тестов, участвующих в overall, должна быть 100%. Сейчас: ${sum.toLocaleString("ru-RU")}%.`,
     });
   }
 });
@@ -114,6 +119,7 @@ function parsePackageTests(formData: FormData) {
     versionIds
       .filter((versionId) => formData.get(`include_${versionId}`) === "on")
       .map((versionId) => ({
+        contributesToOverall: formString(formData, `overall_${versionId}`),
         isRequired: formData.get(`required_${versionId}`) === "on",
         orderIndex: formString(formData, `order_${versionId}`),
         passingScore: formString(formData, `passing_${versionId}`),
@@ -125,17 +131,18 @@ function parsePackageTests(formData: FormData) {
 
 function toRpcRows(tests: z.infer<typeof packageTestsSchema>) {
   return tests.map((test) => ({
+    contributes_to_overall: test.contributesToOverall,
     is_required: test.isRequired,
     order_index: test.orderIndex,
     passing_score: test.passingScore,
     test_version_id: test.testVersionId,
-    weight: test.weightPercent / 100,
+    weight: test.contributesToOverall ? test.weightPercent / 100 : 0,
   }));
 }
 
 function packageTestErrorMessage(message: string) {
   if (message.includes("sum to 100")) {
-    return "Сумма весов тестов должна быть 100%.";
+    return "Сумма весов тестов, участвующих в overall, должна быть 100%.";
   }
 
   if (message.includes("at least one test")) {

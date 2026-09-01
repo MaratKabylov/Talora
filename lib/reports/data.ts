@@ -1,12 +1,23 @@
 import { createClient } from "@/lib/supabase/server";
 import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
+import {
+  collectAssessmentDimensions,
+  extractScoringDefinitionMetadata,
+} from "@/lib/assessment-results/collect-dimensions";
+import { buildAssessmentHighlights } from "@/lib/assessment-results/highlights";
+import {
+  getLegacyAssessmentDimension,
+  isLegacyMotivationDimension,
+} from "@/lib/assessment-results/legacy-registry";
+import { summarizeAssessmentDimensions } from "@/lib/assessment-results/summarize-dimensions";
+import type {
+  AssessmentDimensionGroup,
+  AssessmentDimensionResult,
+  AssessmentHighlight,
+} from "@/lib/assessment-results/types";
 
 import type { ApplicationStatus } from "@/lib/candidates/constants";
-import {
-  COMPETENCIES,
-  isMotivationCompetencyKey,
-  type CompetencyKey,
-} from "@/lib/jobs/constants";
+import { COMPETENCIES, type CompetencyKey } from "@/lib/jobs/constants";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 import {
   normalizeAssessmentCompositeResult,
@@ -73,7 +84,11 @@ type RiskRecord = {
 };
 
 type VersionRecord = {
+  assessment_domain: string | null;
   id: string;
+  result_shape: string | null;
+  scoring_config_json: unknown;
+  scoring_schema_version: string | null;
   scoring_type: string;
   title: string;
 };
@@ -239,9 +254,12 @@ export type CandidateReportData = {
   compositeResult: AssessmentCompositeResult | null;
   compositeScore: number | null;
   competencies: ReportCompetency[];
+  dimensions: AssessmentDimensionResult[];
   fitScore: number | null;
   id: string;
   integrity: ReportIntegritySummary;
+  groups: AssessmentDimensionGroup[];
+  highlights: AssessmentHighlight[];
   interviewQuestions: string[];
   job: { id: string; title: string };
   motivationFit: number | null;
@@ -373,6 +391,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     resultsResult,
     generatedReportResult,
     integrityEventsResult,
+    weightsResult,
   ] =
     await Promise.all([
       supabase
@@ -387,7 +406,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       supabase
         .from("test_sessions")
         .select(
-          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, test_versions(id, title, scoring_type)",
+          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, test_versions(id, title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)",
         )
         .eq("application_id", applicationId)
         .order("created_at"),
@@ -407,6 +426,10 @@ export async function getCandidateReportData(companyId: string, applicationId: s
         )
         .eq("application_id", applicationId)
         .order("occurred_at"),
+      supabase
+        .from("job_competency_weights")
+        .select("competency_key, minimum_score")
+        .eq("job_id", job.id),
     ]);
 
   if (
@@ -415,7 +438,8 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     sessionsResult.error ||
     resultsResult.error ||
     generatedReportResult.error ||
-    integrityEventsResult.error
+    integrityEventsResult.error ||
+    weightsResult.error
   ) {
     throw new Error("Unable to load candidate report results.");
   }
@@ -477,18 +501,32 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     throw new Error("Unable to load candidate answers.");
   }
 
+  for (const answer of (answersData ?? []) as unknown as AnswerRecord[]) {
+    const question = related(answer.questions);
+    if (
+      answer.selected_option_id &&
+      question &&
+      !(question.answer_options ?? []).some((option) => option.id === answer.selected_option_id)
+    ) {
+      throw new Error("Unable to load candidate report answer options.");
+    }
+  }
+
   const competencies = ((summaryResult.data ?? []) as unknown as SummaryRecord[])
-    .map((summary) => ({
-      isBelowMinimum: summary.is_below_minimum,
-      isMotivation: isMotivationCompetencyKey(summary.competency_key),
-      interpretationDirection:
-        summary.interpretation_direction ??
-        (summary.competency_key.startsWith("motivation_") ? "neutral" : "higher_is_better"),
-      key: summary.competency_key,
-      label: COMPETENCY_LABELS.get(summary.competency_key) ?? summary.competency_key,
-      percentage: summary.percentage,
-      weightedScore: summary.weighted_score,
-    }))
+    .map((summary) => {
+      const legacyDimension = getLegacyAssessmentDimension(summary.competency_key);
+      return {
+        isBelowMinimum: summary.is_below_minimum,
+        isMotivation: isLegacyMotivationDimension(summary.competency_key),
+        interpretationDirection:
+          summary.interpretation_direction ??
+          (legacyDimension?.interpretationDirection === "neutral" ? "neutral" : "higher_is_better"),
+        key: summary.competency_key,
+        label: legacyDimension?.title ?? COMPETENCY_LABELS.get(summary.competency_key) ?? summary.competency_key,
+        percentage: summary.percentage,
+        weightedScore: summary.weighted_score,
+      };
+    })
     .sort((left, right) => (right.percentage ?? -1) - (left.percentage ?? -1));
   const risks = ((risksResult.data ?? []) as RiskRecord[]).map((risk) => ({
     description: risk.description,
@@ -499,6 +537,27 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   const resultsBySession = new Map(
     ((resultsResult.data ?? []) as ResultRecord[]).map((result) => [result.session_id, result]),
   );
+  const minimumScoreByCompetency = new Map(
+    ((weightsResult.data ?? []) as Array<{
+      competency_key: CompetencyKey;
+      minimum_score: number | null;
+    }>).map((weight) => [weight.competency_key, weight.minimum_score]),
+  );
+  const dimensions = collectAssessmentDimensions({
+    legacy: ((summaryResult.data ?? []) as unknown as SummaryRecord[]).map((summary) => ({
+      interpretationDirection: summary.interpretation_direction,
+      isBelowMinimum: summary.is_below_minimum,
+      key: summary.competency_key,
+      minimumScore: minimumScoreByCompetency.get(summary.competency_key) ?? null,
+      percentage: summary.percentage,
+    })),
+    sessions: sessions.map((session) => ({
+      definition: extractScoringDefinitionMetadata(related(session.test_versions)?.scoring_config_json),
+      scoringResult: resultsBySession.get(session.id)?.scoring_result_json,
+    })),
+  });
+  const groups = summarizeAssessmentDimensions(dimensions);
+  const highlights = buildAssessmentHighlights(groups);
   const answersBySession = new Map<string, AnswerRecord[]>();
 
   for (const answer of (answersData ?? []) as unknown as AnswerRecord[]) {
@@ -634,6 +693,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     compositeResult: normalizeAssessmentCompositeResult(application.composite_result_json),
     compositeScore: application.composite_score,
     competencies,
+    dimensions,
     fitScore: application.fit_score,
     id: application.id,
     integrity: {
@@ -653,6 +713,8 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       status: integrityStatus,
       timerExpiredCount,
     },
+    groups,
+    highlights,
     interviewQuestions:
       storedQuestions.length > 0
         ? storedQuestions

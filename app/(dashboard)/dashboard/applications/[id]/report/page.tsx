@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/empty-state";
 import { CancelCandidateAssessmentForm } from "@/components/candidates/cancel-candidate-assessment-form";
 import { FeedbackMessage } from "@/components/feedback-message";
+import { AssessmentDimensionsReport } from "@/components/reports/assessment-dimensions-report";
 import { ScoringResultDetails } from "@/components/scoring-result-details";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,10 +18,8 @@ import {
 } from "@/lib/candidates/constants";
 import {
   getCandidateReportData,
-  type ReportCompetency,
   type ReportIntegrityEventType,
 } from "@/lib/reports/data";
-import { buildMotivation9Profile } from "@/lib/reports/motivation-profile";
 import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
 
 type ReportParams = Promise<{ id: string }>;
@@ -69,111 +68,6 @@ const INTEGRITY_EVENT_LABELS: Record<ReportIntegrityEventType, string> = {
   timer_expired: "Тест завершен по таймеру",
 };
 
-function CompetencyRows({ competencies }: { competencies: ReportCompetency[] }) {
-  if (competencies.length === 0) {
-    return (
-      <EmptyState
-        className="py-6"
-        description="Результаты появятся после завершения тестов и расчета оценки."
-        title="Нет данных по компетенциям"
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {competencies.map((competency) => (
-        <div className="space-y-2" key={competency.key}>
-          <div className="flex flex-wrap justify-between gap-3 text-sm">
-            <span className="font-medium">{competency.label}</span>
-            <span className={competency.isBelowMinimum ? "text-destructive" : "text-muted-foreground"}>
-              {score(competency.percentage)}
-              {competency.weightedScore !== null ? ` / вклад ${competency.weightedScore}` : ""}
-              {competency.isBelowMinimum ? " / ниже минимума" : ""}
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-muted">
-            <div
-              className={competency.isBelowMinimum ? "h-full bg-destructive" : "h-full bg-primary"}
-              style={{ width: `${Math.min(Math.max(competency.percentage ?? 0, 0), 100)}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function MotivationProfile({ competencies }: { competencies: ReportCompetency[] }) {
-  const profile = buildMotivation9Profile(competencies);
-
-  if (!profile) {
-    return (
-      <div className="space-y-5">
-        <CompetencyRows competencies={competencies} />
-        {competencies.length > 0 ? (
-          <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
-            Низкое положение мотиватора не означает недостаток кандидата или отсутствие мотивации.
-            Оно показывает его относительный приоритет по сравнению с другими источниками рабочей
-            мотивации.
-          </p>
-        ) : null}
-      </div>
-    );
-  }
-
-  const rankedKeys = new Set(profile.ranked.map((competency) => competency.key));
-  const additionalCompetencies = competencies.filter(
-    (competency) => !rankedKeys.has(competency.key),
-  );
-
-  return (
-    <div className="space-y-5">
-      <div className="rounded-lg border bg-primary/5 p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Мотивационное ядро
-        </p>
-        <p className="mt-2 text-lg font-semibold">
-          {profile.core.map((competency) => competency.label).join(" + ")}
-        </p>
-      </div>
-
-      {profile.groups.map((group) => (
-        <section className="space-y-2" key={group.key}>
-          <h3 className="text-sm font-semibold">{group.label}</h3>
-          <ol className="space-y-2">
-            {group.competencies.map((competency) => (
-              <li
-                className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm"
-                key={competency.key}
-              >
-                <span>
-                  {competency.rank}. <span className="font-medium">{competency.label}</span>
-                </span>
-                <span className="text-muted-foreground">
-                  Индекс: {competency.percentage.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      ))}
-
-      {additionalCompetencies.length > 0 ? (
-        <section className="space-y-3 border-t pt-5">
-          <h3 className="text-sm font-semibold">Дополнительные legacy-шкалы</h3>
-          <CompetencyRows competencies={additionalCompetencies} />
-        </section>
-      ) : null}
-
-      <p className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
-        Низкое положение мотиватора не означает недостаток кандидата или отсутствие мотивации. Оно
-        показывает его относительный приоритет по сравнению с другими источниками рабочей мотивации.
-      </p>
-    </div>
-  );
-}
-
 export default async function CandidateReportPage({
   params,
   searchParams,
@@ -190,8 +84,6 @@ export default async function CandidateReportPage({
     notFound();
   }
 
-  const assessedCompetencies = report.competencies.filter((competency) => !competency.isMotivation);
-  const motivationProfile = report.competencies.filter((competency) => competency.isMotivation);
   const mayCancel =
     canManageCandidates(context.activeCompany.role) && canCancelCandidateAssessment(report.status);
   const reportPath = `/dashboard/applications/${report.id}/report`;
@@ -417,28 +309,7 @@ export default async function CandidateReportPage({
         </Card>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Компетенции</CardTitle>
-            <CardDescription>Результаты, используемые для оценки соответствия вакансии.</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <CompetencyRows competencies={assessedCompetencies} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Мотивационный профиль</CardTitle>
-            <CardDescription>
-              Профиль показывается как контекст для интервью и не является оценкой правильности.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <MotivationProfile competencies={motivationProfile} />
-          </CardContent>
-        </Card>
-      </div>
+      <AssessmentDimensionsReport groups={report.groups} highlights={report.highlights} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

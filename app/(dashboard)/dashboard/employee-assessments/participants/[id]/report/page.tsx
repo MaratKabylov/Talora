@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { CancelEmployeeAssessmentForm } from "@/components/employee-assessments/cancel-employee-assessment-form";
 import { FeedbackMessage } from "@/components/feedback-message";
+import { AssessmentDimensionsReport } from "@/components/reports/assessment-dimensions-report";
 import { ScoringResultDetails } from "@/components/scoring-result-details";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +18,6 @@ import {
   EMPLOYEE_PARTICIPANT_STATUS_LABELS,
 } from "@/lib/employee-assessments/constants";
 import { getEmployeeAssessmentReportData } from "@/lib/employee-assessments/data";
-import { COMPETENCIES } from "@/lib/jobs/constants";
 import type { ReportIntegrityEventType } from "@/lib/reports/data";
 import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
 
@@ -26,10 +26,6 @@ type EmployeeReportSearchParams = Promise<{
   error?: string;
   message?: string;
 }>;
-
-const COMPETENCY_LABELS = new Map(
-  COMPETENCIES.map((competency) => [competency.key, competency.label]),
-);
 
 const TEST_SESSION_STATUS_LABELS: Record<string, string> = {
   cancelled: "Отменен",
@@ -298,46 +294,7 @@ export default async function EmployeeAssessmentReportPage({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Компетенции</CardTitle>
-          <CardDescription>Сводка по компетенциям в рамках оценки сотрудников.</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="overflow-hidden rounded-lg border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Компетенция</th>
-                  <th className="px-4 py-3 font-medium">Результат</th>
-                  <th className="px-4 py-3 font-medium">Статус</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.summary.length === 0 ? (
-                  <tr>
-                    <td className="px-4 py-6 text-center text-muted-foreground" colSpan={3}>
-                      Сводка по компетенциям пока не рассчитана.
-                    </td>
-                  </tr>
-                ) : (
-                  data.summary.map((summary) => (
-                    <tr className="border-t" key={summary.competencyKey}>
-                      <td className="px-4 py-3 font-medium">
-                        {COMPETENCY_LABELS.get(summary.competencyKey) ?? summary.competencyKey}
-                      </td>
-                      <td className="px-4 py-3">{formatScore(summary.percentage)}</td>
-                      <td className="px-4 py-3">
-                        {summary.isBelowMinimum ? "Ниже обязательного минимума" : "В норме"}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      <AssessmentDimensionsReport groups={data.groups} highlights={data.highlights} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

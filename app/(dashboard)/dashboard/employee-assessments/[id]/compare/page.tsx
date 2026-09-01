@@ -14,6 +14,7 @@ import {
   RISK_LEVEL_VALUES,
 } from "@/lib/candidates/constants";
 import { requireCompanyContext } from "@/lib/auth/context";
+import { ASSESSMENT_REPORT_GROUP_TITLES } from "@/lib/assessment-results/report-groups";
 import {
   EMPLOYEE_ASSESSMENT_STATUS_LABELS,
   EMPLOYEE_PARTICIPANT_STATUS_VALUES,
@@ -28,6 +29,7 @@ type EmployeeCompareSearchParams = Promise<{
   department?: string;
   error?: string;
   message?: string;
+  group?: string;
   recommendation?: string;
   risk?: string;
   role?: string;
@@ -111,8 +113,15 @@ export default async function EmployeeAssessmentComparePage({
 
   const departments = uniqueValues(data.participants.map((participant) => participant.employee.department));
   const roleTitles = uniqueValues(data.participants.map((participant) => participant.employee.roleTitle));
+  const reportGroups = Array.from(new Set(data.dimensions.map((dimension) => dimension.group))).map(
+    (group) => ({ key: group, title: ASSESSMENT_REPORT_GROUP_TITLES[group] }),
+  );
+  const selectedGroup = reportGroups.some((group) => group.key === query.group)
+    ? query.group!
+    : reportGroups[0]?.key ?? "";
   const filters: EmployeeComparisonFilters = {
     department: departments.includes(query.department ?? "") ? query.department ?? "" : "",
+    group: selectedGroup,
     recommendation: validFilter(query.recommendation, RECOMMENDATION_VALUES),
     riskLevel: validFilter(query.risk, RISK_LEVEL_VALUES),
     roleTitle: roleTitles.includes(query.role ?? "") ? query.role ?? "" : "",
@@ -122,6 +131,9 @@ export default async function EmployeeAssessmentComparePage({
   const participants = sortByFitScore(
     filterParticipants(data.participants, filters),
     filters.sort,
+  );
+  const comparisonDimensions = data.dimensions.filter(
+    (dimension) => dimension.group === selectedGroup,
   );
   const completedCount = data.participants.filter((participant) => participant.status === "completed").length;
 
@@ -181,6 +193,7 @@ export default async function EmployeeAssessmentComparePage({
             assessmentId={data.assessment.id}
             departments={departments}
             filters={filters}
+            reportGroups={reportGroups}
             roleTitles={roleTitles}
           />
         </CardContent>
@@ -194,7 +207,7 @@ export default async function EmployeeAssessmentComparePage({
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          <EmployeeComparisonTable participants={participants} />
+          <EmployeeComparisonTable dimensions={comparisonDimensions} participants={participants} />
         </CardContent>
       </Card>
     </div>
