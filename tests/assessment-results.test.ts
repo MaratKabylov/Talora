@@ -12,6 +12,7 @@ import { buildAssessmentHighlights } from "../lib/assessment-results/highlights.
 import { mergeLegacyPresentationInputs } from "../lib/assessment-results/legacy-inputs.ts";
 import { resolveAssessmentReportGroup } from "../lib/assessment-results/report-groups.ts";
 import { summarizeAssessmentDimensions } from "../lib/assessment-results/summarize-dimensions.ts";
+import { resolveCandidateSessionPassingScore } from "../lib/reports/candidate-session-passing-score.ts";
 
 const confidence = {
   confidence_interval: null,
@@ -634,6 +635,72 @@ test("thresholds are typed and unavailable values are never failed", () => {
   assert.notEqual(unavailable.thresholdStatus, "failed");
 });
 
+test("candidate report passing score preserves an explicit null in a frozen snapshot", () => {
+  assert.equal(resolveCandidateSessionPassingScore({
+    currentPackagePassingScore: 70,
+    snapshotPackageId: "package-snapshot",
+    snapshotPassingScore: null,
+  }), null);
+  assert.equal(resolveCandidateSessionPassingScore({
+    currentPackagePassingScore: 70,
+    snapshotPackageId: "package-snapshot",
+    snapshotPassingScore: 60,
+  }), 60);
+  assert.equal(resolveCandidateSessionPassingScore({
+    currentPackagePassingScore: 70,
+    snapshotPackageId: null,
+    snapshotPassingScore: null,
+  }), 70);
+});
+
+test("v2 overall threshold uses overallScore when normalized score is absent", () => {
+  const collectComposite = (overallScore: number | null) => collectAssessmentDimensions({
+    sessions: [{
+      definition: extractScoringDefinitionMetadata({
+        composites: [
+          { id: "overall-composite", title: "Overall", displayOrder: 0 },
+          { id: "supporting-composite", title: "Supporting", displayOrder: 1 },
+        ],
+        overallScore: { sourceId: "overall-composite", sourceType: "composite" },
+      }),
+      passingScore: 75,
+      scoringResult: objectiveResult({
+        compositeScores: [
+          {
+            ...score("overall-composite", 72, 72),
+            normalized_score: null,
+          },
+          score("supporting-composite", 90, 90),
+        ],
+        criterionScores: [],
+        overallScore,
+      }),
+    }],
+  });
+
+  const failed = collectComposite(72);
+  assert.equal(failed[0].valueStatus, "available");
+  assert.equal(failed[0].normalizedScore, 72);
+  assert.deepEqual(failed[0].threshold, {
+    kind: "test_passing_score",
+    status: "failed",
+    value: 75,
+  });
+  assert.equal(failed[1].threshold, null);
+
+  const passed = collectComposite(80);
+  assert.equal(passed[0].normalizedScore, 80);
+  assert.deepEqual(passed[0].threshold, {
+    kind: "test_passing_score",
+    status: "passed",
+    value: 75,
+  });
+
+  const missing = collectComposite(null);
+  assert.equal(missing[0].threshold, null);
+  assert.notEqual(missing[0].thresholdStatus, "failed");
+});
+
 test("candidate and employee paths merge all legacy inputs and expose direction and threshold semantics", () => {
   const employeeDataSource = readFileSync(new URL("../lib/employee-assessments/data.ts", import.meta.url), "utf8");
   const candidateDataSource = readFileSync(new URL("../lib/reports/data.ts", import.meta.url), "utf8");
@@ -659,12 +726,10 @@ test("candidate sessions freeze package scoring configuration with a legacy fall
     "utf8",
   );
   const scoringSource = readFileSync(new URL("../lib/scoring/service.ts", import.meta.url), "utf8");
-  const reportSource = readFileSync(new URL("../lib/reports/data.ts", import.meta.url), "utf8");
   assert.match(migration, /package_passing_score/);
   assert.match(migration, /package_contributes_to_overall/);
   assert.match(migration, /freeze_test_session_package_configuration/);
   assert.match(scoringSource, /hasFrozenPackageConfiguration/);
-  assert.match(reportSource, /session\.package_passing_score \?\?/);
 });
 
 test("business code does not infer motivation semantics from a string prefix", () => {

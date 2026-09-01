@@ -224,10 +224,10 @@ function resultDimensions(
         session.passingScore !== null &&
         session.passingScore !== undefined &&
         valueStatus === "available" &&
-        score.normalized_score !== null
+        result.overallScore !== null
       ? {
           kind: "test_passing_score" as const,
-          status: score.normalized_score >= session.passingScore ? "passed" as const : "failed" as const,
+          status: result.overallScore >= session.passingScore ? "passed" as const : "failed" as const,
           value: session.passingScore,
         }
       : null;
@@ -250,7 +250,9 @@ function resultDimensions(
       interpretationDirection,
       key: score.id,
       norm: normFor(score),
-      normalizedScore: score.normalized_score,
+      normalizedScore: overall && result.overallScore !== null
+        ? result.overallScore
+        : score.normalized_score,
       order,
       reportGroup,
       resultShape: result.resultShape,

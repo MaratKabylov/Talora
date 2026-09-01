@@ -36,6 +36,7 @@ import {
   type ReportScoringDetails,
 } from "@/lib/reports/scoring-details";
 import { countAnswerCorrectness } from "@/lib/reports/answer-counts";
+import { resolveCandidateSessionPassingScore } from "@/lib/reports/candidate-session-passing-score";
 import { resolveReportTestTitle } from "@/lib/reports/test-title";
 
 type Relation<T> = T | T[] | null;
@@ -100,6 +101,7 @@ type SessionRecord = {
   completed_at: string | null;
   deadline_at: string | null;
   id: string;
+  package_id: string | null;
   percentage: number | null;
   package_passing_score: number | null;
   started_at: string | null;
@@ -422,7 +424,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       supabase
         .from("test_sessions")
         .select(
-          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, package_passing_score, test_versions(id, title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)",
+          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, package_id, package_passing_score, test_versions(id, title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)",
         )
         .eq("application_id", applicationId)
         .order("created_at"),
@@ -616,7 +618,11 @@ export async function getCandidateReportData(companyId: string, applicationId: s
       const version = related(session.test_versions);
       return {
         definition: extractScoringDefinitionMetadata(version?.scoring_config_json),
-        passingScore: session.package_passing_score ?? (version ? passingScoreByVersion.get(version.id) ?? null : null),
+        passingScore: resolveCandidateSessionPassingScore({
+          currentPackagePassingScore: version ? passingScoreByVersion.get(version.id) ?? null : null,
+          snapshotPackageId: session.package_id,
+          snapshotPassingScore: session.package_passing_score,
+        }),
         scoringResult: resultsBySession.get(session.id)?.scoring_result_json,
         sessionId: session.id,
         testTitle: version ? templateTitlesByVersionId.get(version.id) ?? version.title : null,
