@@ -37,6 +37,18 @@ function thresholdLabel(dimension: AssessmentDimensionResult) {
   return "Профильная шкала";
 }
 
+function normMetricLabel(metric: NonNullable<AssessmentDimensionResult["norm"]>["metric"]) {
+  if (metric === "percentile") return "Процентиль";
+  if (metric === "sten") return "STEN";
+  return "z";
+}
+
+function formatNorm(dimension: AssessmentDimensionResult) {
+  if (!dimension.norm) return null;
+  const value = dimension.norm.value.toLocaleString("ru-RU", { maximumFractionDigits: 2 });
+  return `${normMetricLabel(dimension.norm.metric)}: ${value}`;
+}
+
 function profileDescription(group: AssessmentReportGroup) {
   if (group === "motivation") {
     return "Высокий результат означает более выраженный мотиватор, а не «хорошую» мотивацию. Низкий результат показывает меньший относительный приоритет и не является недостатком.";
@@ -88,6 +100,10 @@ export function AssessmentDimensionGroups({ groups }: { groups: AssessmentDimens
     <div className="grid gap-6 lg:grid-cols-2">
       {groups.map((group) => {
         const description = profileDescription(group.key);
+        const showStatus = group.dimensions.some(
+          (dimension) => dimension.thresholdStatus !== "not_applicable",
+        );
+        const showNorm = group.dimensions.some((dimension) => dimension.norm !== null);
         return (
           <Card key={group.key}>
             <CardHeader>
@@ -101,23 +117,52 @@ export function AssessmentDimensionGroups({ groups }: { groups: AssessmentDimens
                     <tr>
                       <th className="px-4 py-3 font-medium">{dimensionColumnTitle(group.key)}</th>
                       <th className="px-4 py-3 font-medium">{valueColumnTitle(group.key)}</th>
-                      <th className="px-4 py-3 font-medium">Статус</th>
+                      {showNorm ? <th className="px-4 py-3 font-medium">Норма</th> : null}
+                      {showStatus ? <th className="px-4 py-3 font-medium">Статус</th> : null}
                     </tr>
                   </thead>
                   <tbody>
                     {group.dimensions.map((dimension) => (
-                      <tr className="border-t" key={`${dimension.sourceType}-${dimension.key}`}>
-                        <td className="px-4 py-3 font-medium">{dimension.title}</td>
-                        <td className="px-4 py-3">{formatDimensionValue(dimension)}</td>
-                        <td
-                          className={
-                            dimension.thresholdStatus === "failed"
-                              ? "px-4 py-3 text-destructive"
-                              : "px-4 py-3 text-muted-foreground"
-                          }
-                        >
-                          {thresholdLabel(dimension)}
+                      <tr className="border-t" key={dimension.id}>
+                        <td className="px-4 py-3 font-medium">
+                          <span>{dimension.title}</span>
+                          {dimension.testTitle ? (
+                            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                              {dimension.testTitle}
+                            </span>
+                          ) : null}
                         </td>
+                        <td className="px-4 py-3">
+                          <span>{formatDimensionValue(dimension)}</span>
+                          {dimension.interpretation ? (
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
+                              {dimension.interpretation.label}
+                            </span>
+                          ) : null}
+                        </td>
+                        {showNorm ? (
+                          <td className="px-4 py-3 text-muted-foreground">
+                            <span>{formatNorm(dimension) ?? "—"}</span>
+                            {dimension.norm?.populationLabel ? (
+                              <span className="mt-0.5 block text-xs">
+                                Нормативная группа: {dimension.norm.populationLabel}
+                              </span>
+                            ) : null}
+                          </td>
+                        ) : null}
+                        {showStatus ? (
+                          <td
+                            className={
+                              dimension.thresholdStatus === "failed"
+                                ? "px-4 py-3 text-destructive"
+                                : "px-4 py-3 text-muted-foreground"
+                            }
+                          >
+                            {dimension.thresholdStatus === "not_applicable"
+                              ? "—"
+                              : thresholdLabel(dimension)}
+                          </td>
+                        ) : null}
                       </tr>
                     ))}
                   </tbody>

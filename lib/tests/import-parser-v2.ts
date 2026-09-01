@@ -487,6 +487,12 @@ export function summarizeTalviaTestImportAny(
     : { schema_version: "talvia.test.v1" as const, test: document.test };
   return {
     ...summarizeTalviaTestImport(legacy),
+    assessmentDomain: document.schema_version === "talvia.test.v2"
+      ? document.scoring.assessment_domain
+      : undefined,
+    resultShape: document.schema_version === "talvia.test.v2"
+      ? document.scoring.result_shape
+      : undefined,
     schemaVersion: document.schema_version,
   };
 }

@@ -662,13 +662,13 @@ export function validateScoringDefinitionV2(input: {
   }
 
   if (
-    overall &&
+    definition.resultShape !== "profile" &&
     (definition.assessmentDomain === "personality" ||
       definition.assessmentDomain === "motivation")
   ) {
     warnings.push(issue(
       "OVERALL_MAPPING_INVALID",
-      "A profile assessment has an explicit overall score; confirm its business meaning before publication.",
+      "Motivation and personality assessments should normally be profiles; justify any objective overall score before publication.",
       "overallScore",
     ));
   }

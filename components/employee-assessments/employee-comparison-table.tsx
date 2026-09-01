@@ -128,7 +128,7 @@ export function EmployeeComparisonTable({
   dimensions,
   participants,
 }: {
-  dimensions: Array<{ key: string; title: string }>;
+  dimensions: Array<{ id: string; title: string }>;
   participants: EmployeeComparisonParticipant[];
 }) {
   if (participants.length === 0) {
@@ -152,7 +152,7 @@ export function EmployeeComparisonTable({
             <th className="px-4 py-3 font-medium">Overall</th>
             <th className="px-4 py-3 font-medium">Fit</th>
             {dimensions.map((dimension) => (
-              <th className="px-4 py-3 font-medium" key={dimension.key}>
+              <th className="px-4 py-3 font-medium" key={dimension.id}>
                 {dimension.title}
               </th>
             ))}
@@ -179,8 +179,8 @@ export function EmployeeComparisonTable({
               <td className="px-4 py-3">{formatScore(participant.overallScore)}</td>
               <td className="px-4 py-3 font-medium">{formatScore(participant.fitScore)}</td>
               {dimensions.map((dimension) => (
-                <td className="px-4 py-3" key={dimension.key}>
-                  {formatScore(participant.dimensions[dimension.key]?.value)}
+                <td className="px-4 py-3" key={dimension.id}>
+                  {formatScore(participant.dimensions[dimension.id]?.value)}
                 </td>
               ))}
               <td className="px-4 py-3">

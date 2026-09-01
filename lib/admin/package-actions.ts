@@ -113,14 +113,19 @@ function parsePackageTests(formData: FormData) {
   return packageTestsSchema.safeParse(
     versionIds
       .filter((versionId) => formData.get(`include_${versionId}`) === "on")
-      .map((versionId) => ({
-        contributesToOverall: formString(formData, `overall_${versionId}`),
-        isRequired: formData.get(`required_${versionId}`) === "on",
-        orderIndex: formString(formData, `order_${versionId}`),
-        passingScore: formString(formData, `passing_${versionId}`),
-        testVersionId: versionId,
-        weightPercent: formString(formData, `weight_${versionId}`),
-      })),
+      .map((versionId) => {
+        const contributesToOverall = formString(formData, `overall_${versionId}`);
+        return {
+          contributesToOverall,
+          isRequired: formData.get(`required_${versionId}`) === "on",
+          orderIndex: formString(formData, `order_${versionId}`),
+          passingScore: formString(formData, `passing_${versionId}`),
+          testVersionId: versionId,
+          weightPercent: contributesToOverall === "false"
+            ? "0"
+            : formString(formData, `weight_${versionId}`),
+        };
+      }),
   );
 }
 

@@ -6,7 +6,9 @@ import {
   calculateContributingOverall,
   contributesToOverallByDefault,
   contributingWeightPercent,
+  initialPackageTestOverallChoice,
   packageTestContributesToOverall,
+  packageTestRowState,
 } from "../lib/packages/overall-contribution.ts";
 
 test("profile tests default out of overall while score tests default in", () => {
@@ -62,7 +64,41 @@ test("package UI explicitly labels tests excluded from overall", () => {
     "utf8",
   );
   assert.match(source, /Не участвует в общем балле/);
-  assert.match(source, /version\.resultShape === "hybrid"/);
+  assert.match(source, /required=\{state\.overallRequired\}/);
+});
+
+test("package row state validates only included hybrid tests", () => {
+  assert.equal(initialPackageTestOverallChoice({ resultShape: "score" }), "true");
+  assert.equal(initialPackageTestOverallChoice({ resultShape: "profile" }), "false");
+  assert.equal(initialPackageTestOverallChoice({ resultShape: "hybrid" }), "");
+
+  assert.deepEqual(
+    packageTestRowState({ included: false, overallChoice: "", resultShape: "hybrid" }),
+    {
+      fieldsDisabled: true,
+      overallRequired: false,
+      weightDisabled: true,
+      weightPercent: 0,
+    },
+  );
+  assert.equal(
+    packageTestRowState({ included: true, overallChoice: "", resultShape: "hybrid" })
+      .overallRequired,
+    true,
+  );
+  assert.equal(
+    packageTestRowState({ included: true, overallChoice: "false", resultShape: "hybrid" })
+      .weightDisabled,
+    true,
+  );
+});
+
+test("server actions coerce excluded test weights to zero", () => {
+  for (const path of ["../lib/packages/actions.ts", "../lib/admin/package-actions.ts"]) {
+    const source = readFileSync(new URL(path, import.meta.url), "utf8");
+    assert.match(source, /contributesToOverall === "false"[\s\S]*?\? "0"/);
+    assert.match(source, /test\.contributesToOverall \? test\.weightPercent \/ 100 : 0/);
+  }
 });
 
 test("migration defaults profiles out, normalizes active weights, and freezes employee settings", () => {

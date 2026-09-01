@@ -14,6 +14,11 @@ export type AssessmentReportGroup = (typeof ASSESSMENT_REPORT_GROUPS)[number];
 
 export type AssessmentDimensionResult = {
   assessmentDomain: AssessmentDomain;
+  id: string;
+  interpretation?: {
+    code: string;
+    label: string;
+  } | null;
   interpretationDirection: "higher_better" | "lower_better" | "neutral";
   key: string;
   norm?: {
@@ -22,10 +27,14 @@ export type AssessmentDimensionResult = {
     value: number;
   } | null;
   normalizedScore: number | null;
+  order: number | null;
   reportGroup: AssessmentReportGroup;
   resultShape: ResultShape;
   score: number | null;
+  sessionId: string | null;
   sourceType: "criterion" | "scale" | "forced_choice" | "composite" | "legacy_competency";
+  testTitle: string | null;
+  testVersionId: string | null;
   thresholdStatus: "passed" | "failed" | "not_configured" | "not_applicable";
   title: string;
 };

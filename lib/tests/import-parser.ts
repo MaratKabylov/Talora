@@ -17,6 +17,7 @@ import { SCORING_TYPE_VALUES } from "@/lib/tests/constants";
 import { getAllowedImportScoringTypes } from "@/lib/tests/import-scoring";
 import type { TalviaTestImportSummary } from "@/lib/tests/import-types";
 import { validateRemediationLinks } from "@/lib/tests/remediation";
+import { isLegacyMotivationDimension } from "@/lib/assessment-results/legacy-registry";
 
 export const TALVIA_TEST_IMPORT_MAX_FILE_SIZE = 750 * 1024;
 export const TALVIA_TEST_IMPORT_MAX_SECTIONS = 100;
@@ -983,8 +984,16 @@ export function getTalviaTestImportWarnings(summary: TalviaTestImportSummary) {
       "Forced Choice использует MVP Best-Worst scoring (+1 / -1), а не нормативную IRT-модель.",
     );
   }
-  if (summary.competencyKeys.some((key) => key.startsWith("motivation_"))) {
+  if (summary.competencyKeys.some(isLegacyMotivationDimension)) {
     warnings.push("Мотивационные компетенции сохраняются в профиле, но не влияют на fit score.");
+  }
+  if (
+    (summary.assessmentDomain === "motivation" || summary.assessmentDomain === "personality") &&
+    summary.resultShape !== "profile"
+  ) {
+    warnings.push(
+      "Для мотивационных и личностных методик рекомендуется профильный результат. Objective overall для score/hybrid необходимо отдельно методологически обосновать.",
+    );
   }
   return warnings;
 }

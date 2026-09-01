@@ -8,6 +8,34 @@ export function contributesToOverallByDefault(metadata: OverallContributionMetad
   return metadata.resultShape !== "profile" && metadata.scoringType !== "competency_profile";
 }
 
+export type PackageTestOverallChoice = "true" | "false" | "";
+
+export function initialPackageTestOverallChoice(input: {
+  existing?: boolean | null;
+  resultShape?: string | null;
+  scoringType?: string | null;
+}): PackageTestOverallChoice {
+  if (typeof input.existing === "boolean") return String(input.existing) as "true" | "false";
+  if (input.resultShape === "hybrid") return "";
+  return String(contributesToOverallByDefault(input)) as "true" | "false";
+}
+
+export function packageTestRowState(input: {
+  disabled?: boolean;
+  included: boolean;
+  overallChoice: PackageTestOverallChoice;
+  resultShape?: string | null;
+}) {
+  const active = input.included && !input.disabled;
+  const contributes = input.overallChoice === "true";
+  return {
+    fieldsDisabled: !active,
+    overallRequired: active && input.resultShape === "hybrid",
+    weightDisabled: !active || !contributes,
+    weightPercent: contributes ? null : 0,
+  };
+}
+
 export function packageTestContributesToOverall(metadata: OverallContributionMetadata) {
   return typeof metadata.contributesToOverall === "boolean"
     ? metadata.contributesToOverall

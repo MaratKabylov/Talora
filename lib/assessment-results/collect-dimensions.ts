@@ -2,6 +2,7 @@ import { scoringResultV2Schema } from "../scoring/result.ts";
 import type {
   AssessmentDomain,
   CompositeDefinition,
+  OverallScoreMapping,
   ResultShape,
   ScaleDefinition,
   ScoreValue,
@@ -20,16 +21,24 @@ export type LegacyDimensionInput = {
   minimumScore?: number | null;
   percentage: number | null;
   score?: number | null;
+  sessionId?: string | null;
+  testTitle?: string | null;
+  testVersionId?: string | null;
 };
 
 export type ScoringDefinitionMetadata = {
-  composites?: Pick<CompositeDefinition, "id" | "title">[];
+  composites?: Array<Pick<CompositeDefinition, "id" | "title"> & { displayOrder: number }>;
+  overallScore?: OverallScoreMapping | null;
   scales?: Pick<ScaleDefinition, "displayOrder" | "id" | "title">[];
 };
 
 export type AssessmentDimensionSessionInput = {
   definition?: ScoringDefinitionMetadata | null;
+  passingScore?: number | null;
   scoringResult: unknown;
+  sessionId?: string | null;
+  testTitle?: string | null;
+  testVersionId?: string | null;
 };
 
 function recordValue(value: unknown): value is Record<string, unknown> {
@@ -55,15 +64,25 @@ export function extractScoringDefinitionMetadata(
       })
     : [];
   const composites = Array.isArray(value.composites)
-    ? value.composites.flatMap((item) => {
+    ? value.composites.flatMap((item, displayOrder) => {
         if (!recordValue(item) || typeof item.id !== "string" || typeof item.title !== "string") {
           return [];
         }
-        return [{ id: item.id, title: item.title }];
+        return [{ displayOrder, id: item.id, title: item.title }];
       })
     : [];
+  const overallScore = recordValue(value.overallScore) &&
+      typeof value.overallScore.sourceId === "string" &&
+      (value.overallScore.sourceType === "criterion" || value.overallScore.sourceType === "composite")
+    ? {
+        sourceId: value.overallScore.sourceId,
+        sourceType: value.overallScore.sourceType,
+      } satisfies OverallScoreMapping
+    : null;
 
-  return scales.length > 0 || composites.length > 0 ? { composites, scales } : null;
+  return scales.length > 0 || composites.length > 0 || overallScore
+    ? { composites, overallScore, scales }
+    : null;
 }
 
 const DERIVED_SCORE_TITLES: Record<string, string> = {
@@ -73,6 +92,16 @@ const DERIVED_SCORE_TITLES: Record<string, string> = {
   learning_initial: "Первичное усвоение",
   learning_recovery: "Восстановление после обратной связи",
   sjt_total: "Рабочие ситуации",
+};
+
+const SAFE_DERIVED_CRITERION_IDS = new Set(Object.keys(DERIVED_SCORE_TITLES));
+const DERIVED_SCORE_ORDER: Record<string, number> = {
+  learning_final: 0,
+  learning_initial: 1,
+  learning_recovery: 2,
+  attention_accuracy: 0,
+  sjt_total: 0,
+  criterion_total: 0,
 };
 
 function humanizeKey(key: string) {
@@ -90,12 +119,9 @@ function directionFor(
 ) {
   const isProfileDimension =
     shape === "profile" ||
-    domain === "motivation" ||
-    domain === "personality" ||
-    (domain === "behavior" && (sourceType === "scale" || sourceType === "forced_choice"));
-  return isProfileDimension
-    ? "neutral" as const
-    : "higher_better" as const;
+    ((domain === "motivation" || domain === "personality" || domain === "behavior") &&
+      (sourceType === "scale" || sourceType === "forced_choice"));
+  return isProfileDimension ? "neutral" as const : "higher_better" as const;
 }
 
 function normFor(score: ScoreValue) {
@@ -109,26 +135,71 @@ function normFor(score: ScoreValue) {
     : null;
 }
 
-function definitionTitles(definition: ScoringDefinitionMetadata | null | undefined) {
-  return new Map([
-    ...(definition?.scales ?? []).map((item) => [item.id, item.title] as const),
-    ...(definition?.composites ?? []).map((item) => [item.id, item.title] as const),
-  ]);
+function isOverallScore(
+  result: ScoringResultV2,
+  definition: ScoringDefinitionMetadata | null | undefined,
+  sourceType: AssessmentDimensionResult["sourceType"],
+  key: string,
+) {
+  if (definition?.overallScore) {
+    return definition.overallScore.sourceType === sourceType &&
+      definition.overallScore.sourceId === key;
+  }
+  if (sourceType !== "criterion") return false;
+  if (result.assessmentDomain === "learning") return key === "learning_final";
+  if (result.assessmentDomain === "attention") return key === "attention_accuracy";
+  if (result.assessmentDomain === "sjt") return key === "sjt_total";
+  return key === "criterion_total";
+}
+
+function isReportableCriterion(
+  result: ScoringResultV2,
+  definition: ScoringDefinitionMetadata | null | undefined,
+  key: string,
+) {
+  if (result.assessmentDomain === "learning") {
+    return key === "learning_final" || key === "learning_initial" || key === "learning_recovery";
+  }
+  if (result.assessmentDomain === "attention") return key === "attention_accuracy";
+  if (result.assessmentDomain === "sjt") return key === "sjt_total";
+  if (definition?.overallScore) {
+    return definition.overallScore.sourceType === "criterion" &&
+      definition.overallScore.sourceId === key;
+  }
+  if (definition) return key === "criterion_total";
+  return SAFE_DERIVED_CRITERION_IDS.has(key);
 }
 
 function resultDimensions(
   result: ScoringResultV2,
-  definition: ScoringDefinitionMetadata | null | undefined,
+  session: AssessmentDimensionSessionInput,
 ) {
-  const titles = definitionTitles(definition);
+  const definition = session.definition;
+  const scaleMetadata = new Map((definition?.scales ?? []).map((item) => [item.id, item]));
+  const compositeMetadata = new Map((definition?.composites ?? []).map((item) => [item.id, item]));
+  const testVersionId = session.testVersionId ?? result.definitionVersionId ?? null;
   const sources = [
-    ...result.criterionScores.map((score) => ({ score, sourceType: "criterion" as const })),
-    ...result.scaleScores.map((score) => ({ score, sourceType: "scale" as const })),
-    ...result.forcedChoiceScores.map((score) => ({ score, sourceType: "forced_choice" as const })),
-    ...result.compositeScores.map((score) => ({ score, sourceType: "composite" as const })),
+    ...result.criterionScores
+      .filter((score) => isReportableCriterion(result, definition, score.id))
+      .map((score) => ({ order: DERIVED_SCORE_ORDER[score.id] ?? null, score, sourceType: "criterion" as const })),
+    ...result.scaleScores.map((score) => ({
+      order: scaleMetadata.get(score.id)?.displayOrder ?? null,
+      score,
+      sourceType: "scale" as const,
+    })),
+    ...result.forcedChoiceScores.map((score) => ({
+      order: scaleMetadata.get(score.id)?.displayOrder ?? null,
+      score,
+      sourceType: "forced_choice" as const,
+    })),
+    ...result.compositeScores.map((score) => ({
+      order: compositeMetadata.get(score.id)?.displayOrder ?? null,
+      score,
+      sourceType: "composite" as const,
+    })),
   ];
 
-  return sources.map(({ score, sourceType }): AssessmentDimensionResult => {
+  return sources.map(({ order, score, sourceType }): AssessmentDimensionResult => {
     const reportGroup = resolveAssessmentReportGroup({
       assessmentDomain: result.assessmentDomain,
       resultShape: result.resultShape,
@@ -139,19 +210,39 @@ function resultDimensions(
       result.resultShape,
       sourceType,
     );
+    const overall = isOverallScore(result, definition, sourceType, score.id);
+    const thresholdStatus = interpretationDirection === "neutral"
+      ? "not_applicable" as const
+      : !overall || session.passingScore === null || session.passingScore === undefined
+        ? "not_configured" as const
+        : result.overallScore !== null && result.overallScore >= session.passingScore
+          ? "passed" as const
+          : "failed" as const;
+    const title = scaleMetadata.get(score.id)?.title ??
+      compositeMetadata.get(score.id)?.title ??
+      DERIVED_SCORE_TITLES[score.id] ??
+      humanizeKey(score.id);
+
     return {
       assessmentDomain: result.assessmentDomain,
+      id: `${testVersionId ?? "unknown"}:${sourceType}:${score.id}`,
+      interpretation: overall && result.interpretation
+        ? { code: result.interpretation.code, label: result.interpretation.label }
+        : null,
       interpretationDirection,
       key: score.id,
       norm: normFor(score),
       normalizedScore: score.normalized_score,
+      order,
       reportGroup,
       resultShape: result.resultShape,
       score: score.raw_score,
+      sessionId: session.sessionId ?? null,
       sourceType,
-      thresholdStatus:
-        interpretationDirection === "neutral" ? "not_applicable" : "not_configured",
-      title: titles.get(score.id) ?? DERIVED_SCORE_TITLES[score.id] ?? humanizeKey(score.id),
+      testTitle: session.testTitle ?? null,
+      testVersionId,
+      thresholdStatus,
+      title,
     };
   });
 }
@@ -165,51 +256,71 @@ function legacyDirection(input: LegacyDimensionInput, profile: boolean) {
     : "higher_better" as const;
 }
 
-function legacyDimension(input: LegacyDimensionInput): AssessmentDimensionResult {
-  const registry = getLegacyAssessmentDimension(input.key);
-  const domain = registry?.domain ?? "other";
-  const reportGroup = resolveAssessmentReportGroup({
-    assessmentDomain: domain,
-    legacyKey: input.key,
-    resultShape: registry?.interpretationDirection === "neutral" ? "profile" : "score",
-    sourceType: "legacy_competency",
-  });
-  const profile = isProfileReportGroup(reportGroup);
-  const thresholdStatus = profile
-    ? "not_applicable" as const
-    : input.minimumScore === null || input.minimumScore === undefined
-      ? "not_configured" as const
-      : input.isBelowMinimum
-        ? "failed" as const
-        : "passed" as const;
+function aggregateLegacyDimensions(inputs: readonly LegacyDimensionInput[]) {
+  const grouped = new Map<string, LegacyDimensionInput[]>();
+  for (const input of inputs) {
+    const registry = getLegacyAssessmentDimension(input.key);
+    const reportGroup = registry?.group ?? "other";
+    const id = `legacy:${reportGroup}:${input.key}`;
+    grouped.set(id, [...(grouped.get(id) ?? []), input]);
+  }
 
-  return {
-    assessmentDomain: domain,
-    interpretationDirection: legacyDirection(input, profile),
-    key: input.key,
-    norm: null,
-    normalizedScore: input.percentage,
-    reportGroup,
-    resultShape: profile ? "profile" : "score",
-    score: input.score ?? null,
-    sourceType: "legacy_competency",
-    thresholdStatus,
-    title: registry?.title ?? humanizeKey(input.key),
-  };
-}
+  return Array.from(grouped.entries()).map(([id, rows]): AssessmentDimensionResult => {
+    const first = rows[0];
+    const registry = getLegacyAssessmentDimension(first.key);
+    const domain = registry?.domain ?? "other";
+    const reportGroup = resolveAssessmentReportGroup({
+      assessmentDomain: domain,
+      legacyKey: first.key,
+      resultShape: registry?.interpretationDirection === "neutral" ? "profile" : "score",
+      sourceType: "legacy_competency",
+    });
+    const profile = isProfileReportGroup(reportGroup);
+    const numericRows = rows.filter(
+      (row) => row.score !== null && row.score !== undefined && row.maxScore !== null && row.maxScore !== undefined,
+    );
+    const score = numericRows.length > 0
+      ? numericRows.reduce((total, row) => total + Number(row.score), 0)
+      : null;
+    const maxScore = numericRows.length > 0
+      ? numericRows.reduce((total, row) => total + Number(row.maxScore), 0)
+      : null;
+    const percentage = score !== null && maxScore !== null && maxScore > 0
+      ? Math.round((score / maxScore) * 10_000) / 100
+      : rows.length === 1
+        ? first.percentage
+        : null;
+    const minimumScore = rows.find((row) => row.minimumScore !== null && row.minimumScore !== undefined)?.minimumScore;
+    const thresholdStatus = profile
+      ? "not_applicable" as const
+      : minimumScore === null || minimumScore === undefined
+        ? "not_configured" as const
+        : percentage !== null && percentage >= minimumScore
+          ? "passed" as const
+          : "failed" as const;
+    const sessionIds = new Set(rows.flatMap((row) => row.sessionId ? [row.sessionId] : []));
+    const versionIds = new Set(rows.flatMap((row) => row.testVersionId ? [row.testVersionId] : []));
+    const testTitles = new Set(rows.flatMap((row) => row.testTitle ? [row.testTitle] : []));
 
-function legacyKeyReplacedByV2(key: string, results: readonly ScoringResultV2[]) {
-  const registry = getLegacyAssessmentDimension(key);
-  if (!registry) return false;
-  return results.some((result) => {
-    if (result.assessmentDomain === "learning") return key === "learning_ability";
-    if (result.assessmentDomain === "attention") return key === "attention_to_detail";
-    if (result.assessmentDomain === "motivation") return registry.group === "motivation";
-    if (result.assessmentDomain === "personality") return registry.group === "personality";
-    if (result.assessmentDomain === "behavior" && result.resultShape === "profile") {
-      return key === "work_behavior";
-    }
-    return false;
+    return {
+      assessmentDomain: domain,
+      id,
+      interpretation: null,
+      interpretationDirection: legacyDirection(first, profile),
+      key: first.key,
+      norm: null,
+      normalizedScore: percentage,
+      order: registry?.order ?? null,
+      reportGroup,
+      resultShape: profile ? "profile" : "score",
+      score,
+      sessionId: sessionIds.size === 1 ? Array.from(sessionIds)[0] : null,
+      sourceType: "legacy_competency",
+      testTitle: testTitles.size === 1 ? Array.from(testTitles)[0] : null,
+      testVersionId: versionIds.size === 1 ? Array.from(versionIds)[0] : null,
+      thresholdStatus,
+      title: registry?.title ?? humanizeKey(first.key),
+    };
   });
 }
 
@@ -219,15 +330,17 @@ export function collectAssessmentDimensions(input: {
 }) {
   const parsedSessions = (input.sessions ?? []).flatMap((session) => {
     const parsed = scoringResultV2Schema.safeParse(session.scoringResult);
-    return parsed.success ? [{ definition: session.definition, result: parsed.data as ScoringResultV2 }] : [];
+    return parsed.success ? [{ result: parsed.data as ScoringResultV2, session }] : [];
   });
-  const v2Results = parsedSessions.map((session) => session.result);
-  const v2Dimensions = parsedSessions.flatMap((session) =>
-    resultDimensions(session.result, session.definition),
+  const v2SessionIds = new Set(
+    parsedSessions.flatMap(({ session }) => session.sessionId ? [session.sessionId] : []),
   );
-  const legacyDimensions = (input.legacy ?? [])
-    .filter((dimension) => !legacyKeyReplacedByV2(dimension.key, v2Results))
-    .map(legacyDimension);
+  const v2Dimensions = parsedSessions.flatMap(({ result, session }) => resultDimensions(result, session));
+  const legacyDimensions = aggregateLegacyDimensions(
+    (input.legacy ?? []).filter((dimension) => !dimension.sessionId || !v2SessionIds.has(dimension.sessionId)),
+  );
 
-  return [...v2Dimensions, ...legacyDimensions];
+  return [...v2Dimensions, ...legacyDimensions].filter(
+    (dimension, index, dimensions) => dimensions.findIndex((candidate) => candidate.id === dimension.id) === index,
+  );
 }

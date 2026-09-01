@@ -1,13 +1,143 @@
+"use client";
+
+import { useState } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type {
   AssessmentPackageTest,
   PublishedTestVersionOption,
 } from "@/lib/packages/data";
-import { contributesToOverallByDefault } from "@/lib/packages/overall-contribution";
+import {
+  initialPackageTestOverallChoice,
+  packageTestRowState,
+  type PackageTestOverallChoice,
+} from "@/lib/packages/overall-contribution";
 
 function formatDuration(value: number | null) {
   return value ? `${value} мин.` : "-";
+}
+
+function PackageTestRow({
+  disabled,
+  index,
+  selected,
+  version,
+}: {
+  disabled: boolean;
+  index: number;
+  selected?: AssessmentPackageTest;
+  version: PublishedTestVersionOption;
+}) {
+  const [included, setIncluded] = useState(Boolean(selected));
+  const [overallChoice, setOverallChoice] = useState<PackageTestOverallChoice>(() =>
+    initialPackageTestOverallChoice({
+      existing: selected?.contributesToOverall,
+      resultShape: version.resultShape,
+      scoringType: version.scoringType,
+    }),
+  );
+  const state = packageTestRowState({
+    disabled,
+    included,
+    overallChoice,
+    resultShape: version.resultShape,
+  });
+  const inputSuffix = version.versionId;
+
+  return (
+    <tr className="border-t align-top">
+      <td className="px-4 py-3 text-center">
+        <input name="testVersionId" type="hidden" value={version.versionId} />
+        <input
+          checked={included}
+          className="size-4 rounded border-input accent-primary"
+          disabled={disabled}
+          name={`include_${inputSuffix}`}
+          onChange={(event) => setIncluded(event.target.checked)}
+          type="checkbox"
+        />
+      </td>
+      <td className="px-4 py-3">
+        <p className="font-medium">{version.templateTitle}</p>
+        <p className="text-muted-foreground">
+          {version.versionTitle} / v{version.versionNumber} / {formatDuration(version.durationMinutes)}
+          {version.isSystem ? " / системный" : ""}
+        </p>
+        {version.resultShape ? (
+          <p className="text-xs text-muted-foreground">
+            Формат результата: {version.resultShape}
+          </p>
+        ) : null}
+      </td>
+      <td className="px-4 py-2">
+        <Input
+          className="h-9"
+          defaultValue={selected?.orderIndex ?? index}
+          disabled={state.fieldsDisabled}
+          min="0"
+          name={`order_${inputSuffix}`}
+          step="1"
+          type="number"
+        />
+      </td>
+      <td className="px-4 py-2">
+        <Input
+          className="h-9"
+          defaultValue={selected?.contributesToOverall ? selected.weightPercent : ""}
+          disabled={state.weightDisabled}
+          max="100"
+          min="0"
+          name={`weight_${inputSuffix}`}
+          placeholder="0"
+          step="0.01"
+          type="number"
+        />
+        {included && overallChoice === "false" ? (
+          <p className="mt-1 text-xs text-muted-foreground">Не участвует в общем балле</p>
+        ) : null}
+      </td>
+      <td className="px-4 py-2">
+        <Select
+          className="h-9"
+          disabled={state.fieldsDisabled}
+          name={`overall_${inputSuffix}`}
+          onChange={(event) => setOverallChoice(event.target.value as PackageTestOverallChoice)}
+          required={state.overallRequired}
+          title="Участвует в расчёте общего балла"
+          value={overallChoice}
+        >
+          <option disabled value="">
+            Выберите
+          </option>
+          <option value="true">Участвует</option>
+          <option value="false">Не участвует</option>
+        </Select>
+      </td>
+      <td className="px-4 py-2">
+        <Input
+          className="h-9"
+          defaultValue={selected?.passingScore ?? ""}
+          disabled={state.fieldsDisabled}
+          max="100"
+          min="0"
+          name={`passing_${inputSuffix}`}
+          placeholder="Нет"
+          step="0.01"
+          type="number"
+        />
+      </td>
+      <td className="px-4 py-3 text-center">
+        <input
+          className="size-4 rounded border-input accent-primary"
+          defaultChecked={selected?.isRequired ?? true}
+          disabled={state.fieldsDisabled}
+          name={`required_${inputSuffix}`}
+          type="checkbox"
+        />
+      </td>
+    </tr>
+  );
 }
 
 export function AssessmentPackageTestsFields({
@@ -46,105 +176,15 @@ export function AssessmentPackageTestsFields({
           </tr>
         </thead>
         <tbody>
-          {availableVersions.map((version, index) => {
-            const selected = selectedByVersion.get(version.versionId);
-            const inputSuffix = version.versionId;
-
-            return (
-              <tr className="border-t align-top" key={version.versionId}>
-                <td className="px-4 py-3 text-center">
-                  <input name="testVersionId" type="hidden" value={version.versionId} />
-                  <input
-                    className="size-4 rounded border-input accent-primary"
-                    defaultChecked={Boolean(selected)}
-                    disabled={disabled}
-                    name={`include_${inputSuffix}`}
-                    type="checkbox"
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-medium">{version.templateTitle}</p>
-                  <p className="text-muted-foreground">
-                    {version.versionTitle} / v{version.versionNumber} / {formatDuration(version.durationMinutes)}
-                    {version.isSystem ? " / системный" : ""}
-                  </p>
-                  {version.resultShape ? (
-                    <p className="text-xs text-muted-foreground">
-                      Формат результата: {version.resultShape}
-                    </p>
-                  ) : null}
-                </td>
-                <td className="px-4 py-2">
-                  <Input
-                    className="h-9"
-                    defaultValue={selected?.orderIndex ?? index}
-                    disabled={disabled}
-                    min="0"
-                    name={`order_${inputSuffix}`}
-                    step="1"
-                    type="number"
-                  />
-                </td>
-                <td className="px-4 py-2">
-                  <Input
-                    className="h-9"
-                    defaultValue={selected?.weightPercent ?? ""}
-                    disabled={disabled}
-                    max="100"
-                    min="0"
-                    name={`weight_${inputSuffix}`}
-                    placeholder="0"
-                    step="0.01"
-                    type="number"
-                  />
-                </td>
-                <td className="px-4 py-2">
-                  <Select
-                    className="h-9"
-                    defaultValue={
-                      selected
-                        ? String(selected.contributesToOverall)
-                        : version.resultShape === "hybrid"
-                          ? ""
-                          : String(contributesToOverallByDefault(version))
-                    }
-                    disabled={disabled}
-                    name={`overall_${inputSuffix}`}
-                    required
-                    title="Участвует в расчёте общего балла"
-                  >
-                    <option disabled value="">
-                      Выберите
-                    </option>
-                    <option value="true">Участвует</option>
-                    <option value="false">Не участвует</option>
-                  </Select>
-                </td>
-                <td className="px-4 py-2">
-                  <Input
-                    className="h-9"
-                    defaultValue={selected?.passingScore ?? ""}
-                    disabled={disabled}
-                    max="100"
-                    min="0"
-                    name={`passing_${inputSuffix}`}
-                    placeholder="Нет"
-                    step="0.01"
-                    type="number"
-                  />
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <input
-                    className="size-4 rounded border-input accent-primary"
-                    defaultChecked={selected?.isRequired ?? true}
-                    disabled={disabled}
-                    name={`required_${inputSuffix}`}
-                    type="checkbox"
-                  />
-                </td>
-              </tr>
-            );
-          })}
+          {availableVersions.map((version, index) => (
+            <PackageTestRow
+              disabled={disabled}
+              index={index}
+              key={version.versionId}
+              selected={selectedByVersion.get(version.versionId)}
+              version={version}
+            />
+          ))}
         </tbody>
       </table>
     </div>

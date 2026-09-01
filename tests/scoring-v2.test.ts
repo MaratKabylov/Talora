@@ -102,6 +102,31 @@ test("configured thresholds replace hardcoded result levels", () => {
   assert.match(gap.issues[0]?.message ?? "", /cover every score/);
 });
 
+test("motivation and personality score shapes produce semantic warnings without invalidating imports", () => {
+  const motivation = validateScoringDefinitionV2({
+    criterionScoreIds: ["criterion_total"],
+    definition: definition({
+      assessmentDomain: "motivation",
+      overallScore: { sourceId: "criterion_total", sourceType: "criterion" },
+      resultShape: "score",
+    }),
+  });
+  assert.equal(motivation.ok, true);
+  assert.match(motivation.warnings[0]?.message ?? "", /justify any objective overall/i);
+
+  const personality = validateScoringDefinitionV2({
+    definition: definition({ assessmentDomain: "personality", resultShape: "hybrid" }),
+  });
+  assert.equal(personality.ok, true);
+  assert.equal(personality.warnings.length, 1);
+
+  const profile = validateScoringDefinitionV2({
+    definition: definition({ assessmentDomain: "motivation", resultShape: "profile" }),
+  });
+  assert.equal(profile.ok, true);
+  assert.equal(profile.warnings.length, 0);
+});
+
 test("coverage does not manufacture reliability, SE or confidence intervals", () => {
   const result = createCoverageConfidence(9, 10);
   assert.equal(result.coverage.ratio, 0.9);

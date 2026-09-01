@@ -46,6 +46,7 @@ type CandidateRecord = {
 };
 
 type JobRecord = {
+  assessment_package_id: string | null;
   id: string;
   interpretation_policy_json: unknown;
   title: string;
@@ -118,6 +119,7 @@ type IntegrityEventRecord = {
 };
 
 type ResultRecord = {
+  id: string;
   level: string | null;
   max_score: number | null;
   percentage: number | null;
@@ -126,6 +128,15 @@ type ResultRecord = {
   scoring_result_json: unknown;
   session_id: string;
   summary: string | null;
+  test_version_id: string;
+};
+
+type CompetencyScoreRecord = {
+  competency_key: string;
+  max_score: number | null;
+  percentage: number | null;
+  result_id: string | null;
+  score: number | null;
 };
 
 type OptionRecord = {
@@ -362,7 +373,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   const { data: applicationData, error: applicationError } = await supabase
     .from("candidate_applications")
     .select(
-      "id, status, completed_at, overall_score, fit_score, motivation_fit, behavior_fit, composite_score, composite_result_json, recommendation, risk_level, requires_review, candidates(full_name, email, phone, city), jobs(id, title, interpretation_policy_json)",
+      "id, status, completed_at, overall_score, fit_score, motivation_fit, behavior_fit, composite_score, composite_result_json, recommendation, risk_level, requires_review, candidates(full_name, email, phone, city), jobs(id, title, assessment_package_id, interpretation_policy_json)",
     )
     .eq("company_id", companyId)
     .eq("id", applicationId)
@@ -392,6 +403,8 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     generatedReportResult,
     integrityEventsResult,
     weightsResult,
+    competencyScoresResult,
+    packageTestsResult,
   ] =
     await Promise.all([
       supabase
@@ -412,7 +425,7 @@ export async function getCandidateReportData(companyId: string, applicationId: s
         .order("created_at"),
       supabase
         .from("test_results")
-        .select("session_id, raw_score, max_score, percentage, level, summary, requires_review, scoring_result_json")
+        .select("id, session_id, test_version_id, raw_score, max_score, percentage, level, summary, requires_review, scoring_result_json")
         .eq("application_id", applicationId),
       supabase
         .from("candidate_reports")
@@ -430,6 +443,16 @@ export async function getCandidateReportData(companyId: string, applicationId: s
         .from("job_competency_weights")
         .select("competency_key, minimum_score")
         .eq("job_id", job.id),
+      supabase
+        .from("competency_scores")
+        .select("result_id, competency_key, score, max_score, percentage")
+        .eq("application_id", applicationId),
+      job.assessment_package_id
+        ? supabase
+            .from("assessment_package_tests")
+            .select("test_version_id, passing_score")
+            .eq("package_id", job.assessment_package_id)
+        : { data: [] as Array<{ passing_score: number | null; test_version_id: string }>, error: null },
     ]);
 
   if (
@@ -439,7 +462,9 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     resultsResult.error ||
     generatedReportResult.error ||
     integrityEventsResult.error ||
-    weightsResult.error
+    weightsResult.error ||
+    competencyScoresResult.error ||
+    packageTestsResult.error
   ) {
     throw new Error("Unable to load candidate report results.");
   }
@@ -537,24 +562,60 @@ export async function getCandidateReportData(companyId: string, applicationId: s
   const resultsBySession = new Map(
     ((resultsResult.data ?? []) as ResultRecord[]).map((result) => [result.session_id, result]),
   );
+  const resultsById = new Map(
+    ((resultsResult.data ?? []) as ResultRecord[]).map((result) => [result.id, result]),
+  );
+  const sessionsById = new Map(sessions.map((session) => [session.id, session]));
+  const passingScoreByVersion = new Map(
+    ((packageTestsResult.data ?? []) as Array<{
+      passing_score: number | null;
+      test_version_id: string;
+    }>).map((packageTest) => [packageTest.test_version_id, packageTest.passing_score]),
+  );
   const minimumScoreByCompetency = new Map(
     ((weightsResult.data ?? []) as Array<{
       competency_key: CompetencyKey;
       minimum_score: number | null;
     }>).map((weight) => [weight.competency_key, weight.minimum_score]),
   );
+  const sessionLegacy = ((competencyScoresResult.data ?? []) as CompetencyScoreRecord[]).flatMap((score) => {
+    const result = score.result_id ? resultsById.get(score.result_id) : null;
+    const session = result ? sessionsById.get(result.session_id) : null;
+    const version = session ? related(session.test_versions) : null;
+    return result && session
+      ? [{
+          isBelowMinimum: false,
+          key: score.competency_key,
+          maxScore: score.max_score,
+          minimumScore: minimumScoreByCompetency.get(score.competency_key as CompetencyKey) ?? null,
+          percentage: score.percentage,
+          score: score.score,
+          sessionId: result.session_id,
+          testTitle: templateTitlesByVersionId.get(result.test_version_id) ?? version?.title ?? null,
+          testVersionId: result.test_version_id,
+        }]
+      : [];
+  });
+  const summaryLegacy = ((summaryResult.data ?? []) as unknown as SummaryRecord[]).map((summary) => ({
+    interpretationDirection: summary.interpretation_direction,
+    isBelowMinimum: summary.is_below_minimum,
+    key: summary.competency_key,
+    minimumScore: minimumScoreByCompetency.get(summary.competency_key) ?? null,
+    percentage: summary.percentage,
+  }));
   const dimensions = collectAssessmentDimensions({
-    legacy: ((summaryResult.data ?? []) as unknown as SummaryRecord[]).map((summary) => ({
-      interpretationDirection: summary.interpretation_direction,
-      isBelowMinimum: summary.is_below_minimum,
-      key: summary.competency_key,
-      minimumScore: minimumScoreByCompetency.get(summary.competency_key) ?? null,
-      percentage: summary.percentage,
-    })),
-    sessions: sessions.map((session) => ({
-      definition: extractScoringDefinitionMetadata(related(session.test_versions)?.scoring_config_json),
-      scoringResult: resultsBySession.get(session.id)?.scoring_result_json,
-    })),
+    legacy: sessionLegacy.length > 0 ? sessionLegacy : summaryLegacy,
+    sessions: sessions.map((session) => {
+      const version = related(session.test_versions);
+      return {
+        definition: extractScoringDefinitionMetadata(version?.scoring_config_json),
+        passingScore: version ? passingScoreByVersion.get(version.id) ?? null : null,
+        scoringResult: resultsBySession.get(session.id)?.scoring_result_json,
+        sessionId: session.id,
+        testTitle: version ? templateTitlesByVersionId.get(version.id) ?? version.title : null,
+        testVersionId: version?.id ?? null,
+      };
+    }),
   });
   const groups = summarizeAssessmentDimensions(dimensions);
   const highlights = buildAssessmentHighlights(groups);

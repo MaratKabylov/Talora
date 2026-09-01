@@ -1,4 +1,5 @@
 export type TalviaTestImportSummary = {
+  assessmentDomain?: string;
   competencyKeys: string[];
   durationMinutes: number;
   forcedChoiceCount: number;
@@ -8,6 +9,7 @@ export type TalviaTestImportSummary = {
   optionCount: number;
   remediationQuestionCount: number;
   requiredQuestionCount: number;
+  resultShape?: string;
   scaleCount: number;
   schemaVersion?: "talvia.test.v1" | "talvia.test.v2";
   scoringType: "points" | "competency_profile" | "manual" | "mixed";
