@@ -3,7 +3,8 @@ import Link from "next/link";
 import { EmployeeAssessmentFields } from "@/components/employee-assessments/employee-assessment-fields";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { CompetencyWeightsFields } from "@/components/jobs/competency-weights-fields";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireCompanyContext } from "@/lib/auth/context";
 import { createEmployeeAssessmentAction } from "@/lib/employee-assessments/actions";
@@ -47,7 +48,7 @@ export default async function NewEmployeeAssessmentPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          <form action={createEmployeeAssessmentAction} className="space-y-8">
+          <form action={createEmployeeAssessmentAction} className="space-y-8" noValidate>
             <EmployeeAssessmentFields disabled={!mayManage} packages={packages} />
             <div className="space-y-3">
               <div>
@@ -58,7 +59,11 @@ export default async function NewEmployeeAssessmentPage({
               </div>
               <CompetencyWeightsFields disabled={!mayManage} />
             </div>
-            {mayManage ? <Button type="submit">Создать оценку</Button> : null}
+            {mayManage ? (
+              <PendingSubmitButton pendingText="Создаем оценку..." type="submit">
+                Создать оценку
+              </PendingSubmitButton>
+            ) : null}
           </form>
         </CardContent>
       </Card>
