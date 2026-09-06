@@ -6,6 +6,7 @@ import { TestTakingGuard } from "@/components/assessment/test-taking-guard";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { getAssessmentByToken, getAssessmentQuestionPageData } from "@/lib/assessment/data";
+import { getAssessmentSectionSnapshot } from "@/lib/assessment/section-data";
 
 type TestParams = Promise<{ sessionId: string; token: string }>;
 type TestSearchParams = Promise<{ error?: string; review?: string; section?: string }>;
@@ -33,53 +34,27 @@ export default async function CandidateTestPage({
     redirect(`/assessment/${token}`);
   }
 
-  const data = await getAssessmentQuestionPageData(token, sessionId, overview);
-  if (!data) {
+  const session = overview.sessions.find(entry => entry.id === sessionId);
+  if (!session) {
     return <AssessmentUnavailable state="invalid" />;
   }
 
-  if (data.session.status === "completed") {
-    const nextSession = data.assessment.sessions.find((session) => session.status === "in_progress");
+  if (session.status === "completed") {
+    const nextSession = overview.sessions.find((session) => session.status === "in_progress");
     redirect(nextSession ? `/assessment/${token}/test/${nextSession.id}` : `/assessment/${token}/complete`);
   }
 
-  if (data.session.status !== "in_progress") {
+  if (session.status !== "in_progress") {
     redirect(`/assessment/${token}/profile`);
   }
 
-  const requestedIndex = Number(feedback.section ?? "0");
-  const clampedRequestedIndex = Number.isInteger(requestedIndex)
-    ? Math.min(Math.max(requestedIndex, 0), Math.max(data.sections.length - 1, 0))
-    : 0;
-  const presentationSettings = data.session.test.presentationSettings;
-  const visibleQuestionsBySection = data.sections.map((section) =>
-    section.questions.filter(
-      (question) =>
-        !question.remediationParentId ||
-        data.answers[question.remediationParentId]?.isCorrect === false,
-    ),
-  );
-  const firstIncompleteSectionIndex = visibleQuestionsBySection.findIndex((questions) =>
-    questions.some((question) => !data.answers[question.id]),
-  );
-  const reviewMode =
-    presentationSettings.presentationMode === "one_question" &&
-    presentationSettings.allowBack &&
-    feedback.review === "1";
-  const sectionIndex =
-    presentationSettings.presentationMode === "one_question" &&
-    !reviewMode &&
-    firstIncompleteSectionIndex >= 0
-      ? firstIncompleteSectionIndex
-      : clampedRequestedIndex;
-  const section = data.sections[sectionIndex];
-  const questionOffset = visibleQuestionsBySection
-    .slice(0, sectionIndex)
-    .reduce((sum, questions) => sum + questions.length, 0);
-  const otherVisibleQuestionCount = visibleQuestionsBySection.reduce(
-    (sum, questions, index) => sum + (index === sectionIndex ? 0 : questions.length),
-    0,
-  );
+  const presentationSettings = session.test.presentationSettings;
+  const snapshot = await getAssessmentSectionSnapshot({ assessmentType: "candidate", token, sessionId,
+    requestedIndex: feedback.section, review: feedback.review, presentationSettings },
+    () => getAssessmentQuestionPageData(token, sessionId, overview));
+  if (!snapshot) return <AssessmentUnavailable state="invalid" />;
+  const data = { ...snapshot, assessment: overview, session };
+  const { section, sectionIndex, questionOffset, otherVisibleQuestionCount, reviewMode } = snapshot;
   const completedSessions = data.assessment.sessions.filter((session) => session.status === "completed").length;
   const progress = section ? ((sectionIndex + 1) / data.sections.length) * 100 : 0;
 
@@ -126,6 +101,7 @@ export default async function CandidateTestPage({
         ) : null}
 
         <AssessmentTestSession
+          key={`${sessionId}:${sectionIndex}:${reviewMode}`}
           answers={data.answers}
           initialDeadlineAt={data.session.deadlineAt}
           otherVisibleQuestionCount={otherVisibleQuestionCount}

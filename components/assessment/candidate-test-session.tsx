@@ -25,18 +25,10 @@ import {
   completeEmptyEmployeeAssessmentSessionAction,
   saveEmployeeAssessmentSectionAction,
 } from "@/lib/employee-assessments/public-actions";
-import type { FlowQuestion, FlowSection } from "@/lib/assessment/data";
+import type { PublicFlowQuestion as FlowQuestion, PublicFlowSection as FlowSection, SectionSavedAnswer as SavedAnswer } from "@/lib/assessment/section-contract";
 import { reportClientOperation } from "@/lib/observability/client-performance";
 import type { ClientPerformanceOperation } from "@/lib/observability/performance-core";
 import type { TestPresentationSettings } from "@/lib/tests/presentation-settings";
-
-type SavedAnswer = {
-  answerJson: Record<string, unknown>;
-  answerText: string | null;
-  isCorrect: boolean | null;
-  selectedOptionId: string | null;
-  timeSpentSeconds: number | null;
-};
 
 type ControlResponse =
   | {
@@ -253,6 +245,7 @@ function savedAnswerFromDraft(
   isCorrect: boolean | null,
   timeSpentSeconds: number | null,
 ): SavedAnswer {
+  const remediationRequired = Boolean(question.remediationQuestionId && isCorrect === false);
   if (question.questionType === "forced_choice") {
     const hasAnswer = Boolean(
       answer.mostOptionId &&
@@ -264,7 +257,7 @@ function savedAnswerFromDraft(
         ? { leastOptionId: answer.leastOptionId, mostOptionId: answer.mostOptionId }
         : { skipped: true },
       answerText: null,
-      isCorrect: null,
+      remediationRequired: false,
       selectedOptionId: null,
       timeSpentSeconds,
     };
@@ -273,7 +266,7 @@ function savedAnswerFromDraft(
     return {
       answerJson: answer.selectedOptionId ? {} : { skipped: true },
       answerText: null,
-      isCorrect,
+      remediationRequired,
       selectedOptionId: answer.selectedOptionId ?? null,
       timeSpentSeconds,
     };
@@ -284,7 +277,7 @@ function savedAnswerFromDraft(
         ? { selectedOptionIds: answer.selectedOptionIds }
         : { skipped: true },
       answerText: null,
-      isCorrect,
+      remediationRequired,
       selectedOptionId: null,
       timeSpentSeconds,
     };
@@ -299,7 +292,7 @@ function savedAnswerFromDraft(
         answer.scaleValue === null || answer.scaleValue === undefined
           ? null
           : String(answer.scaleValue),
-      isCorrect,
+      remediationRequired,
       selectedOptionId: null,
       timeSpentSeconds,
     };
@@ -310,7 +303,7 @@ function savedAnswerFromDraft(
         ? { orderedOptionIds: answer.orderedOptionIds }
         : { skipped: true },
       answerText: null,
-      isCorrect,
+      remediationRequired,
       selectedOptionId: null,
       timeSpentSeconds,
     };
@@ -319,7 +312,7 @@ function savedAnswerFromDraft(
     return {
       answerJson: answer.matches?.length ? { matches: answer.matches } : { skipped: true },
       answerText: null,
-      isCorrect,
+      remediationRequired,
       selectedOptionId: null,
       timeSpentSeconds,
     };
@@ -327,7 +320,7 @@ function savedAnswerFromDraft(
   return {
     answerJson: answer.answerText?.trim() ? {} : { skipped: true },
     answerText: answer.answerText?.trim() || null,
-    isCorrect,
+    remediationRequired,
     selectedOptionId: null,
     timeSpentSeconds,
   };
@@ -394,7 +387,7 @@ export function AssessmentTestSession({
       (section?.questions ?? []).filter(
         (question) =>
           !question.remediationParentId ||
-          sessionAnswers[question.remediationParentId]?.isCorrect === false,
+          sessionAnswers[question.remediationParentId]?.remediationRequired === true,
       ),
     [section, sessionAnswers],
   );
@@ -1053,7 +1046,7 @@ export function AssessmentTestSession({
       const nextVisibleQuestions = (section?.questions ?? []).filter(
         (entry) =>
           !entry.remediationParentId ||
-          nextAnswers[entry.remediationParentId]?.isCorrect === false,
+          nextAnswers[entry.remediationParentId]?.remediationRequired === true,
       );
       const savedQuestionIndex = nextVisibleQuestions.findIndex(
         (entry) => entry.id === question.id,
@@ -1501,7 +1494,7 @@ export function AssessmentTestSession({
                             : question
                         }
                       />
-                      {sessionAnswers[question.id]?.isCorrect === false && question.incorrectFeedback ? (
+                      {sessionAnswers[question.id]?.remediationRequired && question.incorrectFeedback ? (
                         <div
                           className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950"
                           role="status"

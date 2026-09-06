@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { FlowQuestion } from "@/lib/assessment/data";
+import type { PublicFlowQuestion as FlowQuestion } from "@/lib/assessment/section-contract";
 
 type SavedAnswer = {
   answerJson: Record<string, unknown>;

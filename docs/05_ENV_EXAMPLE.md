@@ -15,6 +15,10 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 # Covers claim/heartbeat/events/autosave/finalize/expiration checks.
 SESSION_CONTROL_V2=false
 
+# Server only. Apply 20260906140000_assessment_section_read_v2.sql, then verify staging.
+# Independent of SESSION_CONTROL_V2; limits test-page content to the active section.
+ASSESSMENT_SECTION_READ_V2=false
+
 # Optional email provider for later
 RESEND_API_KEY=
 EMAIL_FROM=
