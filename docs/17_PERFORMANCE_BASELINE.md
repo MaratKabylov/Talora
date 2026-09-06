@@ -141,3 +141,33 @@ explain (analyze, buffers, settings)
 `PERF-001` считается полностью принятым после заполнения таблицы фактическими значениями,
 приложения top-10 SQL и подтверждения регионов. До этого кодовая часть задачи готова, а
 операционная часть остается открытой.
+
+## 9. PERF-002: область обновления Auth session — 06.09.2026
+
+Auth refresh выполняется только для `/dashboard`, `/admin`, `/login`, `/onboarding`,
+`/invite/company`, `/auth` и вложенных путей. Проверяется граница сегмента: например,
+`/administrator` не считается частью `/admin`. Существующий matcher сохраняется для
+передачи correlation ID на публичных маршрутах; статические JS/image assets исключены.
+
+Для `/employee-assessment/*`, `/api/assessment/session-control`, главной страницы
+и публичных шаблонов импорта удален вызов `getClaims()` из proxy.
+`/assessment/*` и telemetry API по-прежнему пропускают Auth refresh. Token validation, lease, deadlines,
+проверки доступа в server actions/readers и RLS продолжают выполняться в своих обработчиках.
+
+Регрессионные тесты `tests/proxy-auth.test.ts` проверяют GET и POST на публичных и
+авторизованных маршрутах, отсутствие Auth client и `getClaims()` на публичных запросах
+с просроченными HR cookies, передачу обновленных cookies вверх по запросу и в ответ,
+удаление устаревшего cookie chunk, сохранение correlation ID и cache headers.
+Используются реальные NextRequest/NextResponse и код proxy, Supabase transport имитируется.
+
+Подтвержденный результат: **0 вызовов `getClaims()` из proxy на один autosave/heartbeat**
+(ранее — 1). Это число вызовов SDK, а не SQL/сетевых запросов: при отсутствии Auth cookie
+прежний `getClaims()` мог завершаться локально. Влияние на p50/p95 остается предметом
+staging-прогона из раздела 3.
+
+При добавлении нового маршрута с HR/platform Auth требуется включить его корень в
+`AUTH_SESSION_ROUTE_ROOTS` и дополнить тесты. Откат изменения — восстановление предыдущего
+условия в `proxy.ts`; миграции БД и новые переменные окружения не требуются.
+
+Основание для сохранения обновления cookies на Auth-маршрутах:
+[Supabase SSR](https://supabase.com/docs/guides/auth/server-side/creating-a-client).

@@ -140,6 +140,11 @@ top-10 SQL и подтверждение регионов ожидают staging
 
 #### PERF-002 — Ограничение области действия Next.js proxy
 
+**Статус на 06.09.2026:** реализован список маршрутов обновления Auth session в
+`lib/supabase/proxy-routes.ts`. Публичные assessment/API запросы сохраняют correlation ID,
+но не создают Supabase Auth client. Регрессионные тесты выполняют реальный proxy и
+cookie adapter с имитацией Auth transport, включая обновление просроченной сессии.
+
 **Задача**
 
 Не выполнять обновление Supabase Auth session для публичных token-маршрутов и API
