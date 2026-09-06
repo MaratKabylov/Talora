@@ -11,8 +11,8 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# Server only. Apply the session lease V2 migration and verify staging before enabling.
-# Currently covers claim/heartbeat/integrity events, not answer saving.
+# Server only. Apply both session lease and answer V2 migrations, then verify staging.
+# Covers claim/heartbeat/events/autosave/finalize/expiration checks.
 SESSION_CONTROL_V2=false
 
 # Optional email provider for later

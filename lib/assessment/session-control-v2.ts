@@ -34,7 +34,7 @@ function throwAnswerValidationError(error: { code?: string; message?: string; de
       same: "Один вариант нельзя одновременно выбрать как MOST и LEAST.",
       foreign: "Выбранный вариант не относится к текущему вопросу.",
     };
-    const message = messages[error.message ?? ""];
+    const message = Object.hasOwn(messages, error.message ?? "") ? messages[error.message!] : null;
     if (message) throw new ForcedChoiceAnswerValidationError(message);
   }
   if (error.code === "TVM01") {
