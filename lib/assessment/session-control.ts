@@ -24,6 +24,7 @@ import {
 } from "@/lib/employee-assessments/public-data";
 
 import { completeCandidateSessionAndGetPath } from "./completion";
+import { controlSessionLeaseV2, isSessionControlV2Enabled } from "./session-control-v2";
 import {
   getAssessmentByToken,
   getAssessmentQuestionPageData,
@@ -99,7 +100,7 @@ type CandidateSessionAccess = {
   session: SessionRecord;
 };
 
-type ClientIdentity = {
+export type ClientIdentity = {
   assessmentType?: AssessmentType;
   clientId: string;
   deviceId: string;
@@ -387,6 +388,11 @@ async function touchOwnedLease(
 export async function claimCandidateSession(
   identity: ClientIdentity & { clientEventId: string },
 ): Promise<CandidateSessionControlResponse> {
+  if (isSessionControlV2Enabled()) {
+    return controlCandidateSessionLeaseV2(identity, "claim", {
+      clientEventId: identity.clientEventId,
+    });
+  }
   const access = await loadCandidateSessionAccess(identity);
   if (!access) {
     return { redirectTo: assessmentRoot(identity), status: "redirect" };
@@ -475,6 +481,9 @@ export async function claimCandidateSession(
 export async function heartbeatCandidateSession(
   identity: ClientIdentity,
 ): Promise<CandidateSessionControlResponse> {
+  if (isSessionControlV2Enabled()) {
+    return controlCandidateSessionLeaseV2(identity, "heartbeat");
+  }
   const access = await loadCandidateSessionAccess(identity);
   if (!access) {
     return { redirectTo: assessmentRoot(identity), status: "redirect" };
@@ -487,6 +496,15 @@ export async function heartbeatCandidateSession(
 export async function recordCandidateSessionEvent(
   input: IntegrityEventInput,
 ): Promise<CandidateSessionControlResponse> {
+  if (isSessionControlV2Enabled()) {
+    return controlCandidateSessionLeaseV2(input, "event", {
+      clientEventId: input.clientEventId,
+      clientOccurredAt: input.clientOccurredAt ?? null,
+      eventType: input.eventType,
+      metadata: input.metadata ?? {},
+      questionId: input.questionId ?? null,
+    });
+  }
   const access = await loadCandidateSessionAccess(input);
   if (!access) {
     return { redirectTo: assessmentRoot(input), status: "redirect" };
@@ -512,6 +530,36 @@ export async function recordCandidateSessionEvent(
   });
 
   return { deadlineAt: access.session.deadline_at, status: "active" };
+}
+
+// Only terminal paths need the existing assessment loader/completion pipeline.
+// Active V2 claim, heartbeat and event operations use exactly one RPC and no reads.
+async function controlCandidateSessionLeaseV2(
+  identity: ClientIdentity,
+  operation: "claim" | "heartbeat" | "event",
+  payload: Record<string, unknown> = {},
+): Promise<CandidateSessionControlResponse> {
+  if (!identitySchema.safeParse(identity).success) {
+    return { redirectTo: assessmentRoot(identity), status: "redirect" };
+  }
+  const response = await controlSessionLeaseV2(identity, operation, payload);
+  if (response.status === "active" || response.status === "blocked") return response;
+  if (response.status === "unavailable") {
+    return { redirectTo: assessmentRoot(identity), status: "redirect" };
+  }
+  if (response.status === "expired") {
+    // Revalidate after the RPC transaction, before the existing expiration flow.
+    const access = await loadCandidateSessionAccess(identity);
+    if (!access) return { redirectTo: assessmentRoot(identity), status: "redirect" };
+    if (access.session.status === "in_progress" && isPast(access.session.deadline_at)) {
+      return expireCandidateSession(
+        identity,
+        access,
+        operation === "claim" ? String(payload.clientEventId) : undefined,
+      );
+    }
+  }
+  return { redirectTo: await redirectForAssessment(identity), status: "redirect" };
 }
 
 type QuestionRecord = {

@@ -171,3 +171,20 @@ staging-прогона из раздела 3.
 
 Основание для сохранения обновления cookies на Auth-маршрутах:
 [Supabase SSR](https://supabase.com/docs/guides/auth/server-side/creating-a-client).
+
+## 10. PERF-003a: атомарные lease-операции — 06.09.2026
+
+Под флагом `SESSION_CONTROL_V2=true` активные claim, heartbeat и integrity event для
+candidate/employee выполняют один Supabase RPC. Для обычного heartbeat это 1 HTTP
+round trip вместо 3 (invitation read → session read → lease update); при backfill
+deadline прежний путь выполнял дополнительные обращения. SQL statements внутри RPC
+остаются отдельными, но исполняются в одной транзакции без промежуточных HTTP-волн.
+
+Число RPC подтверждено серверными тестами с имитацией transport. Выполнение SQL,
+tenant/token/lease-проверки, дедупликация событий и права проверены в изолированном
+PostgreSQL/PGlite; всего проходят 228 тестов проекта. Полная Supabase-схема и
+конкурентность через отдельные соединения требуют staging-прогона.
+
+Изменение выключено по умолчанию; миграция не применялась к рабочей БД. Фактические
+p50/p95 еще не измерены. Autosave/finalize и явный expiration check остаются на V1.
+Инструкция приемки, включения и отката: `docs/18_SESSION_CONTROL_V2_ROLLOUT.md`.
