@@ -1,13 +1,24 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { correlationIdFrom } from "@/lib/observability/performance-core";
 import { updateSession } from "@/lib/supabase/proxy";
 
 export async function proxy(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith("/assessment/")) {
-    return NextResponse.next({ request });
+  const requestHeaders = new Headers(request.headers);
+  const correlationId = correlationIdFrom(request.headers.get("x-request-id"));
+  requestHeaders.set("x-request-id", correlationId);
+
+  if (
+    request.nextUrl.pathname.startsWith("/assessment/") ||
+    request.nextUrl.pathname === "/api/telemetry/performance"
+  ) {
+    return NextResponse.next({
+      headers: { "x-request-id": correlationId },
+      request: { headers: requestHeaders },
+    });
   }
 
-  return updateSession(request);
+  return updateSession(request, requestHeaders, correlationId);
 }
 
 export const config = {

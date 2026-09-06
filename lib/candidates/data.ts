@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 
 import type { ApplicationStatus, InvitationStatus } from "./constants";
 
@@ -124,7 +125,7 @@ function normalizeApplication(record: ApplicationRecord): CandidateApplication {
   };
 }
 
-async function queryApplications(companyId: string, jobId?: string) {
+async function queryApplicationsUninstrumented(companyId: string, jobId?: string) {
   const supabase = await createClient();
   let query = supabase
     .from("candidate_applications")
@@ -144,6 +145,13 @@ async function queryApplications(companyId: string, jobId?: string) {
   }
 
   return ((data ?? []) as unknown as ApplicationRecord[]).map(normalizeApplication);
+}
+
+function queryApplications(companyId: string, jobId?: string) {
+  return measureServerOperation(
+    jobId ? "candidates.job_list" : "candidates.list",
+    () => queryApplicationsUninstrumented(companyId, jobId),
+  );
 }
 
 export function listCandidateApplications(companyId: string) {

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireCompanyContext } from "@/lib/auth/context";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { createClient } from "@/lib/supabase/server";
 import { hasUniqueOptionIds } from "@/lib/answers/option-shuffle";
@@ -493,7 +494,7 @@ async function getDocumentContext(templateId: string, versionId: string) {
     : null;
 }
 
-export async function saveBuilderDocumentAction(input: unknown): Promise<BuilderSaveResult> {
+async function saveBuilderDocumentActionUninstrumented(input: unknown): Promise<BuilderSaveResult> {
   const parsed = builderDocumentSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Проверьте заполнение конструктора.", ok: false };
@@ -724,6 +725,12 @@ export async function saveBuilderDocumentAction(input: unknown): Promise<Builder
   revalidatePath(getBuilderPath(document.templateId, document.versionId).split("?")[0]);
   revalidatePath(`/dashboard/tests/${document.templateId}`);
   return { ok: true, savedAt: new Date().toISOString() };
+}
+
+export async function saveBuilderDocumentAction(input: unknown): Promise<BuilderSaveResult> {
+  return measureServerOperation("builder.save", () =>
+    saveBuilderDocumentActionUninstrumented(input),
+  );
 }
 
 export async function createSectionAction(formData: FormData) {

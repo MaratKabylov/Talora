@@ -26,6 +26,8 @@ import {
   saveEmployeeAssessmentSectionAction,
 } from "@/lib/employee-assessments/public-actions";
 import type { FlowQuestion, FlowSection } from "@/lib/assessment/data";
+import { reportClientOperation } from "@/lib/observability/client-performance";
+import type { ClientPerformanceOperation } from "@/lib/observability/performance-core";
 import type { TestPresentationSettings } from "@/lib/tests/presentation-settings";
 
 type SavedAnswer = {
@@ -67,6 +69,14 @@ type AssessmentTestSessionProps = {
 };
 
 const DEVICE_STORAGE_KEY = "talvia_assessment_device_id";
+const CONTROL_PERFORMANCE_OPERATIONS: Partial<Record<string, ClientPerformanceOperation>> = {
+  autosave: "assessment.autosave",
+  claim: "assessment.claim",
+  complete: "assessment.complete",
+  event: "assessment.event",
+  expire: "assessment.expire",
+  heartbeat: "assessment.heartbeat",
+};
 
 function createId() {
   return crypto.randomUUID();
@@ -90,22 +100,39 @@ async function postControl(
   body: Record<string, unknown>,
   keepalive = false,
 ): Promise<ControlResponse> {
-  const response = await fetch("/api/assessment/session-control", {
-    body: JSON.stringify(body),
-    cache: "no-store",
-    headers: { "Content-Type": "application/json" },
-    keepalive,
-    method: "POST",
-  });
+  const metricOperation =
+    typeof body.operation === "string"
+      ? CONTROL_PERFORMANCE_OPERATIONS[body.operation]
+      : undefined;
+  const startedAt = performance.now();
 
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
-    throw new Error(
-      typeof payload?.error === "string" ? payload.error : "Не удалось обновить состояние теста.",
-    );
+  try {
+    const response = await fetch("/api/assessment/session-control", {
+      body: JSON.stringify(body),
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      keepalive,
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { error?: unknown } | null;
+      throw new Error(
+        typeof payload?.error === "string" ? payload.error : "Не удалось обновить состояние теста.",
+      );
+    }
+
+    const result = (await response.json()) as ControlResponse;
+    if (metricOperation) {
+      reportClientOperation(metricOperation, performance.now() - startedAt, "success");
+    }
+    return result;
+  } catch (error) {
+    if (metricOperation) {
+      reportClientOperation(metricOperation, performance.now() - startedAt, "failure");
+    }
+    throw error;
   }
-
-  return (await response.json()) as ControlResponse;
 }
 
 function remainingLabel(seconds: number | null) {

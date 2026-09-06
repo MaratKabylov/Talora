@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { getDisplayOptions } from "@/lib/answers/option-shuffle";
 import type { QuestionType } from "@/lib/tests/builder-constants";
@@ -283,7 +284,7 @@ function normalizeTests(job: JobRecord) {
   };
 }
 
-export async function getAssessmentByToken(token: string): Promise<AssessmentAvailability> {
+async function getAssessmentByTokenUninstrumented(token: string): Promise<AssessmentAvailability> {
   if (!/^[a-f0-9]{64}$/i.test(token)) {
     return { availability: "invalid" };
   }
@@ -417,7 +418,13 @@ export async function getAssessmentByToken(token: string): Promise<AssessmentAva
   };
 }
 
-export async function getAssessmentQuestionPageData(
+export function getAssessmentByToken(token: string): Promise<AssessmentAvailability> {
+  return measureServerOperation("assessment.load_candidate", () =>
+    getAssessmentByTokenUninstrumented(token),
+  );
+}
+
+async function getAssessmentQuestionPageDataUninstrumented(
   token: string,
   sessionId: string,
   currentAssessment?: ActiveAssessment,
@@ -586,4 +593,14 @@ export async function getAssessmentQuestionPageData(
     sections,
     session,
   };
+}
+
+export function getAssessmentQuestionPageData(
+  token: string,
+  sessionId: string,
+  currentAssessment?: ActiveAssessment,
+): Promise<AssessmentQuestionPageData | null> {
+  return measureServerOperation("assessment.load_question_candidate", () =>
+    getAssessmentQuestionPageDataUninstrumented(token, sessionId, currentAssessment),
+  );
 }

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
 import {
   collectAssessmentDimensions,
@@ -546,7 +547,7 @@ function jsonArray(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
 
-export async function listEmployeeAssessments(companyId: string) {
+async function listEmployeeAssessmentsUninstrumented(companyId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("employee_assessments")
@@ -584,6 +585,12 @@ export async function listEmployeeAssessments(companyId: string) {
       updatedAt: assessment.updatedAt,
     } satisfies EmployeeAssessmentListItem;
   });
+}
+
+export function listEmployeeAssessments(companyId: string) {
+  return measureServerOperation("employee_assessments.list", () =>
+    listEmployeeAssessmentsUninstrumented(companyId),
+  );
 }
 
 export async function listEmployeeAssessmentPackages(companyId: string) {
@@ -641,7 +648,7 @@ export async function getEmployeeAssessmentPageData(companyId: string, assessmen
   } satisfies EmployeeAssessmentPageData;
 }
 
-export async function getEmployeeComparisonData(companyId: string, assessmentId: string) {
+async function getEmployeeComparisonDataUninstrumented(companyId: string, assessmentId: string) {
   const supabase = await createClient();
   const [assessmentResult, participantsResult] = await Promise.all([
     supabase
@@ -842,7 +849,13 @@ export async function getEmployeeComparisonData(companyId: string, assessmentId:
   } satisfies EmployeeComparisonData;
 }
 
-export async function getEmployeeAssessmentReportData(companyId: string, participantId: string) {
+export function getEmployeeComparisonData(companyId: string, assessmentId: string) {
+  return measureServerOperation("comparisons.employee", () =>
+    getEmployeeComparisonDataUninstrumented(companyId, assessmentId),
+  );
+}
+
+async function getEmployeeAssessmentReportDataUninstrumented(companyId: string, participantId: string) {
   const supabase = await createClient();
   const [participantResult, reportResult, summaryResult, sessionsResult, integrityResult] =
     await Promise.all([
@@ -1275,4 +1288,10 @@ export async function getEmployeeAssessmentReportData(companyId: string, partici
       };
     }),
   } satisfies EmployeeAssessmentReportData;
+}
+
+export function getEmployeeAssessmentReportData(companyId: string, participantId: string) {
+  return measureServerOperation("reports.employee", () =>
+    getEmployeeAssessmentReportDataUninstrumented(companyId, participantId),
+  );
 }

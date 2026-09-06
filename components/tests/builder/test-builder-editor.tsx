@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { reportClientOperation } from "@/lib/observability/client-performance";
 import {
   publishTestVersionAction as defaultPublishTestVersionAction,
 } from "@/lib/tests/actions";
@@ -366,14 +367,17 @@ export function TestBuilderEditor({
     };
 
     const request = (async () => {
+      const startedAt = performance.now();
       try {
         const result = await saveAction(input);
         if (!result.ok) {
+          reportClientOperation("builder.autosave", performance.now() - startedAt, "failure");
           setStatus("error");
           setFeedback(result.error ?? "Не удалось сохранить изменения.");
           return false;
         }
 
+        reportClientOperation("builder.autosave", performance.now() - startedAt, "success");
         savedRevision.current = requestedRevision;
         if (revision.current === requestedRevision) {
           setStatus("saved");
@@ -387,6 +391,7 @@ export function TestBuilderEditor({
         }
         return true;
       } catch {
+        reportClientOperation("builder.autosave", performance.now() - startedAt, "failure");
         setStatus("error");
         setFeedback("Не удалось сохранить изменения. Проверьте соединение и повторите попытку.");
         return false;

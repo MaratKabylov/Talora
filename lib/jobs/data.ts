@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 import { normalizeProfileTargets, type ProfileTarget } from "@/lib/scoring/profile-fit";
 import {
   normalizeAssessmentCompositeConfig,
@@ -94,7 +95,7 @@ function normalizeJob(record: JobRecord): JobDetails {
   };
 }
 
-export async function listJobs(companyId: string) {
+async function listJobsUninstrumented(companyId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("jobs")
@@ -109,6 +110,10 @@ export async function listJobs(companyId: string) {
   }
 
   return ((data ?? []) as unknown as JobRecord[]).map(normalizeJob);
+}
+
+export function listJobs(companyId: string) {
+  return measureServerOperation("jobs.list", () => listJobsUninstrumented(companyId));
 }
 
 export async function listAssessmentPackages(companyId: string) {

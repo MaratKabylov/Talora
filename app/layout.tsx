@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { PerformanceReporter } from "@/components/observability/performance-reporter";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +16,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
-      <body className="min-h-screen">{children}</body>
+      <body className="min-h-screen">
+        {children}
+        <PerformanceReporter />
+      </body>
     </html>
   );
 }

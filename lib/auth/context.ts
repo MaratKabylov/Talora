@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { ACTIVE_COMPANY_COOKIE } from "@/lib/company/constants";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -86,49 +87,51 @@ async function readCompanyMemberships(userId: string): Promise<MembershipRecord[
   throw new Error("Unable to read company memberships.", { cause: error });
 }
 
-export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
-  const supabase = await createClient();
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
-  const userId = claimsData?.claims.sub;
+export const getAuthContext = cache(async (): Promise<AuthContext | null> =>
+  measureServerOperation("auth.context", async () => {
+    const supabase = await createClient();
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+    const userId = claimsData?.claims.sub;
 
-  if (claimsError || !userId) {
-    return null;
-  }
+    if (claimsError || !userId) {
+      return null;
+    }
 
-  const [{ data: profileData }, membershipData] = await Promise.all([
-    supabase.from("profiles").select("id, email, full_name, phone").eq("id", userId).maybeSingle(),
-    readCompanyMemberships(userId),
-  ]);
+    const [{ data: profileData }, membershipData] = await Promise.all([
+      supabase.from("profiles").select("id, email, full_name, phone").eq("id", userId).maybeSingle(),
+      readCompanyMemberships(userId),
+    ]);
 
-  const companies = membershipData.map((membership) => ({
-    id: membership.company_id,
-    name: membership.company_name,
-    role: membership.role,
-  }));
+    const companies = membershipData.map((membership) => ({
+      id: membership.company_id,
+      name: membership.company_name,
+      role: membership.role,
+    }));
 
-  const cookieStore = await cookies();
-  const activeCompanyId = cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value;
-  const activeCompany =
-    companies.find((company) => company.id === activeCompanyId) ?? companies[0] ?? null;
-  const profile = profileData as ProfileRecord | null;
+    const cookieStore = await cookies();
+    const activeCompanyId = cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value;
+    const activeCompany =
+      companies.find((company) => company.id === activeCompanyId) ?? companies[0] ?? null;
+    const profile = profileData as ProfileRecord | null;
 
-  return {
-    user: {
-      id: userId,
-      email: typeof claimsData.claims.email === "string" ? claimsData.claims.email : null,
-    },
-    profile: profile
-      ? {
-          id: profile.id,
-          email: profile.email,
-          fullName: profile.full_name,
-          phone: profile.phone,
-        }
-      : null,
-    companies,
-    activeCompany,
-  };
-});
+    return {
+      user: {
+        id: userId,
+        email: typeof claimsData.claims.email === "string" ? claimsData.claims.email : null,
+      },
+      profile: profile
+        ? {
+            id: profile.id,
+            email: profile.email,
+            fullName: profile.full_name,
+            phone: profile.phone,
+          }
+        : null,
+      companies,
+      activeCompany,
+    };
+  }),
+);
 
 export async function requireAuthContext() {
   const context = await getAuthContext();

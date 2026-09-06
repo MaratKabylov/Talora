@@ -12,6 +12,11 @@ import {
 } from "@/lib/assessment/session-control";
 import { ForcedChoiceAnswerValidationError } from "@/lib/forced-choice";
 import { MultipleChoiceAnswerValidationError } from "@/lib/answers/multiple-choice";
+import { correlationIdFrom, serverTimingValue } from "@/lib/observability/performance-core";
+import {
+  measureServerOperation,
+  type ServerPerformanceOperation,
+} from "@/lib/observability/server-performance";
 
 const identityShape = {
   assessmentType: z.enum(["candidate", "employee"]).default("candidate"),
@@ -91,43 +96,65 @@ function isSameOrigin(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const correlationId = correlationIdFrom(request.headers.get("x-request-id"));
   if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "Недопустимый источник запроса." }, { status: 403 });
+    return NextResponse.json(
+      { error: "Недопустимый источник запроса." },
+      { headers: { "x-request-id": correlationId }, status: 403 },
+    );
   }
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "Некорректный запрос." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Некорректный запрос." },
+      { headers: { "x-request-id": correlationId }, status: 400 },
+    );
   }
+
+  const operation = `assessment.${parsed.data.operation}` as ServerPerformanceOperation;
+  const startedAt = performance.now();
+  const responseHeaders = () => ({
+    "Cache-Control": "no-store",
+    "Server-Timing": serverTimingValue(operation, performance.now() - startedAt),
+    "x-request-id": correlationId,
+  });
 
   try {
     const input = parsed.data;
-    const result =
-      input.operation === "claim"
-        ? await claimCandidateSession(input)
-        : input.operation === "heartbeat"
-          ? await heartbeatCandidateSession(input)
-          : input.operation === "event"
-            ? await recordCandidateSessionEvent(input)
-            : input.operation === "autosave"
-              ? await autosaveCandidateAnswer(input)
-              : input.operation === "complete"
-                ? await completeOneQuestionCandidateSession(input)
-              : await expireCandidateSessionIfNeeded(input);
+    const result = await measureServerOperation(
+      operation,
+      () =>
+        input.operation === "claim"
+          ? claimCandidateSession(input)
+          : input.operation === "heartbeat"
+            ? heartbeatCandidateSession(input)
+            : input.operation === "event"
+              ? recordCandidateSessionEvent(input)
+              : input.operation === "autosave"
+                ? autosaveCandidateAnswer(input)
+                : input.operation === "complete"
+                  ? completeOneQuestionCandidateSession(input)
+                  : expireCandidateSessionIfNeeded(input),
+      { correlationId },
+    );
 
     return NextResponse.json(result, {
-      headers: { "Cache-Control": "no-store" },
+      headers: responseHeaders(),
     });
   } catch (error) {
     if (
       error instanceof ForcedChoiceAnswerValidationError ||
       error instanceof MultipleChoiceAnswerValidationError
     ) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json(
+        { error: error.message },
+        { headers: responseHeaders(), status: 400 },
+      );
     }
     return NextResponse.json(
       { error: "Не удалось обновить состояние теста." },
-      { status: 500 },
+      { headers: responseHeaders(), status: 500 },
     );
   }
 }

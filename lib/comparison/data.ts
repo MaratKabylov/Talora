@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 
 import type { ApplicationStatus } from "@/lib/candidates/constants";
 import type { CompetencyKey, JobStatus } from "@/lib/jobs/constants";
@@ -103,7 +104,7 @@ function normalizeApplication(record: ApplicationRecord): ComparisonCandidate | 
   };
 }
 
-export async function getJobComparisonData(companyId: string, jobId: string) {
+async function getJobComparisonDataUninstrumented(companyId: string, jobId: string) {
   const supabase = await createClient();
   const [jobResult, applicationsResult] = await Promise.all([
     supabase
@@ -139,4 +140,10 @@ export async function getJobComparisonData(companyId: string, jobId: string) {
     applications,
     job: jobResult.data as JobRecord,
   } satisfies JobComparisonData;
+}
+
+export function getJobComparisonData(companyId: string, jobId: string) {
+  return measureServerOperation("comparisons.candidate", () =>
+    getJobComparisonDataUninstrumented(companyId, jobId),
+  );
 }

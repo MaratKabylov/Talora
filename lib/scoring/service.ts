@@ -49,6 +49,7 @@ import {
   packageTestContributesToOverall,
 } from "@/lib/packages/overall-contribution";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 
 type Relation<T> = T | T[] | null;
 
@@ -480,13 +481,17 @@ export async function scoreCompletedApplication(
     [...questionsByVersion.values()].flat().map((question) => [question.id, question]),
   );
 
-  const calculations = sessions.map((session) =>
-    scoreSession(
-      session,
-      packageTestsByVersion.get(session.test_version_id)!,
-      questionsByVersion.get(session.test_version_id) ?? [],
-      answersBySession.get(session.id) ?? [],
-    ),
+  const calculations = await measureServerOperation(
+    "scoring.candidate.calculate",
+    () =>
+      sessions.map((session) =>
+        scoreSession(
+          session,
+          packageTestsByVersion.get(session.test_version_id)!,
+          questionsByVersion.get(session.test_version_id) ?? [],
+          answersBySession.get(session.id) ?? [],
+        ),
+      ),
   );
 
   const answerUpdates = calculations.flatMap((calculation) =>
@@ -740,30 +745,31 @@ export async function scoreCompletedApplication(
     };
 
   const expectedRevision = persistenceContext?.expectedRevision ?? application.scoring_revision ?? 0;
-  const { data: persisted, error: persistenceError } = await admin.rpc(
-    "try_persist_scoring_snapshot",
-    {
-      p_audit: persistenceContext?.audit ?? null,
-      p_expected_revision: expectedRevision,
-      p_parent_id: application.id,
-      p_scope: "candidate",
-      p_snapshot: {
-        aggregate,
-        answers: answerUpdates,
-        competency_scores: competencyRows,
-        comparison,
-        report,
-        results: resultRows,
-        risks: riskFlags,
-        sessions: sessionScores.map((score) => ({
-          id: score.session.id,
-          max_score: score.maxScore,
-          percentage: score.percentage,
-          score: score.rawScore,
-        })),
-        summaries: summaryRows,
-      },
-    },
+  const { data: persisted, error: persistenceError } = await measureServerOperation(
+    "scoring.candidate.persist",
+    async () =>
+      admin.rpc("try_persist_scoring_snapshot", {
+        p_audit: persistenceContext?.audit ?? null,
+        p_expected_revision: expectedRevision,
+        p_parent_id: application.id,
+        p_scope: "candidate",
+        p_snapshot: {
+          aggregate,
+          answers: answerUpdates,
+          competency_scores: competencyRows,
+          comparison,
+          report,
+          results: resultRows,
+          risks: riskFlags,
+          sessions: sessionScores.map((score) => ({
+            id: score.session.id,
+            max_score: score.maxScore,
+            percentage: score.percentage,
+            score: score.rawScore,
+          })),
+          summaries: summaryRows,
+        },
+      }),
   );
   if (persistenceError || !persisted) {
     throw new Error(persistenceError?.message ?? "Unable to persist candidate scoring snapshot.");
@@ -913,13 +919,17 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
     [...questionsByVersion.values()].flat().map((question) => [question.id, question]),
   );
 
-  const calculations = sessions.map((session) =>
-    scoreSession(
-      session,
-      packageTestsByVersion.get(session.test_version_id)!,
-      questionsByVersion.get(session.test_version_id) ?? [],
-      answersBySession.get(session.id) ?? [],
-    ),
+  const calculations = await measureServerOperation(
+    "scoring.employee.calculate",
+    () =>
+      sessions.map((session) =>
+        scoreSession(
+          session,
+          packageTestsByVersion.get(session.test_version_id)!,
+          questionsByVersion.get(session.test_version_id) ?? [],
+          answersBySession.get(session.id) ?? [],
+        ),
+      ),
   );
 
   const answerUpdates = calculations.flatMap((calculation) =>
@@ -1127,29 +1137,30 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
     };
 
   const expectedRevision = persistenceContext?.expectedRevision ?? participant.scoring_revision ?? 0;
-  const { data: persisted, error: persistenceError } = await admin.rpc(
-    "try_persist_scoring_snapshot",
-    {
-      p_audit: persistenceContext?.audit ?? null,
-      p_expected_revision: expectedRevision,
-      p_parent_id: participant.id,
-      p_scope: "employee",
-      p_snapshot: {
-        aggregate,
-        answers: answerUpdates,
-        competency_scores: competencyRows,
-        report,
-        results: resultRows,
-        risks: riskFlags,
-        sessions: sessionScores.map((score) => ({
-          id: score.session.id,
-          max_score: score.maxScore,
-          percentage: score.percentage,
-          score: score.rawScore,
-        })),
-        summaries: summaryRows,
-      },
-    },
+  const { data: persisted, error: persistenceError } = await measureServerOperation(
+    "scoring.employee.persist",
+    async () =>
+      admin.rpc("try_persist_scoring_snapshot", {
+        p_audit: persistenceContext?.audit ?? null,
+        p_expected_revision: expectedRevision,
+        p_parent_id: participant.id,
+        p_scope: "employee",
+        p_snapshot: {
+          aggregate,
+          answers: answerUpdates,
+          competency_scores: competencyRows,
+          report,
+          results: resultRows,
+          risks: riskFlags,
+          sessions: sessionScores.map((score) => ({
+            id: score.session.id,
+            max_score: score.maxScore,
+            percentage: score.percentage,
+            score: score.rawScore,
+          })),
+          summaries: summaryRows,
+        },
+      }),
   );
   if (persistenceError || !persisted) {
     throw new Error(persistenceError?.message ?? "Unable to persist employee scoring snapshot.");

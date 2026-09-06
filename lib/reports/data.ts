@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
 import {
   collectAssessmentDimensions,
@@ -373,7 +374,7 @@ function createInterviewQuestions(
     : ["Обсудите наиболее релевантный опыт кандидата и его вклад в похожей роли."];
 }
 
-export async function getCandidateReportData(companyId: string, applicationId: string) {
+async function getCandidateReportDataUninstrumented(companyId: string, applicationId: string) {
   const supabase = await createClient();
   const { data: applicationData, error: applicationError } = await supabase
     .from("candidate_applications")
@@ -809,4 +810,10 @@ export async function getCandidateReportData(companyId: string, applicationId: s
     strengths,
     tests,
   } satisfies CandidateReportData;
+}
+
+export function getCandidateReportData(companyId: string, applicationId: string) {
+  return measureServerOperation("reports.candidate", () =>
+    getCandidateReportDataUninstrumented(companyId, applicationId),
+  );
 }

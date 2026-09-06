@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 
 import type { ScoringType, TestTemplateStatus, TestVersionStatus } from "./constants";
@@ -127,7 +128,7 @@ function testTemplateSelect() {
   return "id, title, description, category, is_system, status, created_at, updated_at, test_versions(id, version_number, title, description, instructions, duration_minutes, scoring_type, settings_json, status, published_at, created_at)";
 }
 
-export async function listTestTemplates(companyId: string) {
+async function listTestTemplatesUninstrumented(companyId: string) {
   const supabase = await createClient();
   const systemTemplateIds = await listGrantedSystemTemplateIds(supabase, companyId);
   const [companyTemplatesResult, systemTemplatesResult] = await Promise.all([
@@ -157,6 +158,10 @@ export async function listTestTemplates(companyId: string) {
   ]
     .map(normalizeTemplate)
     .sort(sortTemplates);
+}
+
+export function listTestTemplates(companyId: string) {
+  return measureServerOperation("tests.list", () => listTestTemplatesUninstrumented(companyId));
 }
 
 export async function getTestTemplatePageData(companyId: string, templateId: string) {

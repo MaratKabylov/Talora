@@ -1,8 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
-export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
+import { serverTimingValue } from "@/lib/observability/performance-core";
+
+export async function updateSession(
+  request: NextRequest,
+  requestHeaders = new Headers(request.headers),
+  correlationId = requestHeaders.get("x-request-id"),
+) {
+  let response = NextResponse.next({
+    headers: correlationId ? { "x-request-id": correlationId } : undefined,
+    request: { headers: requestHeaders },
+  });
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -17,7 +26,11 @@ export async function updateSession(request: NextRequest) {
       },
       setAll(cookiesToSet, headers) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
+        requestHeaders.set("cookie", request.cookies.toString());
+        response = NextResponse.next({
+          headers: correlationId ? { "x-request-id": correlationId } : undefined,
+          request: { headers: requestHeaders },
+        });
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options),
         );
@@ -26,7 +39,11 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
+  const startedAt = performance.now();
   await supabase.auth.getClaims();
+  if (process.env.PERFORMANCE_TELEMETRY_ENABLED === "true") {
+    response.headers.append("Server-Timing", serverTimingValue("auth", performance.now() - startedAt));
+  }
 
   return response;
 }

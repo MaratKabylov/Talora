@@ -1,6 +1,7 @@
 import { getDisplayOptions } from "@/lib/answers/option-shuffle";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 import { getTestContentBlocks, type TestContentBlock } from "@/lib/tests/content-blocks";
 import {
@@ -279,7 +280,7 @@ function normalizeTests(assessment: EmployeeAssessmentRecord) {
   };
 }
 
-export async function getEmployeeAssessmentByToken(
+async function getEmployeeAssessmentByTokenUninstrumented(
   token: string,
 ): Promise<EmployeeAssessmentAvailability> {
   if (!/^[a-f0-9]{64}$/i.test(token)) {
@@ -435,7 +436,15 @@ export async function getEmployeeAssessmentByToken(
   };
 }
 
-export async function getEmployeeAssessmentQuestionPageData(
+export function getEmployeeAssessmentByToken(
+  token: string,
+): Promise<EmployeeAssessmentAvailability> {
+  return measureServerOperation("assessment.load_employee", () =>
+    getEmployeeAssessmentByTokenUninstrumented(token),
+  );
+}
+
+async function getEmployeeAssessmentQuestionPageDataUninstrumented(
   token: string,
   sessionId: string,
   currentAssessment?: ActiveEmployeeAssessment,
@@ -604,4 +613,18 @@ export async function getEmployeeAssessmentQuestionPageData(
     sections,
     session,
   };
+}
+
+export function getEmployeeAssessmentQuestionPageData(
+  token: string,
+  sessionId: string,
+  currentAssessment?: ActiveEmployeeAssessment,
+): Promise<EmployeeAssessmentQuestionPageData | null> {
+  return measureServerOperation("assessment.load_question_employee", () =>
+    getEmployeeAssessmentQuestionPageDataUninstrumented(
+      token,
+      sessionId,
+      currentAssessment,
+    ),
+  );
 }

@@ -1,5 +1,6 @@
 import { listAccessibleSystemPackageIds } from "@/lib/jobs/package-access";
 import { createClient } from "@/lib/supabase/server";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 
 type Relation<T> = T | T[] | null;
 
@@ -161,7 +162,7 @@ async function listGrantedSystemTemplateIds(
   return ((data ?? []) as SystemAccessRecord[]).map((row) => row.test_template_id);
 }
 
-export async function listAssessmentPackages(companyId: string) {
+async function listAssessmentPackagesUninstrumented(companyId: string) {
   const supabase = await createClient();
   const systemPackageIds = await listAccessibleSystemPackageIds(supabase, companyId);
   const [companyPackagesResult, systemPackagesResult] = await Promise.all([
@@ -189,6 +190,12 @@ export async function listAssessmentPackages(companyId: string) {
     ...((systemPackagesResult.data ?? []) as unknown as PackageRecord[]),
     ...((companyPackagesResult.data ?? []) as unknown as PackageRecord[]),
   ].map(normalizePackage);
+}
+
+export function listAssessmentPackages(companyId: string) {
+  return measureServerOperation("packages.list", () =>
+    listAssessmentPackagesUninstrumented(companyId),
+  );
 }
 
 export async function getAssessmentPackagePageData(companyId: string, packageId: string) {

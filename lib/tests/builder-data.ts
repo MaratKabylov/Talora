@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { measureServerOperation } from "@/lib/observability/server-performance";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 
 import type { TestTemplate, TestVersion } from "./data";
@@ -190,7 +191,7 @@ function importSourceSelect() {
   return "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, match_text, order_index, is_correct, points, competency_effect_json, explanation))))";
 }
 
-export async function getTestBuilderData(
+async function getTestBuilderDataUninstrumented(
   companyId: string,
   templateId: string,
   selectedVersionId?: string,
@@ -231,7 +232,17 @@ export async function getTestBuilderData(
   };
 }
 
-export async function getBuilderImportSources(
+export function getTestBuilderData(
+  companyId: string,
+  templateId: string,
+  selectedVersionId?: string,
+) {
+  return measureServerOperation("builder.load", () =>
+    getTestBuilderDataUninstrumented(companyId, templateId, selectedVersionId),
+  );
+}
+
+async function getBuilderImportSourcesUninstrumented(
   companyId: string,
   currentVersionId: string,
 ): Promise<BuilderImportSource[]> {
@@ -288,4 +299,10 @@ export async function getBuilderImportSources(
     )
     .filter((source) => source.sections.length > 0)
     .sort((left, right) => left.title.localeCompare(right.title, "ru"));
+}
+
+export function getBuilderImportSources(companyId: string, currentVersionId: string) {
+  return measureServerOperation("builder.import_sources", () =>
+    getBuilderImportSourcesUninstrumented(companyId, currentVersionId),
+  );
 }
