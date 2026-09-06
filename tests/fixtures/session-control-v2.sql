@@ -1,3 +1,5 @@
+-- TEST ONLY — DO NOT RUN IN SUPABASE SQL EDITOR OR AN EXISTING DATABASE.
+-- npm test loads this fixture exclusively into an empty, disposable PGlite instance.
 -- Minimal dependency schema for executing the REAL integrity and lease migrations
 -- in PGlite. Does not substitute for a fully migrated Supabase/RLS staging run.
 create role anon;

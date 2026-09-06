@@ -533,10 +533,10 @@ export async function recordCandidateSessionEvent(
 }
 
 // Only terminal paths need the existing assessment loader/completion pipeline.
-// Active V2 claim, heartbeat and event operations use exactly one RPC and no reads.
+// Active V2 operations use exactly one RPC and no application-side reads.
 async function controlCandidateSessionLeaseV2(
   identity: ClientIdentity,
-  operation: "claim" | "heartbeat" | "event",
+  operation: "claim" | "heartbeat" | "event" | "autosave" | "expire",
   payload: Record<string, unknown> = {},
 ): Promise<CandidateSessionControlResponse> {
   if (!identitySchema.safeParse(identity).success) {
@@ -555,7 +555,7 @@ async function controlCandidateSessionLeaseV2(
       return expireCandidateSession(
         identity,
         access,
-        operation === "claim" ? String(payload.clientEventId) : undefined,
+        operation === "claim" || operation === "expire" ? String(payload.clientEventId) : undefined,
       );
     }
   }
@@ -766,6 +766,12 @@ export async function autosaveCandidateAnswer(
     timeSpentSeconds?: number;
   },
 ): Promise<CandidateSessionControlResponse> {
+  if (isSessionControlV2Enabled()) {
+    return controlCandidateSessionLeaseV2(identity, "autosave", {
+      answer: identity.answer, finalize: identity.finalize ?? false,
+      questionId: identity.questionId, timeSpentSeconds: identity.timeSpentSeconds,
+    });
+  }
   const access = await loadCandidateSessionAccess(identity);
   if (!access) {
     return { redirectTo: assessmentRoot(identity), status: "redirect" };
@@ -981,6 +987,9 @@ export async function completeOneQuestionCandidateSession(
 export async function expireCandidateSessionIfNeeded(
   identity: ClientIdentity & { clientEventId: string },
 ): Promise<CandidateSessionControlResponse> {
+  if (isSessionControlV2Enabled()) {
+    return controlCandidateSessionLeaseV2(identity, "expire", { clientEventId: identity.clientEventId });
+  }
   const access = await loadCandidateSessionAccess(identity);
   if (!access) {
     return { redirectTo: assessmentRoot(identity), status: "redirect" };

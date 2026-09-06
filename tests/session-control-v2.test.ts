@@ -60,6 +60,7 @@ function harness({ flag = "true", response = { status: "active", deadlineAt: nul
   };
   const v2 = loadModule<V2>("../lib/assessment/session-control-v2.ts", {
     "server-only": {}, zod: { z }, "@/lib/supabase/admin": { createAdminClient: () => admin },
+    "@/lib/forced-choice": forcedChoice, "@/lib/answers/multiple-choice": multipleChoice,
   }, flag);
   const controls = loadModule<Controls>("../lib/assessment/session-control.ts", {
     "node:crypto": crypto, zod: { z }, "@/lib/supabase/admin": { createAdminClient: () => admin },
@@ -115,6 +116,7 @@ test("V2 flag defaults off and switching off never calls the RPC", async () => {
   }
   const v2 = loadModule<V2>("../lib/assessment/session-control-v2.ts", {
     "server-only": {}, zod: { z }, "@/lib/supabase/admin": {},
+    "@/lib/forced-choice": forcedChoice, "@/lib/answers/multiple-choice": multipleChoice,
   });
   assert.equal(v2.isSessionControlV2Enabled(), false);
 });

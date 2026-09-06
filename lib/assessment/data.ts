@@ -460,7 +460,7 @@ async function getAssessmentQuestionPageDataUninstrumented(
   }
 
   const sectionRecords = ((sectionsData ?? []) as unknown as SectionRecord[]).sort(
-    (left, right) => left.order_index - right.order_index,
+    (left, right) => left.order_index - right.order_index || left.id.localeCompare(right.id),
   );
   const answerRecords = (answersData ?? []) as AnswerRecord[];
   const answerByQuestion = new Map(
@@ -483,7 +483,7 @@ async function getAssessmentQuestionPageDataUninstrumented(
       description: sanitizeRichTextValue(section.description),
       id: section.id,
       questions: (section.questions ?? [])
-        .sort((left, right) => left.order_index - right.order_index)
+        .sort((left, right) => left.order_index - right.order_index || left.id.localeCompare(right.id))
         .map((question) => {
           const settings = question.settings_json ?? {};
           const answer = answerByQuestion.get(question.id);
