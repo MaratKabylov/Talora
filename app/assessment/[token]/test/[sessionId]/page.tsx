@@ -65,6 +65,7 @@ export default async function CandidateTestPage({
       {/* A new server render (e.g. a completion error) must restore fresh form state.
           In-test section transitions only update client state and never change this key. */}
       <AssessmentTestFlow key={`${sessionId}:${crypto.randomUUID()}`} snapshot={snapshot} assessmentType="candidate" token={token} sessionId={sessionId}
+        sectionPrefetchEnabled={process.env.ASSESSMENT_SECTION_PREFETCH_V3 === "true"}
         initialDeadlineAt={session.deadlineAt} contextTitle={overview.contextTitle} testTitle={session.test.title}
         description={session.test.description} instructions={session.test.instructions} presentationSettings={presentationSettings}
         completedSessionCount={overview.completedSessionCount} sessionCount={overview.sessionCount} error={feedback.error} />

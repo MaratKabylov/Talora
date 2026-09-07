@@ -13,6 +13,7 @@ import * as shuffle from "../lib/answers/option-shuffle.ts";
 import * as structured from "../lib/structured-questions.ts";
 import * as presentation from "../lib/tests/presentation-settings.ts";
 import * as contract from "../lib/assessment/section-contract.ts";
+import { reconcilePrefetchedSection } from "../lib/assessment/section-prefetch-contract.ts";
 import type { ActiveAssessment, AssessmentQuestionPageData } from "../lib/assessment/data.ts";
 
 const id = (n: number) => `f5000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -50,6 +51,18 @@ function readerHarness(result: unknown = null, flag = "true", fail = false) {
 }
 const request = { assessmentType: "candidate" as const, sessionId: id(7), token,
   presentationSettings: presentation.DEFAULT_TEST_PRESENTATION_SETTINGS };
+
+function prefetchHarness(result: unknown = null, fail = false) {
+  const calls: unknown[][] = [];
+  const reader = load<typeof import("../lib/assessment/section-prefetch-data.ts")>("../lib/assessment/section-prefetch-data.ts", {
+    "server-only": {}, zod: { z }, "./section-contract": contract, "./section-data": readerHarness(),
+    "@/lib/supabase/admin": { createAdminClient: () => ({ rpc: async (...args: unknown[]) => {
+      calls.push(args); return { data: result, error: fail ? { message: `SQL ${token}` } : null };
+    } }) },
+    "@/lib/observability/server-performance": { measureServerOperation: (_name: string, task: () => unknown) => task() },
+  });
+  return { ...reader, calls };
+}
 
 function rawSectionFixture() {
   const options = [30, 31, 32].map((n, index) => ({ id: id(n), text: `option-${n}`, order_index: index,
@@ -216,11 +229,55 @@ test("flag-off projection keeps legacy selection but sends only the selected sec
   for (const value of [undefined, "-1", "NaN", "1.2", "Infinity"]) assert.equal(contract.requestedSectionIndex(value), 0);
 });
 
+test("prefetch presenters retain sanitization/shuffle but exclude premature answers, feedback and scoring", async () => {
+  const raw = rawSectionFixture();
+  const reader = prefetchHarness();
+  const content = reader.presentPrefetchedSection({ kind: "content", versionId: id(3), sectionIndex: 1,
+    section: raw.section, answers: raw.answers }, id(7));
+  const empty = readerHarness().presentAssessmentSection({ ...raw, answers: {} }, id(7));
+  assert.deepEqual(content.section, empty.section);
+  const serialized = JSON.stringify(content);
+  for (const value of ["hint", "points", "is_correct", "match_target_id", "correctOptionIds", "answers", "orderingScoringMode", "matchingScoringMode"]) {
+    assert.ok(!serialized.includes(value), value);
+  }
+  const rawState = { kind: "state", versionId: id(3), sectionId: id(10),
+    sectionIndex: 0, reviewMode: false, sections: raw.sections, answers: {
+      [id(20)]: { ...raw.answers[id(20)], questionType: "single_choice", isStructured: false, incorrectFeedback: "hint", isCorrect: false },
+      [id(22)]: { answerJson: { orderedOptionIds: [id(32), id(31), id(30)], points: 100, correctOptionIds: [id(30)] },
+        answerText: null, selectedOptionId: null, timeSpentSeconds: 5, remediationRequired: false,
+        questionType: "ordering", isStructured: true, incorrectFeedback: "MUST NOT EXPOSE" },
+    } };
+  const state = reader.presentSectionNavigationState(rawState);
+  assert.deepEqual(state.answers[id(20)].answerJson, {});
+  assert.deepEqual(state.answers[id(22)].answerJson, { orderedOptionIds: [id(32), id(31), id(30)] });
+  assert.deepEqual(state.feedbacks, { [id(20)]: "hint" });
+  assert.ok(!JSON.stringify(state).includes("isCorrect"));
+  assert.ok(!JSON.stringify(state).includes("questionType"));
+  for (const assessmentType of ["candidate", "employee"] as const) {
+    const harness = prefetchHarness(null);
+    assert.equal(await harness.prefetchAssessmentSection({ ...request, assessmentType, sectionIndex: 0 }), null);
+    assert.deepEqual(harness.calls, [["read_assessment_section_navigation_v3", { p_scope: assessmentType, p_token: token,
+      p_session_id: id(7), p_section_index: 0, p_review: false, p_mode: "prefetch", p_cached_section_id: null, p_cached_version_id: null }]]);
+  }
+  for (const result of [{ kind: "full", snapshot: raw }, rawState]) {
+    const harness = prefetchHarness(result);
+    const expected = "snapshot" in result ? readerHarness().presentAssessmentSection(raw, id(7)) : state;
+    assert.deepEqual(await harness.readAssessmentSectionTransition({ ...request, sectionIndex: 0 }, { sectionId: id(10), versionId: id(3) }), expected);
+    assert.equal(harness.calls.length, 1);
+  }
+  await assert.rejects(prefetchHarness(rawState).readAssessmentSectionTransition({ ...request, sectionIndex: 0 }, { sectionId: id(11), versionId: id(3) }));
+  await assert.rejects(prefetchHarness(null, true).prefetchAssessmentSection({ ...request, sectionIndex: 0 }), error => !String(error).includes(token));
+  await assert.rejects(prefetchHarness({}).prefetchAssessmentSection({ ...request, sectionIndex: 0 }));
+});
+
 test("section RPC bounds payload size and enforces scoped read-only access in PostgreSQL", async (t) => {
   const db = new PGlite();
   try {
     for (const path of ["./fixtures/session-control-v2.sql", "./fixtures/assessment-answer-v2.sql", "./fixtures/assessment-section-v2.sql",
-      "../supabase/migrations/20260906140000_assessment_section_read_v2.sql"]) await db.exec(read(path));
+      "../supabase/migrations/20260811120000_assessment_integrity_controls.sql",
+      "../supabase/migrations/20260827170000_employee_assessment_integrity_controls.sql",
+      "../supabase/migrations/20260906140000_assessment_section_read_v2.sql",
+      "../supabase/migrations/20260907170000_assessment_section_prefetch_v3.sql"]) await db.exec(read(path));
     for (const scope of ["candidate", "employee"] as const) {
       const employee = scope === "employee";
       const sessions = employee ? "employee_assessment_sessions" : "test_sessions";
@@ -234,6 +291,13 @@ test("section RPC bounds payload size and enforces scoped read-only access in Po
         return result.rows[0].data;
       };
       const presented = async (index = 0, review = false) => readerHarness().presentAssessmentSection(await snapshot(index, review), id(7));
+      const navigation = async (index = 0, mode = "prefetch", cachedSection = id(11), cachedVersion = id(3), review = false,
+        override: { token?: string; session?: string; scope?: string } = {}) => {
+        const result = await db.query<{ data: Record<string, unknown> | null }>(
+          "select public.read_assessment_section_navigation_v3($1,$2,$3,$4,$5,$6,$7,$8) as data",
+          [override.scope ?? scope, override.token ?? token, override.session ?? id(7), index, review, mode, cachedSection, cachedVersion]);
+        return result.rows[0].data;
+      };
       const setPresentation = async (settings: Record<string, unknown>) => { await db.query("update public.test_versions set settings_json = $1 where id = $2", [JSON.stringify(settings), id(3)]); };
       const save = async (questionId: string, correct: boolean | null = null) => {
         await db.query(`insert into public.${answers} (session_id,question_id,answer_json,answer_text,is_correct)
@@ -275,6 +339,76 @@ test("section RPC bounds payload size and enforces scoped read-only access in Po
         assert.equal(second.questionOffset, 1);
         assert.equal(second.answers[id(22)].answerText, "saved answer");
         assert.deepEqual(second, await presented(1));
+      });
+      await scenario("V3 prefetch is one static lookahead, never advances answers/lease and cannot chain in one-question", async () => {
+        await setPresentation({ presentationMode: "one_question", allowBack: false });
+        const before = await db.exec(`select * from public.${sessions} order by id; select * from public.${answers}; select * from public.${invites}`);
+        const raw = await navigation();
+        assert.equal(raw?.kind, "content"); assert.equal(raw?.sectionIndex, 1);
+        const preview = prefetchHarness().presentPrefetchedSection(raw, id(7));
+        assert.equal(preview.section.id, id(11));
+        assert.deepEqual(Object.keys(preview).sort(), ["section", "sectionIndex", "versionId"]);
+        for (const key of ["answers", "hint", "is_correct", "incompleteQuestionCount", "points"]) assert.ok(!JSON.stringify(raw).includes(key), key);
+        assert.equal(await navigation(1), null); assert.equal(await navigation(0, "prefetch", id(11), id(3), true), null);
+        assert.deepEqual(await db.exec(`select * from public.${sessions} order by id; select * from public.${answers}; select * from public.${invites}`), before);
+        await save(id(20), true);
+        assert.equal(await navigation(0), null);
+        assert.equal((await navigation(1))?.sectionIndex, 2);
+        assert.equal(await navigation(2), null);
+      });
+      await scenario("V3 hit equals fresh V2 including changed answers, remediation and deleted drafts", async () => {
+        const harness = prefetchHarness();
+        const preview = harness.presentPrefetchedSection(await navigation(), id(7));
+        await save(id(22));
+        const raw = await navigation(1, "navigate");
+        assert.equal(raw?.kind, "state");
+        assert.ok(!Object.hasOwn(raw!, "section"));
+        assert.deepEqual(reconcilePrefetchedSection(preview, harness.presentSectionNavigationState(raw)), await presented(1));
+        await db.query(`delete from public.${answers} where question_id = $1`, [id(22)]);
+        const deleted = reconcilePrefetchedSection(preview, harness.presentSectionNavigationState(await navigation(1, "navigate")));
+        assert.deepEqual(deleted, await presented(1)); assert.deepEqual(deleted.answers, {});
+        // Cache identity/canonical mismatch stays in the same RPC and uses the real V2 snapshot.
+        await setPresentation({ presentationMode: "one_question", allowBack: false });
+        await save(id(20), false);
+        const mismatch = await navigation(1, "navigate");
+        assert.equal(mismatch?.kind, "full"); assert.deepEqual(mismatch?.snapshot, await snapshot(1));
+        assert.equal((await navigation(1, "navigate", id(11), id(4)))?.kind, "full");
+        await setPresentation({ presentationMode: "one_question", allowBack: true });
+        const review = await navigation(0, "navigate", id(10), id(3), true);
+        assert.equal(review?.kind, "state"); assert.equal(review?.reviewMode, true);
+        assert.equal(harness.presentSectionNavigationState(review).feedbacks[id(20)], "hint");
+      });
+      await scenario("V3 cache-hit payload does not grow with static text/options", async () => {
+        const before = JSON.stringify(await navigation(1, "navigate"));
+        await db.query("update public.questions set text = repeat('STATIC CONTENT ', 5000) where id = $1", [id(22)]);
+        await db.query("insert into public.answer_options (id,question_id,text) select gen_random_uuid(),$1,repeat('OPTION TEXT ',100) from generate_series(1,100)", [id(22)]);
+        assert.equal(JSON.stringify(await navigation(1, "navigate")), before);
+        assert.ok(JSON.stringify(await navigation()).length > 100_000);
+      });
+      await scenario("V3 rechecks token/tenant/consent/deadline/terminal/version status for both reads", async () => {
+        for (const mode of ["prefetch", "navigate"]) {
+          for (const override of [{ token: "bad" }, { token: "b".repeat(64) }, { session: id(77) }, { session: id(99) }, { scope: "invalid" }, { scope: employee ? "candidate" : "employee" }]) {
+            assert.equal(await navigation(0, mode, id(10), id(3), false, override), null);
+          }
+          for (const [table, field] of [[invites, "status = 'cancelled'"], [invites, "status = 'completed'"],
+            [invites, "consent_given_at = null"], [invites, "expires_at = now() - interval '1 second'"], [invites, `company_id = '${id(2)}'`],
+            [sessions, "status = 'completed'"], [sessions, "deadline_at = now() - interval '1 second'"], ["test_versions", "status = 'draft'"]]) {
+            await db.exec("savepoint prefetch_denied"); await db.exec(`update public.${table} set ${field}`);
+            assert.equal(await navigation(0, mode, id(10)), null, `${mode}: ${field}`);
+            await db.exec("rollback to savepoint prefetch_denied");
+          }
+        }
+        assert.equal(await navigation(-1), null); assert.equal(await navigation(0, "invalid"), null);
+      });
+      await scenario("V3 is stable, service-only and deploy verification is read-only", async () => {
+        await db.exec("set local role service_role"); assert.ok(await navigation()); await db.exec("reset role");
+        for (const role of ["anon", "authenticated"]) {
+          await db.exec("savepoint prefetch_role"); await db.exec(`set local role ${role}`);
+          await assert.rejects(navigation(), /permission denied/); await db.exec("rollback to savepoint prefetch_role");
+        }
+        const result = await db.exec(read("../supabase/verification/assessment_section_prefetch_v3.sql"));
+        assert.deepEqual(result[0].rows, [{ signature: "public.read_assessment_section_navigation_v3(text,text,uuid,integer,boolean,text,uuid,uuid)",
+          installed: true, permissions_ok: true, stable_snapshot: true }]);
       });
       await scenario("one-question resumes first incomplete visible section, preserving review rules", async () => {
         await setPresentation({ presentationMode: "one_question", allowBack: true });

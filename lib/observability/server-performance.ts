@@ -16,6 +16,8 @@ export type ServerPerformanceOperation =
   | "assessment.load_question_candidate"
   | "assessment.load_question_employee"
   | "assessment.load_section"
+  | "assessment.load_section_state"
+  | "assessment.prefetch_section"
   | "assessment.save_section"
   | "assessment.load_test_overview"
   | "auth.context"

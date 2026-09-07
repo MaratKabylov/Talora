@@ -27,6 +27,7 @@ import {
 } from "@/lib/employee-assessments/public-actions";
 import { requestedSectionIndex, type AssessmentSectionSnapshot, type PublicFlowQuestion as FlowQuestion, type PublicFlowSection as FlowSection, type SectionSavedAnswer as SavedAnswer } from "@/lib/assessment/section-contract";
 import { fetchAssessmentSection, firstQuestionIndex, saveAssessmentSection, sectionUrl } from "@/lib/assessment/section-navigation";
+import { SectionPrefetchCache } from "@/lib/assessment/section-prefetch";
 import { reportClientOperation } from "@/lib/observability/client-performance";
 import type { ClientPerformanceOperation } from "@/lib/observability/performance-core";
 import type { TestPresentationSettings } from "@/lib/tests/presentation-settings";
@@ -60,6 +61,7 @@ type AssessmentTestSessionProps = {
   testInstructions: string | null;
   token: string;
   onSectionChange?: (snapshot: AssessmentSectionSnapshot) => void;
+  sectionPrefetchEnabled?: boolean;
 };
 
 const DEVICE_STORAGE_KEY = "talvia_assessment_device_id";
@@ -343,6 +345,7 @@ export function AssessmentTestSession({
   testInstructions,
   token,
   onSectionChange,
+  sectionPrefetchEnabled = false,
 }: AssessmentTestSessionProps) {
   const [navigatedSection, setNavigatedSection] = useState<AssessmentSectionSnapshot | null>(null);
   const section = navigatedSection ? navigatedSection.section : initialSection;
@@ -353,6 +356,7 @@ export function AssessmentTestSession({
   const reviewMode = navigatedSection?.reviewMode ?? initialReviewMode;
   const [sectionLoading, setSectionLoading] = useState(false);
   const sectionRequestRef = useRef<AbortController | null>(null);
+  const [sectionPrefetch] = useState(() => new SectionPrefetchCache());
   const questionDirtyRef = useRef(false);
   const questionSubmittingRef = useRef(false);
   const sectionSubmittingRef = useRef(false);
@@ -475,6 +479,7 @@ export function AssessmentTestSession({
   const applyControlResponse = useCallback((response: ControlResponse) => {
     if (response.status === "redirect") {
       sectionRequestRef.current?.abort();
+      sectionPrefetch.clear();
       navigatingRef.current = true;
       window.location.assign(response.redirectTo);
       return;
@@ -492,7 +497,7 @@ export function AssessmentTestSession({
         : null,
     );
     setLockState("active");
-  }, []);
+  }, [sectionPrefetch]);
 
   const identity = useCallback(
     () => ({
@@ -1138,6 +1143,21 @@ export function AssessmentTestSession({
     }
   }
 
+  useEffect(() => {
+    const clear = () => sectionPrefetch.clear();
+    if (!sectionPrefetchEnabled || !softNavigation || lockState !== "active" || reviewMode
+      || !section || sectionIndex + 1 >= sectionCount) { clear(); return; }
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    if (!navigator.onLine || connection?.saveData || ["slow-2g", "2g"].includes(connection?.effectiveType ?? "")) { clear(); return; }
+    const timer = setTimeout(() => {
+      if (!sectionRequestRef.current && !navigatingRef.current && navigator.onLine) {
+        void sectionPrefetch.start({ assessmentType, token, sessionId, sectionIndex });
+      }
+    }, 500);
+    window.addEventListener("offline", clear);
+    return () => { clearTimeout(timer); window.removeEventListener("offline", clear); clear(); };
+  }, [sectionPrefetch, sectionPrefetchEnabled, softNavigation, lockState, reviewMode, section, sectionIndex, sectionCount, assessmentType, token, sessionId]);
+
   async function navigateToSection(index: number, review: boolean, historyMode: "push" | "replace" = "push") {
     const restoreUrl = () => {
       if (historyMode === "replace") window.history.replaceState(null, "", currentSectionUrlRef.current);
@@ -1164,7 +1184,11 @@ export function AssessmentTestSession({
     pauseQuestionTimer();
     const startedAt = performance.now();
     try {
-      const next = await fetchAssessmentSection({ assessmentType, token, sessionId, sectionIndex: index, review }, controller.signal);
+      const cached = sectionPrefetchEnabled && !review
+        ? sectionPrefetch.ready({ assessmentType, token, sessionId, sectionIndex }, index) : undefined;
+      // Never wait for speculative work on the critical path.
+      sectionPrefetch.abortPending();
+      const next = await fetchAssessmentSection({ assessmentType, token, sessionId, sectionIndex: index, review }, controller.signal, cached);
       if (controller.signal.aborted || navigatingRef.current) return;
       // Replace section-local form state only after a fresh, authorized response succeeds.
       for (const timer of saveTimersRef.current.values()) clearTimeout(timer);

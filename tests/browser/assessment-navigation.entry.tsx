@@ -26,9 +26,16 @@ function submit() {
   check(button && !button.disabled, "Submit is available"); button!.click();
 }
 type RequestBody = { operation?: string; assessmentType: string; clientId?: string; deviceId?: string;
-  sessionId: string; questionId?: string; answer?: { answerText?: string }; sectionIndex?: number; review?: boolean; finalize?: boolean };
+  sessionId: string; questionId?: string; answer?: { answerText?: string }; sectionIndex?: number; review?: boolean; finalize?: boolean;
+  cached?: { sectionId: string; versionId: string } };
 
-async function scenario(assessmentType: "candidate" | "employee", allowBack: boolean, number: number) {
+function transitionResponse(snapshot: AssessmentSectionSnapshot, cached: RequestBody["cached"]) {
+  if (!cached || cached.sectionId !== snapshot.section?.id || cached.versionId !== id(900)) return Response.json(snapshot);
+  return Response.json({ kind: "state", versionId: id(900), sectionId: snapshot.section.id, sectionIndex: snapshot.sectionIndex,
+    sections: snapshot.sections, answers: snapshot.answers, feedbacks: {}, reviewMode: snapshot.reviewMode });
+}
+
+async function scenario(assessmentType: "candidate" | "employee", allowBack: boolean, number: number, prefetch = false) {
   const path = `/${assessmentType === "candidate" ? "assessment" : "employee-assessment"}/${token}/test/${id(number)}`;
   window.history.replaceState(null, "", `${path}?section=0`);
   const saved: Record<string, SectionSavedAnswer> = {};
@@ -66,13 +73,19 @@ async function scenario(assessmentType: "candidate" | "employee", allowBack: boo
     const body = JSON.parse(options?.body as string) as RequestBody;
     calls.push({ url, body });
     check(body.assessmentType === assessmentType && body.sessionId === id(number), "Scope/session never change");
+    if (url === "/api/assessment/section-prefetch") {
+      check(prefetch, "Prefetch disabled means no speculative requests");
+      const index = body.sectionIndex! + 1;
+      return Response.json({ versionId: id(900), sectionIndex: index, section: { id: id(30 + index),
+        title: `Section ${index + 1}`, description: null, contentBlocks: [], questions: [questions[index]] } });
+    }
     if (url === "/api/assessment/section") {
       await new Promise<void>((resolve, reject) => {
         const timer = setTimeout(resolve, sectionDelay);
         options?.signal?.addEventListener("abort", () => { clearTimeout(timer); aborted++; reject(new DOMException("Aborted", "AbortError")); }, { once: true });
       });
       return failSection ? new Response("unavailable", { status: 503 })
-        : Response.json(snapshot(body.sectionIndex!, body.review));
+        : transitionResponse(snapshot(body.sectionIndex!, body.review), body.cached);
     }
     check(url === "/api/assessment/session-control", "No full page/overview fetch during navigation");
     if (body.operation === "autosave") {
@@ -89,9 +102,14 @@ async function scenario(assessmentType: "candidate" | "employee", allowBack: boo
   try {
     root.render(<AssessmentTestFlow snapshot={snapshot(0)} assessmentType={assessmentType} token={token} sessionId={id(number)}
       initialDeadlineAt={deadlineAt} contextTitle="Synthetic assessment" testTitle="Navigation test" description={null}
-      instructions={null} completedSessionCount={0} sessionCount={1}
+      instructions={null} completedSessionCount={0} sessionCount={1} sectionPrefetchEnabled={prefetch}
       presentationSettings={{ presentationMode: "one_question", allowBack, captureQuestionTime: true }} />);
     await waitFor(() => host.querySelector("textarea"), "initial claim and question");
+    if (prefetch) {
+      await waitFor(() => calls.some(call => call.url === "/api/assessment/section-prefetch"), "static lookahead");
+      await sleep(30);
+      check(!host.textContent?.includes("Question 2"), "Prefetch never displays next content before save/state ACK");
+    }
     check(calls.filter(call => call.body.operation === "claim").length === 1, "Exactly one initial claim");
     const controlPanel = host.querySelector('p[aria-live="polite"]');
     const initialTimer = controlPanel?.textContent;
@@ -116,6 +134,7 @@ async function scenario(assessmentType: "candidate" | "employee", allowBack: boo
     check(window.location.search === "?section=1", "Successful transition updates URL");
     check(host.textContent?.includes("секция 2 из 3"), "Header progress updates");
     check(host.querySelector("textarea")?.value === "", "Other section does not reuse old draft");
+    if (prefetch) check(calls.some(call => call.url === "/api/assessment/section" && call.body.cached?.sectionId === id(31)), "Forward transition revalidates cached identity");
     await sleep(1100);
     check(controlPanel === host.querySelector('p[aria-live="polite"]'), "Timer DOM stays mounted");
     check(initialTimer !== controlPanel?.textContent, "Countdown continues instead of restarting");
@@ -147,12 +166,12 @@ async function scenario(assessmentType: "candidate" | "employee", allowBack: boo
     root.unmount();
     await sleep(50);
     check(aborted === 1, "Unmount aborts in-flight section read");
-    logs.push(`PASS ${assessmentType}, allowBack=${allowBack}: save errors, load errors, double click, history, timer/identity, abort`);
+    logs.push(`PASS ${assessmentType}, allowBack=${allowBack}, prefetch=${prefetch}: save/load errors, double click, history, timer/identity, abort`);
     result.textContent = logs.join("\n");
   } finally { root.unmount(); window.setInterval = originalSetInterval; }
 }
 
-async function sectionScenario(assessmentType: "candidate" | "employee", allowBack: boolean, number: number) {
+async function sectionScenario(assessmentType: "candidate" | "employee", allowBack: boolean, number: number, prefetch = false) {
   const path = `/${assessmentType === "candidate" ? "assessment" : "employee-assessment"}/${token}/test/${id(number)}`;
   window.history.replaceState(null, "", `${path}?section=0`);
   const deadlineAt = new Date(Date.now() + 120_000).toISOString();
@@ -194,9 +213,14 @@ async function sectionScenario(assessmentType: "candidate" | "employee", allowBa
     const url = String(input); const body = JSON.parse(options?.body as string);
     calls.push({ url, body });
     check(body.assessmentType === assessmentType && body.sessionId === id(number), "Batch scope/session stay fixed");
+    if (url === "/api/assessment/section-prefetch") {
+      check(prefetch, "Section prefetch gated");
+      const index = body.sectionIndex + 1;
+      return Response.json({ versionId: id(900), sectionIndex: index, section: snapshot(index).section });
+    }
     if (url === "/api/assessment/section") {
       await sleep(60);
-      return failSection ? new Response("unavailable", { status: 503 }) : Response.json(snapshot(body.sectionIndex));
+      return failSection ? new Response("unavailable", { status: 503 }) : transitionResponse(snapshot(body.sectionIndex), body.cached);
     }
     if (url === "/api/assessment/section-save") {
       check(inFlightAutosaves === 0, "Every started autosave settles before section batch");
@@ -234,9 +258,14 @@ async function sectionScenario(assessmentType: "candidate" | "employee", allowBa
   try {
     root.render(<AssessmentTestFlow snapshot={snapshot(0)} assessmentType={assessmentType} token={token} sessionId={id(number)}
       initialDeadlineAt={deadlineAt} contextTitle="Synthetic batch assessment" testTitle="Batch navigation" description={null}
-      instructions="Batch instructions" completedSessionCount={0} sessionCount={1}
+      instructions="Batch instructions" completedSessionCount={0} sessionCount={1} sectionPrefetchEnabled={prefetch}
       presentationSettings={{ presentationMode: "section", allowBack, captureQuestionTime: true }} />);
     await waitFor(() => host.querySelector("textarea"), "batch initial claim");
+    if (prefetch) {
+      await waitFor(() => calls.some(call => call.url === "/api/assessment/section-prefetch"), "batch static lookahead");
+      await sleep(30);
+      check(!host.textContent?.includes("Section question 3"), "Batch preview not displayed before ACK");
+    }
     check(host.textContent?.includes("Batch instructions"), "Section instructions are preserved");
     const timer = host.querySelector('p[aria-live="polite"]'); const initialTimer = timer?.textContent;
     host.querySelector<HTMLInputElement>(`input[value="${id(201)}"]`)!.click();
@@ -253,6 +282,11 @@ async function sectionScenario(assessmentType: "candidate" | "employee", allowBa
     failSection = false; next();
     await waitFor(() => host.querySelectorAll("textarea").length === 2, "new remediation question appears");
     check(window.location.search === "?section=0", "Unanswered remediation keeps current section");
+    if (prefetch) {
+      const prefetchCount = calls.filter(call => call.url === "/api/assessment/section-prefetch").length;
+      await waitFor(() => calls.filter(call => call.url === "/api/assessment/section-prefetch").length > prefetchCount, "fresh lookahead after remediation refresh");
+      await sleep(30);
+    }
     const followup = host.querySelectorAll("textarea")[1];
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(followup, "Follow-up answer");
     followup.dispatchEvent(new Event("input", { bubbles: true }));
@@ -260,6 +294,7 @@ async function sectionScenario(assessmentType: "candidate" | "employee", allowBa
     await waitFor(() => host.textContent?.includes("Section question 3"), "batch next section");
     check(window.location.search === "?section=1", "Batch URL advances");
     check(host.querySelector("textarea")?.value === "", "New section starts without old draft");
+    if (prefetch) check(calls.some(call => call.url === "/api/assessment/section" && call.body.cached?.sectionId === id(301)), "Batch transition validates cached next section");
     check(!host.textContent?.includes("Batch instructions"), "First-section instructions leave with section");
     window.history.back();
     if (allowBack) {
@@ -289,15 +324,17 @@ async function sectionScenario(assessmentType: "candidate" | "employee", allowBa
     textInput("Last answer"); next(); next();
     await waitFor(() => legacySubmissions === 1, "terminal action handoff");
     check(legacySubmissions === 1, "Terminal action submitted only once");
-    logs.push(`PASS section ${assessmentType}, allowBack=${allowBack}: autosave drain, batch/read failures, remediation, history, timer, terminal handoff`);
+    logs.push(`PASS section ${assessmentType}, allowBack=${allowBack}, prefetch=${prefetch}: autosave drain, batch/read failures, remediation, history, timer, terminal handoff`);
   } finally { root.unmount(); setSectionActionHandler(null); window.setInterval = originalSetInterval; }
 }
 
 void (async () => {
   let number = 1;
-  for (const scope of ["candidate", "employee"] as const) for (const allowBack of [true, false]) await scenario(scope, allowBack, number++);
-  for (const scope of ["candidate", "employee"] as const) for (const allowBack of [true, false]) await sectionScenario(scope, allowBack, number++);
-  result.textContent = `PASS: 8 browser scenarios\n${logs.join("\n")}`;
+  for (const prefetch of [false, true]) {
+    for (const scope of ["candidate", "employee"] as const) for (const allowBack of [true, false]) await scenario(scope, allowBack, number++, prefetch);
+    for (const scope of ["candidate", "employee"] as const) for (const allowBack of [true, false]) await sectionScenario(scope, allowBack, number++, prefetch);
+  }
+  result.textContent = `PASS: 16 browser scenarios\n${logs.join("\n")}`;
   result.dataset.status = "passed";
 })().catch(error => {
   result.textContent = `FAIL: ${error instanceof Error ? error.stack : String(error)}\n${logs.join("\n")}`;

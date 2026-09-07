@@ -81,7 +81,7 @@ company/owner/session chain, статус и lease. В ответе записи
 
 Локально: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`.
 `npm run test:browser:navigation` запускает изолированную fixture на localhost:4318;
-в браузере дождаться `PASS: 8 browser scenarios`, после проверки остановить Ctrl+C.
+в браузере дождаться `PASS: 16 browser scenarios` (расширено шагом 23), после проверки остановить Ctrl+C.
 Синтетические transport/профили не используют рабочую БД и реальные ключи.
 
 SQL-тесты исполняют реальную миграцию, нормализатор и существующие answer triggers
@@ -105,3 +105,6 @@ test-page/overview запросов на обычном переходе; не �
 
 Prefetch и оптимизация завершения/смены теста остаются следующими работами; полный
 PERF-004/005 и staging-приемка не закрыты.
+
+Продолжение: кодовая подзадача prefetch реализована отдельно, включение и новая миграция
+описаны в `docs/23_SECTION_PREFETCH_ROLLOUT.md`. Завершение/смена теста еще не оптимизированы.

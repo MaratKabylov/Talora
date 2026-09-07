@@ -327,3 +327,39 @@ action/scoring, конкурентность через отдельные со�
 click-to-visible еще предстоит собрать (30+ cold/warm повторов). Prefetch и оптимизация
 completion/смены теста остаются открытыми; полный PERF-004/005 не закрыт.
 Включение, приемка и откат: `docs/22_SECTION_NAVIGATION_ROLLOUT.md`.
+
+## 16. PERF-004c/005c: предзагрузка следующей секции — 07.09.2026
+
+Под серверным `ASSESSMENT_SECTION_PREFETCH_V3` контроллер предзагружает только одну
+следующую секцию published/archived версии, без ответов/прогресса/обратной связи.
+Новый read-only RPC `read_assessment_section_navigation_v3` поддерживает content-prefetch
+и обязательную свежую проверку перехода. Cache hit возвращает state без текста/вариантов;
+cache/canonical mismatch возвращает полный актуальный V2 snapshot внутри того же RPC.
+Существующий finalize/batch, lease и scoring не изменены.
+
+На критическом пути сохраняется один read HTTP/RPC после записи. Дополнительно появляется
+один speculative HTTP/RPC на секцию. Преимущество — перенос подготовки/передачи статического
+содержимого до клика; уменьшение общего числа запросов этим шагом не заявляется.
+В PGlite увеличение текста следующего вопроса на 70 000 символов и добавление 100 длинных
+вариантов не меняет JSON cache-hit ответа; prefetch payload растет. Это проверка контракта
+объема, не измерение задержки, размера gzip или нагрузки production DB.
+
+Локально проходят 383 теста, lint, typecheck, production build и 16 headless Chrome
+browser-component сценариев: оба scope × режима × allowBack × prefetch off/on.
+SQL-проверки исполняют реальную новую миграцию с V2 и integrity migrations в PGlite:
+ограничение lookahead, read-only/grants, scope/company/token/consent/deadline/version,
+совпадение state+content с V2, удаленные ответы, remediation, review, изменившаяся
+каноническая секция. Проверены серверная очистка DTO, deterministic shuffle, свежая
+ordering перестановка, одноэлементный кеш/TTL/лимит 1 MiB, abort, ошибки и live flag rollback.
+Браузер проверяет успешное использование cache hints без раннего показа секции, сохранение
+ввода после ошибок, историю, timer/identity/heartbeat и прежний terminal handoff.
+
+Это synthetic component/transport и локальный PostgreSQL, не полная Next.js/Supabase/RLS
+интеграция. Фактическое ускорение еще не измерено. Нужны 30+ cold/warm click-to-visible
+замеров с флагом off/on, hit/miss, p50/p95, ошибками и общей нагрузкой БД; большие/малые
+секции и слабая сеть должны оцениваться отдельно. Старые p95 не подменены оценками.
+
+Флаг по умолчанию выключен. Новую миграцию агент в удаленную БД не применял, реальные
+env не менял. Предыдущая инструкция выполнена со слов пользователя, без удаленной проверки.
+Кодовая часть prefetch готова; staging-приемка и оптимизация completion/смены теста
+остаются открытыми. Включение/ограничения/откат: `docs/23_SECTION_PREFETCH_ROLLOUT.md`.

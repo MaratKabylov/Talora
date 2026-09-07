@@ -70,6 +70,7 @@ export default async function EmployeeAssessmentTestPage({
     return <TestTakingGuard><AssessmentShell companyName={overview.companyName}>
       {/* Server revisits restore fresh state; client-only section transitions keep this key. */}
       <AssessmentTestFlow key={`${sessionId}:${crypto.randomUUID()}`} snapshot={snapshot} assessmentType="employee" token={token} sessionId={sessionId}
+        sectionPrefetchEnabled={process.env.ASSESSMENT_SECTION_PREFETCH_V3 === "true"}
         initialDeadlineAt={session.deadlineAt} contextTitle={overview.contextTitle} testTitle={session.test.title}
         description={session.test.description} instructions={session.test.instructions} presentationSettings={presentationSettings}
         completedSessionCount={overview.completedSessionCount} sessionCount={overview.sessionCount} error={feedback.error} />

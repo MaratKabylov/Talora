@@ -20,7 +20,7 @@ type NextResponse = import("next/server").NextResponse;
 const id = (n: number) => `f7000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const token = "a".repeat(64);
 const body = { assessmentType: "candidate", token, sessionId: id(1), sectionIndex: 1, review: false };
-function routeHarness(result: unknown, env = { ASSESSMENT_SOFT_NAVIGATION_V2: "true", ASSESSMENT_SECTION_READ_V2: "true" }, fail = false) {
+function routeHarness(result: unknown, env: Record<string, string> = { ASSESSMENT_SOFT_NAVIGATION_V2: "true", ASSESSMENT_SECTION_READ_V2: "true" }, fail = false) {
   const calls: unknown[] = [];
   const source = readFileSync(new URL("../app/api/assessment/section/route.ts", import.meta.url), "utf8");
   const { outputText } = transpileModule(source, { compilerOptions: { module: ModuleKind.CommonJS, target: ScriptTarget.ES2022 } });
@@ -28,6 +28,9 @@ function routeHarness(result: unknown, env = { ASSESSMENT_SOFT_NAVIGATION_V2: "t
     "next/server": { NextRequest, NextResponse }, zod: { z },
     "@/lib/observability/performance-core": performanceCore,
     "@/lib/tests/presentation-settings": presentation,
+    "@/lib/assessment/section-prefetch-data": { readAssessmentSectionTransition: async (input: unknown, cached: unknown) => {
+      calls.push({ input, cached }); if (fail) throw Error(`private SQL ${token}`); return result;
+    } },
     "@/lib/assessment/section-data": { getAssessmentSectionSnapshot: async (input: unknown) => {
       calls.push(input); if (fail) throw Error(`private SQL ${token}`); return result;
     } },
@@ -84,6 +87,61 @@ test("unavailable sessions and RPC errors disclose no token/SQL and do not retry
     assert.ok(!json.includes(token)); assert.ok(!json.includes("SQL")); assert.equal(route.calls.length, 1);
     assert.match(response.headers.get("cache-control")!, /no-store/);
   }
+});
+
+test("cached section transitions use fresh state only with prefetch flag; live rollback still uses V2", async () => {
+  const cached = { sectionId: id(2), versionId: id(3) };
+  for (const assessmentType of ["candidate", "employee"]) for (const flag of ["true", "false"]) {
+    const input = { ...body, assessmentType, cached };
+    const route = routeHarness({ kind: "state" }, { ASSESSMENT_SOFT_NAVIGATION_V2: "true", ASSESSMENT_SECTION_READ_V2: "true", ASSESSMENT_SECTION_PREFETCH_V3: flag });
+    assert.equal((await route.POST(request(input))).status, 200);
+    assert.equal(route.calls.length, 1);
+    if (flag === "true") assert.deepEqual(route.calls, [{ input, cached }]);
+    else assert.ok(!("cached" in (route.calls[0] as object)));
+  }
+  const route = routeHarness(null);
+  assert.equal((await route.POST(request({ ...body, cached: { ...cached, sectionId: "bad" } }))).status, 400);
+  assert.deepEqual(route.calls, []);
+});
+
+test("prefetch endpoint validates origin/flags/input and returns only no-store data without fallback", async () => {
+  const enabled = { ASSESSMENT_SOFT_NAVIGATION_V2: "true", ASSESSMENT_SECTION_READ_V2: "true", ASSESSMENT_SECTION_PREFETCH_V3: "true" };
+  function harness(env: Record<string, string> = enabled, data: unknown = null, fail = false) {
+    const calls: unknown[] = [];
+    const dependencies: Record<string, unknown> = { "next/server": { NextRequest, NextResponse }, zod: { z },
+      "@/lib/observability/performance-core": performanceCore,
+      "@/lib/assessment/section-prefetch-data": { prefetchAssessmentSection: async (input: unknown) => {
+        calls.push(input); if (fail) throw Error(`SQL ${token}`); return data;
+      } },
+    };
+    const { outputText } = transpileModule(readFileSync(new URL("../app/api/assessment/section-prefetch/route.ts", import.meta.url), "utf8"),
+      { compilerOptions: { module: ModuleKind.CommonJS, target: ScriptTarget.ES2022 } });
+    const exports = {} as { POST: (req: NextRequest) => Promise<NextResponse> };
+    compileFunction(outputText, ["exports", "require", "process"])(exports, (name: string) => {
+      assert.ok(Object.hasOwn(dependencies, name), name); return dependencies[name];
+    }, { env });
+    return { ...exports, calls };
+  }
+  for (const assessmentType of ["candidate", "employee"]) {
+    const route = harness(); const response = await route.POST(request({ ...body, assessmentType }));
+    assert.equal(response.status, 200); assert.equal(await response.json(), null);
+    assert.match(response.headers.get("cache-control")!, /no-store/);
+    assert.match(response.headers.get("server-timing")!, /assessment_prefetch_section/);
+    assert.deepEqual(route.calls, [{ assessmentType, token, sessionId: id(1), sectionIndex: 1 }]);
+  }
+  for (const flag of Object.keys(enabled)) {
+    const route = harness({ ...enabled, [flag]: "false" });
+    assert.equal((await route.POST(request())).status, 409); assert.deepEqual(route.calls, []);
+  }
+  const route = harness();
+  assert.equal((await route.POST(request(body, "https://foreign.test"))).status, 403);
+  for (const invalid of [null, {}, { ...body, token: "bad" }, { ...body, assessmentType: "other" },
+    { ...body, sessionId: "bad" }, { ...body, sectionIndex: -1 }, { ...body, sectionIndex: 2 ** 31 }]) {
+    assert.equal((await route.POST(request(invalid))).status, 400);
+  }
+  assert.deepEqual(route.calls, []);
+  const failed = harness(undefined, null, true); const response = await failed.POST(request());
+  assert.equal(response.status, 500); assert.ok(!(await response.text()).includes(token)); assert.equal(failed.calls.length, 1);
 });
 
 test("client section request is POST/no-store/abortable and only returns successful snapshots", async (t) => {

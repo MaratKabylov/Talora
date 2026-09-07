@@ -1,4 +1,5 @@
 import type { AssessmentSectionSnapshot } from "./section-contract";
+import { reconcilePrefetchedSection, type PrefetchedSection, type SectionNavigationState } from "./section-prefetch-contract.ts";
 import type { SectionSaveRequest, SectionSaveResponse } from "./section-save-contract";
 
 export async function saveAssessmentSection(input: SectionSaveRequest): Promise<SectionSaveResponse> {
@@ -24,13 +25,20 @@ export function firstQuestionIndex(snapshot: Pick<AssessmentSectionSnapshot, "se
 
 export async function fetchAssessmentSection(input: {
   assessmentType: "candidate" | "employee"; token: string; sessionId: string; sectionIndex: number; review: boolean;
-}, signal: AbortSignal): Promise<AssessmentSectionSnapshot> {
+}, signal: AbortSignal, cached?: PrefetchedSection): Promise<AssessmentSectionSnapshot> {
   const response = await fetch("/api/assessment/section", {
     method: "POST", cache: "no-store", signal,
-    headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...input,
+      ...(cached ? { cached: { sectionId: cached.section.id, versionId: cached.versionId } } : {}),
+    }),
   });
   if (!response.ok) throw new Error(response.status === 410
     ? "Тест больше недоступен. Проверьте состояние сессии."
     : "Не удалось загрузить секцию. Текущий ответ остался на экране — повторите переход.");
-  return response.json();
+  const result = await response.json() as AssessmentSectionSnapshot | SectionNavigationState;
+  if ("kind" in result && result.kind === "state") {
+    if (!cached) throw new Error("Не удалось подтвердить секцию. Повторите переход.");
+    return reconcilePrefetchedSection(cached, result);
+  }
+  return result as AssessmentSectionSnapshot;
 }

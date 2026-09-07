@@ -9,12 +9,12 @@ import type { TestPresentationSettings } from "@/lib/tests/presentation-settings
 
 // Mounted once per test session. Section transitions never refetch the server page/overview.
 export function AssessmentTestFlow({ snapshot, assessmentType, token, sessionId, initialDeadlineAt,
-  contextTitle, testTitle, description, instructions, presentationSettings, completedSessionCount, sessionCount, error,
+  contextTitle, testTitle, description, instructions, presentationSettings, completedSessionCount, sessionCount, error, sectionPrefetchEnabled = false,
 }: {
   snapshot: AssessmentSectionSnapshot; assessmentType: "candidate" | "employee"; token: string; sessionId: string;
   initialDeadlineAt: string | null; contextTitle: string; testTitle: string; description: string | null;
   instructions: string | null; presentationSettings: TestPresentationSettings; completedSessionCount: number;
-  sessionCount: number; error?: string;
+  sessionCount: number; error?: string; sectionPrefetchEnabled?: boolean;
 }) {
   const [current, setCurrent] = useState(snapshot);
   const sectionCount = current.sections.length;
@@ -40,6 +40,6 @@ export function AssessmentTestFlow({ snapshot, assessmentType, token, sessionId,
       initialDeadlineAt={initialDeadlineAt} otherVisibleQuestionCount={snapshot.otherVisibleQuestionCount}
       presentationSettings={presentationSettings} questionOffset={snapshot.questionOffset} reviewMode={snapshot.reviewMode}
       section={snapshot.section} sectionCount={snapshot.sections.length} sectionIndex={snapshot.sectionIndex}
-      sessionId={sessionId} testInstructions={instructions} token={token} onSectionChange={setCurrent} />
+      sessionId={sessionId} testInstructions={instructions} token={token} onSectionChange={setCurrent} sectionPrefetchEnabled={sectionPrefetchEnabled} />
   </div>;
 }
