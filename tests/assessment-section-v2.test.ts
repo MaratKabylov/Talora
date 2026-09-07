@@ -30,6 +30,11 @@ function load<T>(path: string, dependencies: Record<string, unknown>, flag = "tr
 const richTextServer = load<typeof import("../lib/rich-text.server.ts")>("../lib/rich-text.server.ts", {
   "server-only": {}, "sanitize-html": { __esModule: true, default: sanitizeHtml }, "@/lib/rich-text": richText,
 });
+const legacyOverviewReader = load<typeof import("../lib/assessment/test-overview.ts")>("../lib/assessment/test-overview.ts", {
+  "server-only": {}, zod: { z }, "@/lib/rich-text.server": richTextServer,
+  "@/lib/supabase/admin": { createAdminClient: () => { throw Error("Legacy overview must not call RPC"); } },
+  "@/lib/observability/server-performance": {}, "@/lib/tests/presentation-settings": presentation,
+});
 function readerHarness(result: unknown = null, flag = "true", fail = false) {
   const calls: unknown[][] = [];
   const reader = load<typeof import("../lib/assessment/section-data.ts")>("../lib/assessment/section-data.ts", {
@@ -157,6 +162,7 @@ test("both real test pages use the section reader and pass only its bounded DTO 
         "@/lib/assessment/section-data": { getAssessmentSectionSnapshot: (input: { assessmentType: string; requestedIndex: string }) => {
           assert.equal(input.assessmentType, scope); assert.equal(input.requestedIndex, "0"); scopedReads++; return sectionSnapshot;
         } },
+        "@/lib/assessment/test-overview": legacyOverviewReader,
       });
     const props = { params: Promise.resolve({ token, sessionId: id(7) }), searchParams: Promise.resolve({ section: "0" }) };
     const element = await page.default(props);

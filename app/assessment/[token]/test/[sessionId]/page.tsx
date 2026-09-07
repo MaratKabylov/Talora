@@ -7,6 +7,7 @@ import { FeedbackMessage } from "@/components/feedback-message";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { getAssessmentByToken, getAssessmentQuestionPageData } from "@/lib/assessment/data";
 import { getAssessmentSectionSnapshot } from "@/lib/assessment/section-data";
+import { getAssessmentTestOverview } from "@/lib/assessment/test-overview";
 
 type TestParams = Promise<{ sessionId: string; token: string }>;
 type TestSearchParams = Promise<{ error?: string; review?: string; section?: string }>;
@@ -20,7 +21,14 @@ export default async function CandidateTestPage({
 }) {
   const { sessionId, token } = await params;
   const feedback = await searchParams;
-  const overview = await getAssessmentByToken(token);
+  // Request-local only: the flag-off overview and content reader share one legacy load.
+  let legacyOverview: ReturnType<typeof getAssessmentByToken> | undefined;
+  const readLegacyOverview = () => legacyOverview ??= getAssessmentByToken(token);
+  const overview = await getAssessmentTestOverview({ assessmentType: "candidate", token, sessionId }, readLegacyOverview);
+
+  if (overview.availability === "needs_consent") {
+    redirect(`/assessment/${token}`);
+  }
 
   if (overview.availability !== "active") {
     if (overview.availability === "completed") {
@@ -30,18 +38,10 @@ export default async function CandidateTestPage({
     return <AssessmentUnavailable state={overview.availability} />;
   }
 
-  if (!overview.consentGivenAt) {
-    redirect(`/assessment/${token}`);
-  }
-
-  const session = overview.sessions.find(entry => entry.id === sessionId);
-  if (!session) {
-    return <AssessmentUnavailable state="invalid" />;
-  }
+  const session = overview.session;
 
   if (session.status === "completed") {
-    const nextSession = overview.sessions.find((session) => session.status === "in_progress");
-    redirect(nextSession ? `/assessment/${token}/test/${nextSession.id}` : `/assessment/${token}/complete`);
+    redirect(overview.nextSessionId ? `/assessment/${token}/test/${overview.nextSessionId}` : `/assessment/${token}/complete`);
   }
 
   if (session.status !== "in_progress") {
@@ -51,11 +51,15 @@ export default async function CandidateTestPage({
   const presentationSettings = session.test.presentationSettings;
   const snapshot = await getAssessmentSectionSnapshot({ assessmentType: "candidate", token, sessionId,
     requestedIndex: feedback.section, review: feedback.review, presentationSettings },
-    () => getAssessmentQuestionPageData(token, sessionId, overview));
+    async () => {
+      const legacy = await readLegacyOverview();
+      return legacy.availability === "active" && legacy.consentGivenAt
+        ? getAssessmentQuestionPageData(token, sessionId, legacy) : null;
+    });
   if (!snapshot) return <AssessmentUnavailable state="invalid" />;
   const data = { ...snapshot, assessment: overview, session };
   const { section, sectionIndex, questionOffset, otherVisibleQuestionCount, reviewMode } = snapshot;
-  const completedSessions = data.assessment.sessions.filter((session) => session.status === "completed").length;
+  const completedSessions = overview.completedSessionCount;
   const progress = section ? ((sectionIndex + 1) / data.sections.length) * 100 : 0;
 
   return (
@@ -63,10 +67,10 @@ export default async function CandidateTestPage({
       <AssessmentShell companyName={data.assessment.companyName}>
         <div className="space-y-6">
         <div>
-          <p className="text-sm text-muted-foreground">{data.assessment.job.title}</p>
+          <p className="text-sm text-muted-foreground">{overview.contextTitle}</p>
           <h1 className="mt-2 text-xl font-semibold sm:text-2xl">{data.session.test.title}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Тест {completedSessions + 1} из {data.assessment.sessions.length}
+            Тест {completedSessions + 1} из {overview.sessionCount}
             {section ? ` / секция ${sectionIndex + 1} из ${data.sections.length}` : ""}
           </p>
           {sectionIndex === 0 && data.session.test.description ? (

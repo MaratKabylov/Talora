@@ -25,7 +25,9 @@ competency effects и `is_correct` из DTO чтения. `remediationRequired` 
 
 ## Что пока не изменено
 
-- Полный company/job/package/session overview по-прежнему загружается на сервере.
+- Без `ASSESSMENT_OVERVIEW_V2` полный company/job/package/session overview по-прежнему
+  загружается на сервере. PERF-004b от 07.09.2026 добавляет отдельный компактный reader;
+  включение описано в `docs/20_ASSESSMENT_TEST_OVERVIEW_ROLLOUT.md`.
 - Сохранение секции и завершение/scoring используют существующие server actions/readers.
 - Межсекционная навигация и предзагрузка не оптимизированы; это продолжение PERF-004/005.
 - Смена секции сейчас перемонтирует форму, чтобы не сохранить локальные ответы предыдущей

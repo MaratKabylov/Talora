@@ -19,6 +19,10 @@ SESSION_CONTROL_V2=false
 # Independent of SESSION_CONTROL_V2; limits test-page content to the active section.
 ASSESSMENT_SECTION_READ_V2=false
 
+# Server only. Apply 20260907120000_assessment_test_overview_v2.sql, then verify staging.
+# Enable with ASSESSMENT_SECTION_READ_V2 to avoid legacy overview/content reads.
+ASSESSMENT_OVERVIEW_V2=false
+
 # Optional email provider for later
 RESEND_API_KEY=
 EMAIL_FROM=

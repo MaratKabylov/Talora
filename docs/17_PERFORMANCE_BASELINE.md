@@ -233,3 +233,35 @@ Lint, typecheck и production build проходят. Фактические p50
 Миграция на удаленной БД агентом не применялась, флаг не включался; фактических замеров нет.
 Минимальный overview, prefetch и мягкая навигация остаются продолжением PERF-004/005.
 Включение и откат: `docs/19_ASSESSMENT_SECTION_READ_ROLLOUT.md`.
+
+## 13. PERF-004b: минимальный test-page overview — 07.09.2026
+
+Под `ASSESSMENT_OVERVIEW_V2=true` текущий overview читается одним HTTP RPC
+`read_assessment_test_overview_v2` вместо пяти запросов (invitation, company, job/assessment,
+person, sessions). Новая операция: `assessment.load_test_overview`. В ответе только параметры
+текущего теста, заголовки и счетчики; нет профиля человека, описания пакета, массива сессий
+и инструкций/настроек остальных тестов.
+
+При включенном также `ASSESSMENT_SECTION_READ_V2` обычная активная test page выполняет
+2 HTTP-запроса чтения вместо 7 исходных или 6 после PERF-004a. Claim/heartbeat и terminal
+side effects не входят в эти числа. SQL statements внутри RPC считаются отдельно.
+При overview=true и section=false остается совместимый, но не оптимальный путь: 8 запросов;
+для ускорения включать оба read-флага. Их таблица и откат — в документе rollout.
+
+Локальные тесты исполняют новую SQL-функцию и реальные V1 readers на одной синтетической
+схеме; подтверждено совпадение текущих параметров, счетчиков и scope-specific eligibility.
+Добавление 200 других сессий/тестов с длинными инструкциями меняет JSON менее чем на 20
+символов, только за счет счетчика. Рост инструкций существующих других тестов не меняет
+payload. Это проверка объема, не замер p50/p95; стоимость SQL по числу сессий еще измеряется.
+
+Все 344 теста, lint, typecheck и production build проходят. Новые проверки охватывают
+tenant/person/context/session связи, consent/expiry/terminal redirects, права, отсутствие
+записей, rich-text sanitization, error handling и все сочетания read-флагов на обеих страницах.
+PGlite не заменяет полную Supabase/RLS-интеграцию; browser smoke, EXPLAIN, 30+ cold/warm
+замеров TTFB/операций и фактический production-like p95 остаются открытыми.
+
+Новая миграция агентом не применялась к удаленной БД, реальные флаги не включались.
+Read-only overview больше не пишет opened/expired из GET; отображение и фиксацию
+терминальных состояний проверить по rollout-инструкции. Минимальный overview реализован,
+но prefetch/мягкая навигация остаются следующим шагом PERF-004/005.
+Инструкция: `docs/20_ASSESSMENT_TEST_OVERVIEW_ROLLOUT.md`.

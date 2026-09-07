@@ -6,6 +6,7 @@ import { TestTakingGuard } from "@/components/assessment/test-taking-guard";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { getAssessmentSectionSnapshot } from "@/lib/assessment/section-data";
+import { getAssessmentTestOverview } from "@/lib/assessment/test-overview";
 import {
   getEmployeeAssessmentByToken,
   getEmployeeAssessmentQuestionPageData,
@@ -23,7 +24,13 @@ export default async function EmployeeAssessmentTestPage({
 }) {
   const { sessionId, token } = await params;
   const feedback = await searchParams;
-  const overview = await getEmployeeAssessmentByToken(token);
+  let legacyOverview: ReturnType<typeof getEmployeeAssessmentByToken> | undefined;
+  const readLegacyOverview = () => legacyOverview ??= getEmployeeAssessmentByToken(token);
+  const overview = await getAssessmentTestOverview({ assessmentType: "employee", token, sessionId }, readLegacyOverview);
+
+  if (overview.availability === "needs_consent") {
+    redirect(`/employee-assessment/${token}`);
+  }
 
   if (overview.availability !== "active") {
     if (overview.availability === "completed") {
@@ -33,20 +40,12 @@ export default async function EmployeeAssessmentTestPage({
     return <AssessmentUnavailable state={overview.availability} />;
   }
 
-  if (!overview.consentGivenAt) {
-    redirect(`/employee-assessment/${token}`);
-  }
-
-  const session = overview.sessions.find(entry => entry.id === sessionId);
-  if (!session) {
-    return <AssessmentUnavailable state="invalid" />;
-  }
+  const session = overview.session;
 
   if (session.status === "completed") {
-    const nextSession = overview.sessions.find((session) => session.status === "in_progress");
     redirect(
-      nextSession
-        ? `/employee-assessment/${token}/test/${nextSession.id}`
+      overview.nextSessionId
+        ? `/employee-assessment/${token}/test/${overview.nextSessionId}`
         : `/employee-assessment/${token}/complete`,
     );
   }
@@ -58,13 +57,15 @@ export default async function EmployeeAssessmentTestPage({
   const presentationSettings = session.test.presentationSettings;
   const snapshot = await getAssessmentSectionSnapshot({ assessmentType: "employee", token, sessionId,
     requestedIndex: feedback.section, review: feedback.review, presentationSettings },
-    () => getEmployeeAssessmentQuestionPageData(token, sessionId, overview));
+    async () => {
+      const legacy = await readLegacyOverview();
+      return legacy.availability === "active" && legacy.consentGivenAt
+        ? getEmployeeAssessmentQuestionPageData(token, sessionId, legacy) : null;
+    });
   if (!snapshot) return <AssessmentUnavailable state="invalid" />;
   const data = { ...snapshot, assessment: overview, session };
   const { section, sectionIndex, questionOffset, otherVisibleQuestionCount, reviewMode } = snapshot;
-  const completedSessions = data.assessment.sessions.filter(
-    (session) => session.status === "completed",
-  ).length;
+  const completedSessions = overview.completedSessionCount;
   const progress = section ? ((sectionIndex + 1) / data.sections.length) * 100 : 0;
 
   return (
@@ -72,10 +73,10 @@ export default async function EmployeeAssessmentTestPage({
       <AssessmentShell companyName={data.assessment.companyName}>
         <div className="space-y-6">
           <div>
-            <p className="text-sm text-muted-foreground">{data.assessment.assessment.title}</p>
+            <p className="text-sm text-muted-foreground">{overview.contextTitle}</p>
             <h1 className="mt-2 text-xl font-semibold sm:text-2xl">{data.session.test.title}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Тест {completedSessions + 1} из {data.assessment.sessions.length}
+              Тест {completedSessions + 1} из {overview.sessionCount}
               {section ? ` / секция ${sectionIndex + 1} из ${data.sections.length}` : ""}
             </p>
             {sectionIndex === 0 && data.session.test.description ? (
