@@ -26,7 +26,7 @@ import {
   saveEmployeeAssessmentSectionAction,
 } from "@/lib/employee-assessments/public-actions";
 import { requestedSectionIndex, type AssessmentSectionSnapshot, type PublicFlowQuestion as FlowQuestion, type PublicFlowSection as FlowSection, type SectionSavedAnswer as SavedAnswer } from "@/lib/assessment/section-contract";
-import { fetchAssessmentSection, firstQuestionIndex, sectionUrl } from "@/lib/assessment/section-navigation";
+import { fetchAssessmentSection, firstQuestionIndex, saveAssessmentSection, sectionUrl } from "@/lib/assessment/section-navigation";
 import { reportClientOperation } from "@/lib/observability/client-performance";
 import type { ClientPerformanceOperation } from "@/lib/observability/performance-core";
 import type { TestPresentationSettings } from "@/lib/tests/presentation-settings";
@@ -355,6 +355,10 @@ export function AssessmentTestSession({
   const sectionRequestRef = useRef<AbortController | null>(null);
   const questionDirtyRef = useRef(false);
   const questionSubmittingRef = useRef(false);
+  const sectionSubmittingRef = useRef(false);
+  const legacySubmissionReadyRef = useRef(false);
+  const mountedRef = useRef(true);
+  const [sectionSaving, setSectionSaving] = useState(false);
   const [clientId, setClientId] = useState("");
   const [deviceId, setDeviceId] = useState("");
   const [deadlineAt, setDeadlineAt] = useState(initialDeadlineAt);
@@ -417,7 +421,7 @@ export function AssessmentTestSession({
   const assessmentPath =
     assessmentType === "employee" ? `/employee-assessment/${token}` : `/assessment/${token}`;
   const testPath = `${assessmentPath}/test/${sessionId}`;
-  const softNavigation = Boolean(onSectionChange) && isOneQuestion;
+  const softNavigation = Boolean(onSectionChange);
   const currentSectionUrlRef = useRef(sectionUrl(testPath, sectionIndex, reviewMode));
   const activeQuestion =
     isOneQuestion && currentQuestionIndex >= 0
@@ -773,7 +777,7 @@ export function AssessmentTestSession({
     (questionId: string) => {
       const form = formRef.current;
       const question = questionsById.get(questionId);
-      if (!form || !question || lockState !== "active" || softNavigation) {
+      if (!mountedRef.current || !form || !question || lockState !== "active" || (softNavigation && isOneQuestion) || sectionSubmittingRef.current) {
         return;
       }
 
@@ -783,6 +787,7 @@ export function AssessmentTestSession({
       const next = previous
         .catch(() => undefined)
         .then(async () => {
+          if (!mountedRef.current || navigatingRef.current) return;
           pendingSavesRef.current += 1;
           setSaveState("saving");
           let lastError: unknown = null;
@@ -791,6 +796,7 @@ export function AssessmentTestSession({
             if (retryDelay) {
               await new Promise((resolve) => setTimeout(resolve, retryDelay));
             }
+            if (!mountedRef.current || navigatingRef.current) break;
             try {
               const response = await postControl({
                 ...identity(),
@@ -815,7 +821,7 @@ export function AssessmentTestSession({
           }
 
           pendingSavesRef.current -= 1;
-          if (lastError) {
+          if (lastError && mountedRef.current && !navigatingRef.current) {
             setSaveState(navigator.onLine ? "error" : "offline");
             const retryTimer = setTimeout(() => {
               saveTimersRef.current.delete(questionId);
@@ -841,6 +847,7 @@ export function AssessmentTestSession({
       questionTimeSeconds,
       questionsById,
       softNavigation,
+      isOneQuestion,
     ],
   );
 
@@ -907,15 +914,19 @@ export function AssessmentTestSession({
   }, [applyControlResponse, identity, lockState]);
 
   useEffect(
-    () => () => {
-      for (const timer of saveTimersRef.current.values()) {
-        clearTimeout(timer);
-      }
+    () => {
+      mountedRef.current = true;
+      const timers = saveTimersRef.current;
+      return () => {
+        mountedRef.current = false;
+        for (const timer of timers.values()) clearTimeout(timer);
+      };
     },
     [],
   );
 
   function handleInput(event: FormEvent<HTMLFormElement>) {
+    if (softNavigation) questionDirtyRef.current = true;
     const target = event.target;
     const questionId = questionIdFromTarget(target);
     if (questionId) {
@@ -930,6 +941,7 @@ export function AssessmentTestSession({
   }
 
   function handleChange(event: FormEvent<HTMLFormElement>) {
+    if (softNavigation) questionDirtyRef.current = true;
     const target = event.target;
     const questionId = questionIdFromTarget(target);
     if (questionId) {
@@ -1130,10 +1142,11 @@ export function AssessmentTestSession({
     const restoreUrl = () => {
       if (historyMode === "replace") window.history.replaceState(null, "", currentSectionUrlRef.current);
     };
-    if (!softNavigation || sectionRequestRef.current || navigatingRef.current || lockState !== "active") {
+    if (!softNavigation || !mountedRef.current || sectionRequestRef.current || navigatingRef.current || lockState !== "active") {
       restoreUrl(); return;
     }
-    if (questionDirtyRef.current || (historyMode === "replace" && questionSubmittingRef.current)) {
+    if (questionDirtyRef.current || (historyMode === "replace"
+      && (questionSubmittingRef.current || saveChainsRef.current.size > 0))) {
       setQuestionError("Подтвердите текущий ответ перед переходом. Введенные данные остались на экране.");
       restoreUrl(); return;
     }
@@ -1143,7 +1156,7 @@ export function AssessmentTestSession({
     }
     // A browser Back entry was originally created in resume mode. Re-enter it as
     // review when allowed, otherwise SQL correctly sends us to the unfinished section.
-    if (historyMode === "replace" && presentationSettings.allowBack && index < sectionIndex) review = true;
+    if (isOneQuestion && historyMode === "replace" && presentationSettings.allowBack && index < sectionIndex) review = true;
     const controller = new AbortController();
     sectionRequestRef.current = controller;
     setSectionLoading(true);
@@ -1272,6 +1285,69 @@ export function AssessmentTestSession({
       ? saveEmployeeAssessmentSectionAction
       : saveCandidateSectionAction;
 
+  async function handleSectionSubmit(event: FormEvent<HTMLFormElement>) {
+    if (!softNavigation || legacySubmissionReadyRef.current) {
+      navigatingRef.current = true;
+      return;
+    }
+    event.preventDefault();
+    if (!section || sectionSubmittingRef.current || sectionRequestRef.current || lockState !== "active") return;
+    const form = event.currentTarget;
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const direction = submitter?.value === "previous" ? "previous" : "next";
+    if (direction === "previous" && !presentationSettings.allowBack) return;
+    const drafts = visibleQuestions.map(question => ({ questionId: question.id,
+      answer: draftForQuestion(form, question), timeSpentSeconds: questionTimeSeconds(question.id) }));
+    if (visibleQuestions.some(question => (question.isRequired || question.remediationParentId)
+      && !hasDraftAnswer(question, drafts.find(draft => draft.questionId === question.id)!.answer))) {
+      setQuestionError("Ответьте на обязательные вопросы текущей секции.");
+      form.reportValidity();
+      return;
+    }
+    sectionSubmittingRef.current = true;
+    questionSubmittingRef.current = true;
+    setSectionSaving(true);
+    setQuestionError(null);
+    pauseQuestionTimer();
+    try {
+      for (const timer of saveTimersRef.current.values()) clearTimeout(timer);
+      saveTimersRef.current.clear();
+      // Let writes already sent finish before the authoritative batch. Retries can
+      // schedule another timer, so clear timers again after draining all chains.
+      await Promise.all([...saveChainsRef.current.values()]);
+      for (const timer of saveTimersRef.current.values()) clearTimeout(timer);
+      saveTimersRef.current.clear();
+      if (!mountedRef.current || navigatingRef.current) return;
+      const response = await saveAssessmentSection({ ...identity(), sectionId: section.id, direction, answers: drafts });
+      if (!mountedRef.current || navigatingRef.current) return;
+      if (response.status !== "active") {
+        applyControlResponse(response.status === "blocked" ? response : await postControl({ ...identity(), operation: "heartbeat" }));
+        return;
+      }
+      applyControlResponse(response);
+      for (const draft of drafts) markQuestionTimeSaved(draft.questionId, draft.timeSpentSeconds);
+      setSavedAt(response.savedAt);
+      setSaveState("saved");
+      questionDirtyRef.current = false;
+      if (direction === "next" && sectionIndex === sectionCount - 1 && !response.needsRemediation) {
+        // The last batch is confirmed, including remediation. Keep completion/scoring
+        // on the native Server Action path; its repeated save is idempotent.
+        legacySubmissionReadyRef.current = true;
+        try { form.requestSubmit(submitter); } finally { legacySubmissionReadyRef.current = false; }
+        return;
+      }
+      await navigateToSection(response.nextSectionIndex, false);
+    } catch {
+      if (!mountedRef.current) return;
+      setSaveState(navigator.onLine ? "error" : "offline");
+      setQuestionError("Не удалось сохранить секцию. Проверьте ответы и повторите попытку — введенные данные остались на экране.");
+    } finally {
+      sectionSubmittingRef.current = false;
+      questionSubmittingRef.current = false;
+      if (mountedRef.current && !navigatingRef.current) setSectionSaving(false);
+    }
+  }
+
   const controlPanel = (
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="flex items-center gap-3 rounded-lg border bg-background p-3">
@@ -1354,10 +1430,11 @@ export function AssessmentTestSession({
       ) : null}
 
       {sectionLoading ? <p role="status" className="text-sm text-muted-foreground">Загружаем секцию...</p> : null}
+      {sectionSaving ? <p role="status" className="text-sm text-muted-foreground">Сохраняем секцию...</p> : null}
 
       <div
-        aria-busy={sectionLoading}
-        inert={sectionLoading || (softNavigation && saveState === "saving") || undefined}
+        aria-busy={sectionLoading || sectionSaving}
+        inert={sectionLoading || sectionSaving || (softNavigation && isOneQuestion && saveState === "saving") || undefined}
         onCopyCapture={(event) => handleClipboard(event, "clipboard_copy")}
         onCutCapture={(event) => handleClipboard(event, "clipboard_cut")}
         onPasteCapture={(event) => handleClipboard(event, "clipboard_paste")}
@@ -1557,7 +1634,7 @@ export function AssessmentTestSession({
                 onBlurCapture={handleBlur}
                 onChangeCapture={handleChange}
                 onInputCapture={handleInput}
-                onSubmit={() => { navigatingRef.current = true; }}
+                onSubmit={handleSectionSubmit}
                 ref={formRef}
               >
                 <input name="token" type="hidden" value={token} />
@@ -1614,7 +1691,10 @@ export function AssessmentTestSession({
                       <QuestionResponseFields
                         answer={sessionAnswers[question.id] ?? null}
                         inputPrefix={`q_${question.id}`}
-                        onAnswerChange={() => scheduleAutosave(question.id, 0)}
+                        onAnswerChange={() => {
+                          if (softNavigation) questionDirtyRef.current = true;
+                          scheduleAutosave(question.id, 0);
+                        }}
                         question={
                           question.remediationParentId
                             ? { ...question, isRequired: true }
@@ -1636,6 +1716,7 @@ export function AssessmentTestSession({
                     );
                   })
                 )}
+                {questionError ? <p className="text-sm text-destructive" role="alert">{questionError}</p> : null}
                 <div className="-mx-6 -mb-6 flex flex-col-reverse gap-3 border-t bg-background/95 px-6 py-4 sm:mx-0 sm:mb-0 sm:flex-row sm:justify-between sm:border-0 sm:p-0">
                   {sectionIndex > 0 && presentationSettings.allowBack ? (
                     <PendingSubmitButton

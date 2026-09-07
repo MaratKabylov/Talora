@@ -1,4 +1,15 @@
 import type { AssessmentSectionSnapshot } from "./section-contract";
+import type { SectionSaveRequest, SectionSaveResponse } from "./section-save-contract";
+
+export async function saveAssessmentSection(input: SectionSaveRequest): Promise<SectionSaveResponse> {
+  const response = await fetch("/api/assessment/section-save", {
+    method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+  });
+  if (!response.ok) throw new Error(response.status === 400
+    ? "Проверьте обязательные ответы и выбранные варианты текущей секции."
+    : "Не удалось сохранить секцию. Ответы остались на экране — повторите попытку.");
+  return response.json();
+}
 
 export function sectionUrl(path: string, sectionIndex: number, reviewMode: boolean) {
   return `${path}?section=${sectionIndex}${reviewMode ? "&review=1" : ""}`;

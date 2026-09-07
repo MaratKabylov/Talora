@@ -8,7 +8,7 @@ import { RichTextContent } from "@/components/ui/rich-text-content";
 import { getAssessmentByToken, getAssessmentQuestionPageData } from "@/lib/assessment/data";
 import { getAssessmentSectionSnapshot } from "@/lib/assessment/section-data";
 import { getAssessmentTestOverview } from "@/lib/assessment/test-overview";
-import { OneQuestionTestFlow } from "@/components/assessment/one-question-test-flow";
+import { AssessmentTestFlow } from "@/components/assessment/assessment-test-flow";
 
 type TestParams = Promise<{ sessionId: string; token: string }>;
 type TestSearchParams = Promise<{ error?: string; review?: string; section?: string }>;
@@ -59,9 +59,12 @@ export default async function CandidateTestPage({
     });
   if (!snapshot) return <AssessmentUnavailable state="invalid" />;
   if (process.env.ASSESSMENT_SOFT_NAVIGATION_V2 === "true" && process.env.ASSESSMENT_SECTION_READ_V2 === "true"
-    && presentationSettings.presentationMode === "one_question") {
+    && (presentationSettings.presentationMode === "one_question"
+      || (process.env.ASSESSMENT_SECTION_SAVE_V2 === "true" && process.env.SESSION_CONTROL_V2 === "true"))) {
     return <TestTakingGuard><AssessmentShell companyName={overview.companyName}>
-      <OneQuestionTestFlow key={sessionId} snapshot={snapshot} assessmentType="candidate" token={token} sessionId={sessionId}
+      {/* A new server render (e.g. a completion error) must restore fresh form state.
+          In-test section transitions only update client state and never change this key. */}
+      <AssessmentTestFlow key={`${sessionId}:${crypto.randomUUID()}`} snapshot={snapshot} assessmentType="candidate" token={token} sessionId={sessionId}
         initialDeadlineAt={session.deadlineAt} contextTitle={overview.contextTitle} testTitle={session.test.title}
         description={session.test.description} instructions={session.test.instructions} presentationSettings={presentationSettings}
         completedSessionCount={overview.completedSessionCount} sessionCount={overview.sessionCount} error={feedback.error} />

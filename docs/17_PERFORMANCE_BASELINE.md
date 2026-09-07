@@ -292,3 +292,38 @@ transport: ошибки, двойной клик, история/восстан�
 Новая миграция не нужна, реальные флаги агентом не менялись. Режим целой секции, prefetch
 и мягкое завершение/смена теста остаются отдельными работами. Полный PERF-005 не закрыт.
 Приемка и откат: `docs/21_ONE_QUESTION_NAVIGATION_ROLLOUT.md`.
+
+## 15. PERF-005b: мягкая навигация целой секции — 07.09.2026
+
+Новый серверный флаг `ASSESSMENT_SECTION_SAVE_V2` расширяет soft navigation на режим
+`section`. Требует `SESSION_CONTROL_V2`, `ASSESSMENT_SECTION_READ_V2` и
+`ASSESSMENT_SOFT_NAVIGATION_V2`. Общий контроллер остается смонтированным, дожидается
+фоновых autosave, вызывает один batch-save RPC и один section-read RPC без overview.
+Это число HTTP по коду/transport-тестам, не число SQL statements и не измеренное ускорение.
+
+Миграция `20260907150000_assessment_section_save_v2.sql` добавляет атомарный batch с
+нормализацией PERF-003b, проверками token/consent/company/session/lease, обязательных
+ответов, remediation и deadline после записи. RPC не возвращает ключи ответов/скоринг.
+Последняя секция сначала подтверждается batch, затем использует старый completion
+Server Action с повторным сохранением. Терминальный путь в оценку двух HTTP не входит.
+
+Локально проходят 365 тестов, typecheck, lint и production build. Новые SQL-тесты
+исполняют реальный нормализатор и answer triggers в PGlite; подтверждены rollback всей
+секции/lease при ошибке записи, удаления и истечении deadline/token внутри slow trigger,
+структурированные ответы, обязательность, remediation, scope/tenant guards и права.
+Расширенная проверка страниц покрывает все сочетания четырех необходимых флагов,
+overview-флага и двух presentation mode.
+
+В headless Chrome прошли 8 browser-component сценариев: оба режима × candidate/employee
+× allowBack true/false. Для целой секции проверены ожидание уже начатых autosave,
+ошибки batch/read, двойной клик, восстановление/история/неподтвержденный ввод, remediation,
+непрерывный timer/heartbeat/client identity и передача последней формы в synthetic
+Server Action. Общий сценарий one-question также сохраняет проверку abort чтения.
+
+PGlite и synthetic transport не заменяют полную Next.js/Supabase-интеграцию, real terminal
+action/scoring, конкурентность через отдельные соединения и p50/p95 staging. Новый флаг
+остается выключенным; удаленная миграция агентом не применялась. Замеры server
+`assessment.save_section`, client `assessment.section_navigation` и отдельного
+click-to-visible еще предстоит собрать (30+ cold/warm повторов). Prefetch и оптимизация
+completion/смены теста остаются открытыми; полный PERF-004/005 не закрыт.
+Включение, приемка и откат: `docs/22_SECTION_NAVIGATION_ROLLOUT.md`.

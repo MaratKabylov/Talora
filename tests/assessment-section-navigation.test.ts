@@ -9,6 +9,7 @@ import * as performanceCore from "../lib/observability/performance-core.ts";
 import * as presentation from "../lib/tests/presentation-settings.ts";
 import { fetchAssessmentSection, firstQuestionIndex, sectionUrl } from "../lib/assessment/section-navigation.ts";
 import type { AssessmentSectionSnapshot, PublicFlowQuestion } from "../lib/assessment/section-contract.ts";
+import * as sectionSaveContract from "../lib/assessment/section-save-contract.ts";
 
 const require = createRequire(import.meta.url);
 require("next/dist/server/node-environment-baseline");
@@ -120,4 +121,64 @@ test("section transitions choose an incomplete visible question or the last ques
   assert.equal(firstQuestionIndex({ ...snapshot, reviewMode: true }), 2);
   assert.equal(firstQuestionIndex({ section: null, answers: {}, reviewMode: true }), -1);
   assert.equal(sectionUrl("/assessment/token/test/session", 2, true), "/assessment/token/test/session?section=2&review=1");
+});
+
+test("section-save route gates every required flag and validates before one scoped RPC", async () => {
+  const enabled = { ASSESSMENT_SOFT_NAVIGATION_V2: "true", ASSESSMENT_SECTION_READ_V2: "true",
+    ASSESSMENT_SECTION_SAVE_V2: "true", SESSION_CONTROL_V2: "true" };
+  const input = { assessmentType: "candidate", token, sessionId: id(1), sectionId: id(2), clientId: id(3), deviceId: id(4),
+    direction: "next", answers: [{ questionId: id(5), answer: { answerText: "synthetic" }, timeSpentSeconds: 3 }] };
+  const active = { status: "active", deadlineAt: "2026-09-07T12:00:00+00:00", savedAt: "2026-09-07T11:59:00+00:00",
+    sectionIndex: 0, nextSectionIndex: 1, needsRemediation: false };
+  function harness(env: Record<string, string> = enabled, result: unknown = active, error: unknown = null) {
+    const calls: unknown[][] = [];
+    const dependencies: Record<string, unknown> = {
+      "next/server": { NextRequest, NextResponse }, "@/lib/assessment/section-save-contract": sectionSaveContract,
+      "@/lib/observability/performance-core": performanceCore,
+      "@/lib/observability/server-performance": { measureServerOperation: (_name: string, task: () => unknown) => task() },
+      "@/lib/supabase/admin": { createAdminClient: () => ({ rpc: async (...args: unknown[]) => {
+        calls.push(args); return { data: result, error };
+      } }) },
+    };
+    const { outputText } = transpileModule(readFileSync(new URL("../app/api/assessment/section-save/route.ts", import.meta.url), "utf8"),
+      { compilerOptions: { module: ModuleKind.CommonJS, target: ScriptTarget.ES2022 } });
+    const exports = {} as { POST: (req: NextRequest) => Promise<NextResponse> };
+    compileFunction(outputText, ["exports", "require", "process"])(exports, (name: string) => {
+      assert.ok(Object.hasOwn(dependencies, name), `Unexpected dependency ${name}`); return dependencies[name];
+    }, { env });
+    return { ...exports, calls };
+  }
+  for (const assessmentType of ["candidate", "employee"]) {
+    const route = harness(undefined, { ...active, privateSql: token });
+    const response = await route.POST(request({ ...input, assessmentType }));
+    assert.deepEqual(await response.json(), active);
+    assert.match(response.headers.get("cache-control")!, /no-store/);
+    assert.match(response.headers.get("server-timing")!, /assessment_save_section/);
+    assert.deepEqual(route.calls, [["save_assessment_section_v2", { p_scope: assessmentType, p_token: token,
+      p_session_id: id(1), p_section_id: id(2), p_client_id: id(3), p_device_id: id(4), p_direction: "next", p_answers: input.answers }]]);
+  }
+  for (const flag of Object.keys(enabled)) {
+    const route = harness({ ...enabled, [flag]: "false" });
+    assert.equal((await route.POST(request(input))).status, 409); assert.deepEqual(route.calls, []);
+  }
+  const route = harness();
+  assert.equal((await route.POST(request(input, "https://foreign.test"))).status, 403);
+  for (const invalid of [{}, { ...input, token: "bad" }, { ...input, direction: "skip" },
+    { ...input, answers: Array(1001).fill(input.answers[0]) },
+    { ...input, answers: [{ ...input.answers[0], timeSpentSeconds: -1 }] }]) {
+    assert.equal((await route.POST(request(invalid))).status, 400);
+  }
+  assert.deepEqual(route.calls, []);
+  for (const data of [{ status: "blocked", retryAfterSeconds: 90 }, { status: "expired" },
+    { status: "terminal" }, { status: "unavailable" }]) {
+    const response = await harness(undefined, data).POST(request(input));
+    assert.deepEqual(await response.json(), data);
+  }
+  for (const [data, error, status] of [[null, { code: "TVS01", message: token }, 400],
+    [null, { code: "XX000", message: token }, 500], [{ unexpected: token }, null, 500]] as const) {
+    const failed = harness(undefined, data, error);
+    const response = await failed.POST(request(input));
+    assert.equal(response.status, status); assert.ok(!(await response.text()).includes(token));
+    assert.equal(failed.calls.length, 1);
+  }
 });

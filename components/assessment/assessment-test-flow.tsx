@@ -8,7 +8,7 @@ import type { AssessmentSectionSnapshot } from "@/lib/assessment/section-contrac
 import type { TestPresentationSettings } from "@/lib/tests/presentation-settings";
 
 // Mounted once per test session. Section transitions never refetch the server page/overview.
-export function OneQuestionTestFlow({ snapshot, assessmentType, token, sessionId, initialDeadlineAt,
+export function AssessmentTestFlow({ snapshot, assessmentType, token, sessionId, initialDeadlineAt,
   contextTitle, testTitle, description, instructions, presentationSettings, completedSessionCount, sessionCount, error,
 }: {
   snapshot: AssessmentSectionSnapshot; assessmentType: "candidate" | "employee"; token: string; sessionId: string;
@@ -34,6 +34,8 @@ export function OneQuestionTestFlow({ snapshot, assessmentType, token, sessionId
       </div> : null}
     </div>
     <FeedbackMessage error={error} />
+    {current.sectionIndex === 0 && presentationSettings.presentationMode === "section" && instructions
+      ? <RichTextContent className="rounded-lg border bg-muted/40 p-4 text-sm" value={instructions} /> : null}
     <AssessmentTestSession assessmentType={assessmentType} answers={snapshot.answers}
       initialDeadlineAt={initialDeadlineAt} otherVisibleQuestionCount={snapshot.otherVisibleQuestionCount}
       presentationSettings={presentationSettings} questionOffset={snapshot.questionOffset} reviewMode={snapshot.reviewMode}

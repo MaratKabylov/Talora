@@ -309,6 +309,13 @@ transport; полная Next.js/Supabase-интеграция и staging p50/p95
 полный PERF-005 не закрыт. Включение, ограничения и откат:
 `docs/21_ONE_QUESTION_NAVIGATION_ROLLOUT.md`.
 
+**Продолжение на 07.09.2026:** PERF-005b добавляет режим целой секции под отдельным
+`ASSESSMENT_SECTION_SAVE_V2`. Общий контроллер ожидает фоновые записи, атомарно подтверждает
+секцию через новый RPC и читает следующую без overview/reload. Для запуска нужны миграция,
+три предыдущих флага и staging-приемка. Последняя секция подтверждается batch, а затем
+передается старому completion/scoring action. Prefetch и оптимизация terminal navigation
+остаются открытыми. Инструкция: `docs/22_SECTION_NAVIGATION_ROLLOUT.md`.
+
 **Задача**
 
 Исключить `window.location.assign` при переходе между вопросами и секциями.

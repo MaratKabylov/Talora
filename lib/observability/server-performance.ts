@@ -16,6 +16,7 @@ export type ServerPerformanceOperation =
   | "assessment.load_question_candidate"
   | "assessment.load_question_employee"
   | "assessment.load_section"
+  | "assessment.save_section"
   | "assessment.load_test_overview"
   | "auth.context"
   | "builder.clone"

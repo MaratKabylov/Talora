@@ -176,6 +176,7 @@ test("real test pages gate soft navigation by flags/mode and reuse legacy overvi
   for (const scope of ["candidate", "employee"] as const) {
     for (const overviewV2 of [false, true]) for (const sectionV2 of [false, true]) {
     for (const softV2 of [false, true]) for (const presentationMode of ["section", "one_question"] as const) {
+    for (const sectionSaveV2 of [false, true]) for (const controlV2 of [false, true]) {
       let fullOverviewReads = 0; let fullContentReads = 0; let sectionReads = 0;
       const fixture = minimalFixture();
       fixture.session.test.presentationSettings = { ...presentation.DEFAULT_TEST_PRESENTATION_SETTINGS, presentationMode };
@@ -199,16 +200,18 @@ test("real test pages gate soft navigation by flags/mode and reuse legacy overvi
           "@/lib/assessment/data": { getAssessmentByToken: legacyRead, getAssessmentQuestionPageData: legacyContentRead },
           "@/lib/employee-assessments/public-data": { getEmployeeAssessmentByToken: legacyRead, getEmployeeAssessmentQuestionPageData: legacyContentRead },
           "@/lib/assessment/test-overview": overview,
-          "@/components/assessment/one-question-test-flow": { OneQuestionTestFlow: SoftFlow },
+          "@/components/assessment/assessment-test-flow": { AssessmentTestFlow: SoftFlow },
           "@/lib/assessment/section-data": { getAssessmentSectionSnapshot: async (_input: unknown, fallback: () => unknown) => {
             sectionReads++; if (!sectionV2) await fallback();
             return { section: null, sections: [], answers: {}, sectionIndex: 0, questionOffset: 0, otherVisibleQuestionCount: 0, reviewMode: false };
           } },
-        }, { ASSESSMENT_SOFT_NAVIGATION_V2: String(softV2), ASSESSMENT_SECTION_READ_V2: String(sectionV2) });
+        }, { ASSESSMENT_SOFT_NAVIGATION_V2: String(softV2), ASSESSMENT_SECTION_READ_V2: String(sectionV2),
+          ASSESSMENT_SECTION_SAVE_V2: String(sectionSaveV2), SESSION_CONTROL_V2: String(controlV2) });
       const props = { params: Promise.resolve({ token, sessionId: id(50) }), searchParams: Promise.resolve({}) };
       for (let count = 1; count <= 2; count++) {
         const result = await page.default(props);
-        assert.equal(findSession(result)?.type, softV2 && sectionV2 && presentationMode === "one_question" ? SoftFlow : Session);
+        assert.equal(findSession(result)?.type, softV2 && sectionV2
+          && (presentationMode === "one_question" || (sectionSaveV2 && controlV2)) ? SoftFlow : Session);
         assert.ok(!JSON.stringify(findSession(result)?.props).includes("private@example.invalid"));
         assert.equal(fullOverviewReads, overviewV2 && sectionV2 ? 0 : count);
         assert.equal(fullContentReads, sectionV2 ? 0 : count);
@@ -234,6 +237,7 @@ test("real test pages gate soft navigation by flags/mode and reuse legacy overvi
         await assert.rejects(page.default(props), /Unexpected assessment test overview response/);
         assert.equal(fullOverviewReads, 0); assert.equal(fullContentReads, 0); assert.equal(sectionReads, 2);
       }
+    }
     }
     }
   }
