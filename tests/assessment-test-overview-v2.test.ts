@@ -162,22 +162,29 @@ test("flag-off overview projects both legacy shapes and retains consent and term
   }
 });
 
-test("real test pages support all read-flag combinations and reuse legacy overview only within one request", async () => {
+test("real test pages gate soft navigation by flags/mode and reuse legacy overview only within one request", async () => {
   const jsxRuntime = createRequire(import.meta.url)("react/jsx-runtime");
   const Session = () => null;
+  const SoftFlow = () => null;
   type Element = { type: unknown; props?: Record<string, unknown> };
   const findSession = (node: unknown): Element | undefined => {
     if (!node || typeof node !== "object") return;
     if (Array.isArray(node)) return node.map(findSession).find(Boolean);
     const element = node as Element;
-    return element.type === Session ? element : findSession(element.props?.children);
+    return element.type === Session || element.type === SoftFlow ? element : findSession(element.props?.children);
   };
   for (const scope of ["candidate", "employee"] as const) {
     for (const overviewV2 of [false, true]) for (const sectionV2 of [false, true]) {
+    for (const softV2 of [false, true]) for (const presentationMode of ["section", "one_question"] as const) {
       let fullOverviewReads = 0; let fullContentReads = 0; let sectionReads = 0;
-      let rpcResult: unknown = minimalFixture();
+      const fixture = minimalFixture();
+      fixture.session.test.presentationSettings = { ...presentation.DEFAULT_TEST_PRESENTATION_SETTINGS, presentationMode };
+      let rpcResult: unknown = fixture;
       const overview = harness(() => rpcResult, String(overviewV2));
       const legacy = legacyFixture(scope);
+      if (legacy.availability === "active") for (const session of legacy.sessions) {
+        session.test.presentationSettings = fixture.session.test.presentationSettings;
+      }
       const legacyRead = async () => { fullOverviewReads++; return legacy; };
       const legacyContentRead = (_token: string, _sessionId: string, current: unknown) => {
         fullContentReads++; assert.equal(current, legacy); return {};
@@ -192,15 +199,16 @@ test("real test pages support all read-flag combinations and reuse legacy overvi
           "@/lib/assessment/data": { getAssessmentByToken: legacyRead, getAssessmentQuestionPageData: legacyContentRead },
           "@/lib/employee-assessments/public-data": { getEmployeeAssessmentByToken: legacyRead, getEmployeeAssessmentQuestionPageData: legacyContentRead },
           "@/lib/assessment/test-overview": overview,
+          "@/components/assessment/one-question-test-flow": { OneQuestionTestFlow: SoftFlow },
           "@/lib/assessment/section-data": { getAssessmentSectionSnapshot: async (_input: unknown, fallback: () => unknown) => {
             sectionReads++; if (!sectionV2) await fallback();
             return { section: null, sections: [], answers: {}, sectionIndex: 0, questionOffset: 0, otherVisibleQuestionCount: 0, reviewMode: false };
           } },
-        });
+        }, { ASSESSMENT_SOFT_NAVIGATION_V2: String(softV2), ASSESSMENT_SECTION_READ_V2: String(sectionV2) });
       const props = { params: Promise.resolve({ token, sessionId: id(50) }), searchParams: Promise.resolve({}) };
       for (let count = 1; count <= 2; count++) {
         const result = await page.default(props);
-        assert.ok(findSession(result));
+        assert.equal(findSession(result)?.type, softV2 && sectionV2 && presentationMode === "one_question" ? SoftFlow : Session);
         assert.ok(!JSON.stringify(findSession(result)?.props).includes("private@example.invalid"));
         assert.equal(fullOverviewReads, overviewV2 && sectionV2 ? 0 : count);
         assert.equal(fullContentReads, sectionV2 ? 0 : count);
@@ -226,6 +234,7 @@ test("real test pages support all read-flag combinations and reuse legacy overvi
         await assert.rejects(page.default(props), /Unexpected assessment test overview response/);
         assert.equal(fullOverviewReads, 0); assert.equal(fullContentReads, 0); assert.equal(sectionReads, 2);
       }
+    }
     }
   }
 });

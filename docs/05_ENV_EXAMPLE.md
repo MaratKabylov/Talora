@@ -23,6 +23,10 @@ ASSESSMENT_SECTION_READ_V2=false
 # Enable with ASSESSMENT_SECTION_READ_V2 to avoid legacy overview/content reads.
 ASSESSMENT_OVERVIEW_V2=false
 
+# Server only. One-question mode only; requires ASSESSMENT_SECTION_READ_V2=true.
+# No new migration. Keeps the session mounted when loading another section.
+ASSESSMENT_SOFT_NAVIGATION_V2=false
+
 # Optional email provider for later
 RESEND_API_KEY=
 EMAIL_FROM=

@@ -1,0 +1,25 @@
+import type { AssessmentSectionSnapshot } from "./section-contract";
+
+export function sectionUrl(path: string, sectionIndex: number, reviewMode: boolean) {
+  return `${path}?section=${sectionIndex}${reviewMode ? "&review=1" : ""}`;
+}
+
+export function firstQuestionIndex(snapshot: Pick<AssessmentSectionSnapshot, "section" | "answers" | "reviewMode">) {
+  const questions = (snapshot.section?.questions ?? []).filter(question =>
+    !question.remediationParentId || snapshot.answers[question.remediationParentId]?.remediationRequired);
+  const incomplete = questions.findIndex(question => !snapshot.answers[question.id]);
+  return incomplete >= 0 ? incomplete : snapshot.reviewMode && questions.length > 0 ? questions.length - 1 : -1;
+}
+
+export async function fetchAssessmentSection(input: {
+  assessmentType: "candidate" | "employee"; token: string; sessionId: string; sectionIndex: number; review: boolean;
+}, signal: AbortSignal): Promise<AssessmentSectionSnapshot> {
+  const response = await fetch("/api/assessment/section", {
+    method: "POST", cache: "no-store", signal,
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+  });
+  if (!response.ok) throw new Error(response.status === 410
+    ? "Тест больше недоступен. Проверьте состояние сессии."
+    : "Не удалось загрузить секцию. Текущий ответ остался на экране — повторите переход.");
+  return response.json();
+}

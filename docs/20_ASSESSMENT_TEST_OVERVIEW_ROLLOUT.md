@@ -87,6 +87,11 @@ PGlite использует минимальную схему; полная Supa
 EXPLAIN и фактические p50/p95 еще требуют staging. PERF-004 остается открыт по prefetch,
 а PERF-005 — по мягкой навигации.
 
+Продолжение от 07.09.2026: локальная кодовая часть мягкой навигации для `one_question`
+реализована в PERF-005a. Ее отдельный флаг, browser-component проверки и ограничения
+описаны в `docs/21_ONE_QUESTION_NAVIGATION_ROLLOUT.md`; prefetch и полный staging E2E
+по-прежнему не закрыты.
+
 ## Откат
 
 Установить `ASSESSMENT_OVERVIEW_V2=false` и перезапустить runtime. Section RPC можно оставить

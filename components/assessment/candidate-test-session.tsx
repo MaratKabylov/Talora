@@ -25,7 +25,8 @@ import {
   completeEmptyEmployeeAssessmentSessionAction,
   saveEmployeeAssessmentSectionAction,
 } from "@/lib/employee-assessments/public-actions";
-import type { PublicFlowQuestion as FlowQuestion, PublicFlowSection as FlowSection, SectionSavedAnswer as SavedAnswer } from "@/lib/assessment/section-contract";
+import { requestedSectionIndex, type AssessmentSectionSnapshot, type PublicFlowQuestion as FlowQuestion, type PublicFlowSection as FlowSection, type SectionSavedAnswer as SavedAnswer } from "@/lib/assessment/section-contract";
+import { fetchAssessmentSection, firstQuestionIndex, sectionUrl } from "@/lib/assessment/section-navigation";
 import { reportClientOperation } from "@/lib/observability/client-performance";
 import type { ClientPerformanceOperation } from "@/lib/observability/performance-core";
 import type { TestPresentationSettings } from "@/lib/tests/presentation-settings";
@@ -58,6 +59,7 @@ type AssessmentTestSessionProps = {
   sessionId: string;
   testInstructions: string | null;
   token: string;
+  onSectionChange?: (snapshot: AssessmentSectionSnapshot) => void;
 };
 
 const DEVICE_STORAGE_KEY = "talvia_assessment_device_id";
@@ -330,17 +332,29 @@ export function AssessmentTestSession({
   assessmentType = "candidate",
   answers,
   initialDeadlineAt,
-  otherVisibleQuestionCount,
+  otherVisibleQuestionCount: initialOtherVisibleQuestionCount,
   presentationSettings,
-  questionOffset,
-  reviewMode,
-  section,
-  sectionCount,
-  sectionIndex,
+  questionOffset: initialQuestionOffset,
+  reviewMode: initialReviewMode,
+  section: initialSection,
+  sectionCount: initialSectionCount,
+  sectionIndex: initialSectionIndex,
   sessionId,
   testInstructions,
   token,
+  onSectionChange,
 }: AssessmentTestSessionProps) {
+  const [navigatedSection, setNavigatedSection] = useState<AssessmentSectionSnapshot | null>(null);
+  const section = navigatedSection ? navigatedSection.section : initialSection;
+  const sectionIndex = navigatedSection?.sectionIndex ?? initialSectionIndex;
+  const sectionCount = navigatedSection?.sections.length ?? initialSectionCount;
+  const questionOffset = navigatedSection?.questionOffset ?? initialQuestionOffset;
+  const otherVisibleQuestionCount = navigatedSection?.otherVisibleQuestionCount ?? initialOtherVisibleQuestionCount;
+  const reviewMode = navigatedSection?.reviewMode ?? initialReviewMode;
+  const [sectionLoading, setSectionLoading] = useState(false);
+  const sectionRequestRef = useRef<AbortController | null>(null);
+  const questionDirtyRef = useRef(false);
+  const questionSubmittingRef = useRef(false);
   const [clientId, setClientId] = useState("");
   const [deviceId, setDeviceId] = useState("");
   const [deadlineAt, setDeadlineAt] = useState(initialDeadlineAt);
@@ -376,6 +390,7 @@ export function AssessmentTestSession({
     ),
   );
   const queueAutosaveRef = useRef<(questionId: string) => void>(() => undefined);
+  const sectionQuestionIdsRef = useRef((section?.questions ?? []).map(question => question.id));
   const saveChainsRef = useRef(new Map<string, Promise<void>>());
   const saveTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const questionsById = useMemo(
@@ -401,6 +416,9 @@ export function AssessmentTestSession({
   const isOneQuestion = presentationSettings.presentationMode === "one_question";
   const assessmentPath =
     assessmentType === "employee" ? `/employee-assessment/${token}` : `/assessment/${token}`;
+  const testPath = `${assessmentPath}/test/${sessionId}`;
+  const softNavigation = Boolean(onSectionChange) && isOneQuestion;
+  const currentSectionUrlRef = useRef(sectionUrl(testPath, sectionIndex, reviewMode));
   const activeQuestion =
     isOneQuestion && currentQuestionIndex >= 0
       ? visibleQuestions[currentQuestionIndex] ?? null
@@ -452,6 +470,7 @@ export function AssessmentTestSession({
 
   const applyControlResponse = useCallback((response: ControlResponse) => {
     if (response.status === "redirect") {
+      sectionRequestRef.current?.abort();
       navigatingRef.current = true;
       window.location.assign(response.redirectTo);
       return;
@@ -754,7 +773,7 @@ export function AssessmentTestSession({
     (questionId: string) => {
       const form = formRef.current;
       const question = questionsById.get(questionId);
-      if (!form || !question || lockState !== "active") {
+      if (!form || !question || lockState !== "active" || softNavigation) {
         return;
       }
 
@@ -821,12 +840,14 @@ export function AssessmentTestSession({
       markQuestionTimeSaved,
       questionTimeSeconds,
       questionsById,
+      softNavigation,
     ],
   );
 
   useEffect(() => {
     queueAutosaveRef.current = queueAutosave;
-  }, [queueAutosave]);
+    sectionQuestionIdsRef.current = (section?.questions ?? []).map(question => question.id);
+  }, [queueAutosave, section]);
 
   const scheduleAutosave = useCallback(
     (questionId: string | null, delay: number) => {
@@ -867,12 +888,12 @@ export function AssessmentTestSession({
     const handleOffline = () => setSaveState("offline");
     const handleOnline = () => {
       void heartbeat();
-      for (const question of section?.questions ?? []) {
-        const timer = saveTimersRef.current.get(question.id);
+      for (const questionId of sectionQuestionIdsRef.current) {
+        const timer = saveTimersRef.current.get(questionId);
         if (timer) {
           clearTimeout(timer);
         }
-        saveTimersRef.current.set(question.id, setTimeout(() => queueAutosave(question.id), 0));
+        saveTimersRef.current.set(questionId, setTimeout(() => queueAutosaveRef.current(questionId), 0));
       }
     };
     window.addEventListener("offline", handleOffline);
@@ -883,7 +904,7 @@ export function AssessmentTestSession({
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("online", handleOnline);
     };
-  }, [applyControlResponse, identity, lockState, queueAutosave, section]);
+  }, [applyControlResponse, identity, lockState]);
 
   useEffect(
     () => () => {
@@ -945,6 +966,7 @@ export function AssessmentTestSession({
   }
 
   function handleOneQuestionChange(event: FormEvent<HTMLFormElement>) {
+    if (softNavigation) questionDirtyRef.current = true;
     const questionId = questionIdFromTarget(event.target);
     if (questionId) {
       startQuestionTimer(questionId);
@@ -1006,7 +1028,7 @@ export function AssessmentTestSession({
   async function handleOneQuestionSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const question = activeQuestion;
-    if (!question || lockState !== "active" || saveState === "saving") {
+    if (!question || lockState !== "active" || saveState === "saving" || sectionRequestRef.current || questionSubmittingRef.current) {
       return;
     }
 
@@ -1021,6 +1043,7 @@ export function AssessmentTestSession({
     const timeSpentSeconds = questionTimeSeconds(question.id);
     setQuestionError(null);
     setSaveState("saving");
+    questionSubmittingRef.current = true;
 
     try {
       const response = await postControl({
@@ -1054,6 +1077,7 @@ export function AssessmentTestSession({
       const nextQuestionIndex = savedQuestionIndex + 1;
 
       markQuestionTimeSaved(question.id, timeSpentSeconds);
+      questionDirtyRef.current = false;
       setSessionAnswers(nextAnswers);
       setRemediationFeedback((current) => {
         const next = new Map(current);
@@ -1073,6 +1097,10 @@ export function AssessmentTestSession({
       }
 
       if (sectionIndex < sectionCount - 1) {
+        if (softNavigation) {
+          await navigateToSection(sectionIndex + 1, presentationSettings.allowBack && reviewMode);
+          return;
+        }
         navigatingRef.current = true;
         window.location.assign(
           `${assessmentPath}/test/${sessionId}?section=${sectionIndex + 1}${
@@ -1093,11 +1121,96 @@ export function AssessmentTestSession({
           : "Нет соединения. Ответ остался на экране — повторите после восстановления сети.",
       );
       startQuestionTimer(question.id);
+    } finally {
+      questionSubmittingRef.current = false;
     }
   }
 
+  async function navigateToSection(index: number, review: boolean, historyMode: "push" | "replace" = "push") {
+    const restoreUrl = () => {
+      if (historyMode === "replace") window.history.replaceState(null, "", currentSectionUrlRef.current);
+    };
+    if (!softNavigation || sectionRequestRef.current || navigatingRef.current || lockState !== "active") {
+      restoreUrl(); return;
+    }
+    if (questionDirtyRef.current || (historyMode === "replace" && questionSubmittingRef.current)) {
+      setQuestionError("Подтвердите текущий ответ перед переходом. Введенные данные остались на экране.");
+      restoreUrl(); return;
+    }
+    if (!presentationSettings.allowBack && (index < sectionIndex || review)) {
+      setQuestionError("Возврат к предыдущим вопросам отключен для этого теста.");
+      restoreUrl(); return;
+    }
+    // A browser Back entry was originally created in resume mode. Re-enter it as
+    // review when allowed, otherwise SQL correctly sends us to the unfinished section.
+    if (historyMode === "replace" && presentationSettings.allowBack && index < sectionIndex) review = true;
+    const controller = new AbortController();
+    sectionRequestRef.current = controller;
+    setSectionLoading(true);
+    setQuestionError(null);
+    pauseQuestionTimer();
+    const startedAt = performance.now();
+    try {
+      const next = await fetchAssessmentSection({ assessmentType, token, sessionId, sectionIndex: index, review }, controller.signal);
+      if (controller.signal.aborted || navigatingRef.current) return;
+      // Replace section-local form state only after a fresh, authorized response succeeds.
+      for (const timer of saveTimersRef.current.values()) clearTimeout(timer);
+      saveTimersRef.current.clear();
+      elapsedQuestionTimeRef.current.clear();
+      savedQuestionTimeRef.current = new Map(Object.entries(next.answers).map(([id, answer]) => [id, answer.timeSpentSeconds ?? 0]));
+      activeTimedQuestionIdRef.current = null;
+      activeTimerStartedAtRef.current = null;
+      questionDirtyRef.current = false;
+      setSessionAnswers(next.answers);
+      setRemediationFeedback(new Map());
+      setForcedChoiceCompletion({});
+      setCurrentQuestionIndex(firstQuestionIndex(next));
+      setNavigatedSection(next);
+      setSaveState("idle");
+      onSectionChange?.(next);
+      const url = sectionUrl(testPath, next.sectionIndex, next.reviewMode);
+      if (historyMode === "push" && url !== currentSectionUrlRef.current) window.history.pushState(null, "", url);
+      else window.history.replaceState(null, "", url);
+      currentSectionUrlRef.current = url;
+      window.scrollTo({ top: 0, behavior: "auto" });
+      reportClientOperation("assessment.section_navigation", performance.now() - startedAt, "success");
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      restoreUrl();
+      setQuestionError(error instanceof Error ? error.message : "Не удалось загрузить секцию. Повторите переход.");
+      if (activeQuestion) startQuestionTimer(activeQuestion.id);
+      reportClientOperation("assessment.section_navigation", performance.now() - startedAt, "failure");
+    } finally {
+      if (sectionRequestRef.current === controller) {
+        sectionRequestRef.current = null;
+        if (!controller.signal.aborted) setSectionLoading(false);
+      }
+    }
+  }
+
+  const navigateSectionRef = useRef(navigateToSection);
+  useEffect(() => { navigateSectionRef.current = navigateToSection; });
+  useEffect(() => {
+    if (!softNavigation) return;
+    window.history.replaceState(null, "", currentSectionUrlRef.current);
+    const handlePop = () => {
+      const url = new URL(window.location.href);
+      if (url.pathname !== testPath) return; // Leaving this test belongs to the Next router.
+      void navigateSectionRef.current(requestedSectionIndex(url.searchParams.get("section") ?? undefined), url.searchParams.get("review") === "1", "replace");
+    };
+    window.addEventListener("popstate", handlePop);
+    return () => {
+      window.removeEventListener("popstate", handlePop);
+      sectionRequestRef.current?.abort();
+    };
+  }, [softNavigation, testPath]);
+
   function goToPreviousQuestion() {
-    if (!presentationSettings.allowBack || !activeQuestion) {
+    if (!presentationSettings.allowBack || !activeQuestion || sectionRequestRef.current || questionSubmittingRef.current) {
+      return;
+    }
+    if (softNavigation && questionDirtyRef.current) {
+      setQuestionError("Подтвердите текущий ответ перед переходом. Введенные данные остались на экране.");
       return;
     }
     pauseQuestionTimer();
@@ -1107,6 +1220,10 @@ export function AssessmentTestSession({
       return;
     }
     if (sectionIndex > 0) {
+      if (softNavigation) {
+        void navigateToSection(sectionIndex - 1, true);
+        return;
+      }
       navigatingRef.current = true;
       window.location.assign(
         `${assessmentPath}/test/${sessionId}?section=${sectionIndex - 1}&review=1`,
@@ -1236,7 +1353,11 @@ export function AssessmentTestSession({
         </p>
       ) : null}
 
+      {sectionLoading ? <p role="status" className="text-sm text-muted-foreground">Загружаем секцию...</p> : null}
+
       <div
+        aria-busy={sectionLoading}
+        inert={sectionLoading || (softNavigation && saveState === "saving") || undefined}
         onCopyCapture={(event) => handleClipboard(event, "clipboard_copy")}
         onCutCapture={(event) => handleClipboard(event, "clipboard_cut")}
         onPasteCapture={(event) => handleClipboard(event, "clipboard_paste")}
@@ -1345,7 +1466,10 @@ export function AssessmentTestSession({
                         answer={sessionAnswers[activeQuestion.id] ?? null}
                         inputPrefix={`q_${activeQuestion.id}`}
                         key={activeQuestion.id}
-                        onAnswerChange={() => scheduleAutosave(activeQuestion.id, 0)}
+                        onAnswerChange={() => {
+                          if (softNavigation) questionDirtyRef.current = true;
+                          else scheduleAutosave(activeQuestion.id, 0);
+                        }}
                         question={
                           activeQuestion.remediationParentId
                             ? { ...activeQuestion, isRequired: true }
@@ -1409,17 +1533,20 @@ export function AssessmentTestSession({
                       </div>
                     ))}
                     <p className="text-sm text-muted-foreground">
-                      Все доступные вопросы сохранены. Завершите тест, чтобы перейти дальше.
+                      Все доступные вопросы секции сохранены. Продолжите прохождение.
                     </p>
                     {questionError ? (
                       <p className="text-sm text-destructive" role="alert">{questionError}</p>
                     ) : null}
                     <Button
                       disabled={saveState === "saving"}
-                      onClick={() => void completeOneQuestionSession()}
+                      onClick={() => {
+                        if (softNavigation && sectionIndex < sectionCount - 1) void navigateToSection(sectionIndex + 1, presentationSettings.allowBack && reviewMode);
+                        else void completeOneQuestionSession();
+                      }}
                       type="button"
                     >
-                      {saveState === "saving" ? "Завершаем..." : "Завершить тест"}
+                      {saveState === "saving" ? "Завершаем..." : softNavigation && sectionIndex < sectionCount - 1 ? "Следующая секция" : "Завершить тест"}
                     </Button>
                   </div>
                 )

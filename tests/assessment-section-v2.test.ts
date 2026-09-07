@@ -163,6 +163,7 @@ test("both real test pages use the section reader and pass only its bounded DTO 
           assert.equal(input.assessmentType, scope); assert.equal(input.requestedIndex, "0"); scopedReads++; return sectionSnapshot;
         } },
         "@/lib/assessment/test-overview": legacyOverviewReader,
+        "@/components/assessment/one-question-test-flow": { OneQuestionTestFlow: () => null },
       });
     const props = { params: Promise.resolve({ token, sessionId: id(7) }), searchParams: Promise.resolve({ section: "0" }) };
     const element = await page.default(props);

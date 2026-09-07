@@ -5,6 +5,7 @@ export const CLIENT_PERFORMANCE_OPERATIONS = [
   "assessment.event",
   "assessment.expire",
   "assessment.heartbeat",
+  "assessment.section_navigation",
   "builder.autosave",
   "navigation.document",
 ] as const;

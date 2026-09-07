@@ -8,6 +8,7 @@ import { RichTextContent } from "@/components/ui/rich-text-content";
 import { getAssessmentByToken, getAssessmentQuestionPageData } from "@/lib/assessment/data";
 import { getAssessmentSectionSnapshot } from "@/lib/assessment/section-data";
 import { getAssessmentTestOverview } from "@/lib/assessment/test-overview";
+import { OneQuestionTestFlow } from "@/components/assessment/one-question-test-flow";
 
 type TestParams = Promise<{ sessionId: string; token: string }>;
 type TestSearchParams = Promise<{ error?: string; review?: string; section?: string }>;
@@ -57,6 +58,15 @@ export default async function CandidateTestPage({
         ? getAssessmentQuestionPageData(token, sessionId, legacy) : null;
     });
   if (!snapshot) return <AssessmentUnavailable state="invalid" />;
+  if (process.env.ASSESSMENT_SOFT_NAVIGATION_V2 === "true" && process.env.ASSESSMENT_SECTION_READ_V2 === "true"
+    && presentationSettings.presentationMode === "one_question") {
+    return <TestTakingGuard><AssessmentShell companyName={overview.companyName}>
+      <OneQuestionTestFlow key={sessionId} snapshot={snapshot} assessmentType="candidate" token={token} sessionId={sessionId}
+        initialDeadlineAt={session.deadlineAt} contextTitle={overview.contextTitle} testTitle={session.test.title}
+        description={session.test.description} instructions={session.test.instructions} presentationSettings={presentationSettings}
+        completedSessionCount={overview.completedSessionCount} sessionCount={overview.sessionCount} error={feedback.error} />
+    </AssessmentShell></TestTakingGuard>;
+  }
   const data = { ...snapshot, assessment: overview, session };
   const { section, sectionIndex, questionOffset, otherVisibleQuestionCount, reviewMode } = snapshot;
   const completedSessions = overview.completedSessionCount;

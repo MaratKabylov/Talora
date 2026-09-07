@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "perf:summary": "node scripts/performance-summary.mjs",
     "test": "node --experimental-strip-types --test --test-isolation=none tests/*.test.ts",
+    "test:browser:navigation": "node scripts/assessment-navigation-browser.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

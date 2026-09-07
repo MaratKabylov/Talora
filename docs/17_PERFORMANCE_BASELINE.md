@@ -265,3 +265,30 @@ Read-only overview больше не пишет opened/expired из GET; ото�
 терминальных состояний проверить по rollout-инструкции. Минимальный overview реализован,
 но prefetch/мягкая навигация остаются следующим шагом PERF-004/005.
 Инструкция: `docs/20_ASSESSMENT_TEST_OVERVIEW_ROLLOUT.md`.
+
+## 14. PERF-005a: мягкая навигация one-question — 07.09.2026
+
+При серверных `ASSESSMENT_SOFT_NAVIGATION_V2=true` и `ASSESSMENT_SECTION_READ_V2=true`
+обычный переход между секциями в `one_question` выполняет один section-read HTTP RPC
+после существующего finalize. Test-page overview не перечитывается; session controller
+остается смонтированным, дополнительный claim не выполняется. Первая загрузка по-прежнему
+использует выбранный overview reader; ее числа приведены в разделе 13.
+
+Добавлена разрешенная клиентская метрика `assessment.section_navigation`: время
+fetch/применения snapshot, без finalize и ожидания painted frame. Не интерпретировать
+ее как полную задержку от клика. Token, session ID, ответ и PII в метрику не передаются.
+
+После повторной проверки проходят 349 тестов, typecheck, lint и production build.
+Проверены обе страницы со всеми сочетаниями overview/section/navigation-флагов и двух
+presentation mode. В headless Chrome прошли четыре browser-component сценария
+candidate/employee × allowBack true/false с реальными компонентами и синтетическим
+transport: ошибки, двойной клик, история/восстановление ответа, непрерывность таймера,
+один claim, стабильная identity и heartbeat interval, отмена запроса при unmount.
+При проверке исправлены review при browser Back и пересоздание heartbeat на смене секции.
+
+Эти результаты не заменяют полный Next.js App Router/Supabase E2E, проверки всех типов
+вопросов в браузере, конкурентных вкладок и staging p50/p95. Фактическое ускорение пока
+не измерено. Нужны 30+ cold/warm замеров и click-to-visible отдельно от времени чтения.
+Новая миграция не нужна, реальные флаги агентом не менялись. Режим целой секции, prefetch
+и мягкое завершение/смена теста остаются отдельными работами. Полный PERF-005 не закрыт.
+Приемка и откат: `docs/21_ONE_QUESTION_NAVIGATION_ROLLOUT.md`.
