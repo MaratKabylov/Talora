@@ -491,3 +491,21 @@ Typecheck/lint/build прошли. Серверные save/RLS/scoring и schema
 
 Staging INP, доступность с assistive technology, реальное scroll/drag поведение и общий
 performance acceptance остаются открыты. Инструкция: `docs/26_BUILDER_RENDER_OPTIMIZATION_ROLLOUT.md`.
+
+## 20. PERF-008.1: atomic delta storage — 08.09.2026
+
+Добавлена server-only RPC сохранения dirty entities одним пакетом, bigint revision,
+последнее идемпотентное подтверждение и закрытая таблица регистрации V2 writer. Row guards
+сериализуют изменения содержимого с версией, сохраняют immutable published/archive и
+не дают старому writer обойти revision после регистрации версии. Один V2 batch — одно
+увеличение revision; неизвестные settings, scoring metadata и match_target_id сохраняются.
+
+12 PGlite сценариев (13 новых Node tests с родительским) проверяют реальную миграцию:
+sparse update, rollback, stale revision, lost ACK, moves/deletes, ownership/roles, grants,
+metadata, legacy fence, совместимость publication/archive/revert guards. Полный набор —
+439 тестов; typecheck/lint/build проходят. Нет измерений PostgreSQL latency, network payload или
+статистического ускорения: UI всё ещё сохраняет полный документ V1, SQL RPC ещё не вызывается
+приложением. До готовности PERF-008.2 migration предназначена только для staging.
+
+PGlite не заменяет full Supabase/RLS и реальные конкурентные PostgreSQL соединения.
+Оставшаяся реализация и условия rollout: `docs/27_BUILDER_ATOMIC_SAVE_STORAGE.md`.
