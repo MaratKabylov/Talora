@@ -443,3 +443,51 @@ Typecheck, lint и production build прошли. Реальное время о
 ленивую server operation вместе с auth; названия/ID/контент тестов в метрики не добавлены.
 Миграция/feature flag не требуются; удаленные данные и реальные env не менялись.
 Приемка/откат: `docs/25_BUILDER_LAZY_IMPORT_ROLLOUT.md`.
+
+## 19. PERF-007: локальные перерисовки конструктора — 08.09.2026
+
+Монолитный JSX перенесен в memoized SectionEditor → QuestionEditor → OptionEditor.
+Стабильные callbacks используют актуальный документ через прежний updateSections/ref;
+неизмененные section/question/option сохраняют object identity. Collapse хранится на уровне
+секции, remediation/option drag — вопроса. Список названий для remediation передается отдельной
+primitive projection: option edit не меняет его, а переименование/перестановка обновляет меню.
+Первоначально раскрыт первый вопрос первой непустой секции, остальные свернуты.
+
+После первичного замера добавлен content-visibility:auto с contain-intrinsic-block-size для
+карточек вопросов. Это пропуск browser rendering вне viewport, не удаление данных из DOM.
+Перетаскивание использует стабильные handlers, референсы pointer state и dedup target; документ
+меняется только при drop. No-op question drop не инициирует dirty/save. Добавлены стрелки
+вверх/вниз для keyboard-перемещения вопроса внутри секции и structured option.
+
+Локальная fixture: Chrome headless, development React Profiler, два раздела по 50 single-choice
+вопросов, 400 вариантов. Одинаковые данные до/после; на обоих edit samples все 100 вопросов
+специально раскрыты. Server Actions синтетические, fixture без production Tailwind stylesheet.
+Десять программных input events на один option; это actualDuration React, **не INP**, не
+network latency и не p95. Profiler/probe внедряются только test loader, не в production bundle.
+
+| Показатель одного локального прогона | До | После |
+| --- | ---: | ---: |
+| Раскрытых вопросов при открытии | 100 | 1 |
+| Начальных DOM-элементов внутри редактора | 31 705 | 3 589 |
+| Mount actualDuration, мс | 404,1 | 155,0 |
+| Edit actualDuration, диапазон 10 вводов, мс | 53,3–109,8 | 3,8–5,8 |
+
+До, мс: 103,8; 94,6; 69,5; 69,8; 59,6; 78,2; 53,3; 81,1; 64,2; 109,8.
+После, мс: 3,9; 4,6; 3,9; 5,8; 5,3; 5,2; 4,4; 5,8; 3,8; 4,2.
+Значения не являются статистическим обещанием ускорения: другие локальные прогоны после
+рефакторинга давали около 3–12 мс. Инвариант теста — рендерится один измененный QuestionEditor
+и OptionEditor, соседняя секция/вопросы/варианты пропускаются. Root и измененная секция все
+еще рендерятся; status save может отдельно обновить root. Локальный render probe и React
+Profiler подтверждены в browser fixture; counters не содержат реальных данных пользователей.
+
+Проверки: 426 Node tests (8 новых — structural sharing, latest-state callbacks, move/copy,
+remediation, content blocks и defaults типов). Четыре новых browser-component сценария:
+100-question profiling, CRUD, все типы/option callbacks/remediation/collapse, keyboard/drag.
+Дополнительно повторно пройдены все 8 browser сценариев lazy import. Pointer capture и hit
+testing в drag fixture синтетические; native touch/mouse/scroll требуют ручной проверки.
+Typecheck/lint/build прошли. Серверные save/RLS/scoring и schema не изменялись; никакая
+миграция или новый flag для этого шага не требуются. Полный BuilderDocument по-прежнему
+сохраняется целиком: это будущий PERF-008, не результат PERF-007.
+
+Staging INP, доступность с assistive technology, реальное scroll/drag поведение и общий
+performance acceptance остаются открыты. Инструкция: `docs/26_BUILDER_RENDER_OPTIMIZATION_ROLLOUT.md`.
