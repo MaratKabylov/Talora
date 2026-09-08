@@ -13,9 +13,10 @@ import {
 import { canManageSystemTests } from "@/lib/admin/constants";
 import { requirePlatformContext } from "@/lib/admin/context";
 import {
-  getAdminSystemBuilderImportSources,
   getAdminSystemTestBuilderData,
 } from "@/lib/admin/tests-data";
+import { getAdminSystemBuilderImportSources } from "@/lib/tests/builder-import-data";
+import { loadSystemBuilderImportSourceAction } from "@/lib/tests/builder-import-actions";
 import { TEST_VERSION_STATUS_LABELS } from "@/lib/tests/constants";
 import { cn } from "@/lib/utils";
 
@@ -130,7 +131,9 @@ export default async function AdminSystemTestBuilderPage({
 
       {isEditable ? (
         <TestBuilderEditor
+          key={data.version.id}
           imports={importSources}
+          loadImportAction={loadSystemBuilderImportSourceAction}
           initialSections={data.sections}
           previewPath={`/admin/tests/${data.template.id}/preview?version=${data.version.id}`}
           publishAction={publishSystemTestVersionAction}

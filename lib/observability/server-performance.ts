@@ -24,6 +24,7 @@ export type ServerPerformanceOperation =
   | "auth.context"
   | "builder.clone"
   | "builder.import_sources"
+  | "builder.import_source_content"
   | "builder.load"
   | "builder.save"
   | "candidates.job_list"

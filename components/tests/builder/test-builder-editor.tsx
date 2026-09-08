@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Copy,
   Eye,
-  FileInput,
   GripVertical,
   Plus,
   Save,
@@ -48,6 +47,8 @@ import type {
 } from "@/lib/tests/builder-data";
 import type { TestVersion } from "@/lib/tests/data";
 import { formatTestVersionTitle } from "@/lib/tests/version-title";
+import type { BuilderImportAction } from "@/lib/tests/builder-import-contract";
+import { BuilderImportPicker } from "./builder-import-picker";
 
 type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
 
@@ -195,6 +196,7 @@ function nullableText(text: string) {
 
 export function TestBuilderEditor({
   imports,
+  loadImportAction,
   initialSections,
   publishAction = defaultPublishTestVersionAction,
   saveAction = defaultSaveBuilderDocumentAction,
@@ -203,6 +205,7 @@ export function TestBuilderEditor({
   version: initialVersion,
 }: {
   imports: BuilderImportSource[];
+  loadImportAction: BuilderImportAction;
   initialSections: BuilderSection[];
   publishAction?: (formData: FormData) => Promise<void>;
   saveAction?: (input: unknown) => Promise<BuilderSaveResult>;
@@ -221,7 +224,6 @@ export function TestBuilderEditor({
   });
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [feedback, setFeedback] = useState("");
-  const [importId, setImportId] = useState(imports[0]?.id ?? "");
   const [collapsedQuestionIds, setCollapsedQuestionIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -769,12 +771,6 @@ export function TestBuilderEditor({
           : entry,
       ),
     );
-  }
-
-  function importSections() {
-    const source = imports.find((entry) => entry.id === importId);
-    if (!source) return;
-    updateSections((current) => [...current, ...source.sections.map(copySection)]);
   }
 
   async function openPreview() {
@@ -2010,20 +2006,12 @@ export function TestBuilderEditor({
               <Button onClick={() => updateSections((current) => [...current, section()])} type="button">
                 <Plus /> Добавить секцию
               </Button>
-              {imports.length > 0 ? (
-                <>
-                  <Select className="max-w-xs" onChange={(event) => setImportId(event.target.value)} value={importId}>
-                    {imports.map((source) => (
-                      <option key={source.id} value={source.id}>
-                        {source.title} / v{source.versionNumber}
-                      </option>
-                    ))}
-                  </Select>
-                  <Button onClick={importSections} type="button" variant="outline">
-                    <FileInput /> Импортировать секции
-                  </Button>
-                </>
-              ) : null}
+              <BuilderImportPicker
+                key={`${templateId}:${initialVersion.id}`}
+                sources={imports} templateId={templateId} versionId={initialVersion.id}
+                loadAction={loadImportAction}
+                onImport={sourceSections => updateSections(current => [...current, ...sourceSections.map(copySection)])}
+              />
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
               Сверните вопросы и перетаскивайте их за ручку внутри секции или между секциями. Импорт добавляет копии секций в текущий черновик.

@@ -39,7 +39,7 @@ type QuestionRecord = {
   text: string;
 };
 
-type SectionRecord = {
+export type SectionRecord = {
   description: string | null;
   id: string;
   order_index: number;
@@ -47,10 +47,6 @@ type SectionRecord = {
   settings_json: unknown;
   time_limit_minutes: number | null;
   title: string;
-};
-
-type SystemTestAccessRecord = {
-  test_template_id: string;
 };
 
 export type BuilderOption = {
@@ -104,11 +100,14 @@ export type TestBuilderData = {
 };
 
 export type BuilderImportSource = {
-  id: string;
-  sections: BuilderSection[];
-  title: string;
+  templateId: string;
+  versionId: string;
+  templateTitle: string;
   versionNumber: number;
+  questionCount: number;
 };
+
+export const BUILDER_SECTION_SELECT = "id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, match_text, order_index, is_correct, points, competency_effect_json, explanation))";
 
 function normalizeOption(option: OptionRecord): BuilderOption {
   return {
@@ -171,24 +170,8 @@ function normalizeSection(section: SectionRecord): BuilderSection {
   };
 }
 
-async function listGrantedSystemTemplateIds(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  companyId: string,
-) {
-  const { data, error } = await supabase
-    .from("company_system_test_access")
-    .select("test_template_id")
-    .eq("company_id", companyId);
-
-  if (error) {
-    return [];
-  }
-
-  return ((data ?? []) as SystemTestAccessRecord[]).map((row) => row.test_template_id);
-}
-
-function importSourceSelect() {
-  return "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, match_text, order_index, is_correct, points, competency_effect_json, explanation))))";
+export function normalizeBuilderSections(sections: SectionRecord[]): BuilderSection[] {
+  return sections.map(normalizeSection).sort((left, right) => left.orderIndex - right.orderIndex);
 }
 
 async function getTestBuilderDataUninstrumented(
@@ -214,9 +197,7 @@ async function getTestBuilderDataUninstrumented(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("test_sections")
-    .select(
-      "id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, match_text, order_index, is_correct, points, competency_effect_json, explanation))",
-    )
+    .select(BUILDER_SECTION_SELECT)
     .eq("test_version_id", version.id);
 
   if (error) {
@@ -224,9 +205,7 @@ async function getTestBuilderDataUninstrumented(
   }
 
   return {
-    sections: ((data ?? []) as unknown as SectionRecord[])
-      .map(normalizeSection)
-      .sort((left, right) => left.orderIndex - right.orderIndex),
+    sections: normalizeBuilderSections((data ?? []) as unknown as SectionRecord[]),
     template,
     version,
   };
@@ -239,70 +218,5 @@ export function getTestBuilderData(
 ) {
   return measureServerOperation("builder.load", () =>
     getTestBuilderDataUninstrumented(companyId, templateId, selectedVersionId),
-  );
-}
-
-async function getBuilderImportSourcesUninstrumented(
-  companyId: string,
-  currentVersionId: string,
-): Promise<BuilderImportSource[]> {
-  const supabase = await createClient();
-  const systemTemplateIds = await listGrantedSystemTemplateIds(supabase, companyId);
-  const [companyTemplatesResult, systemTemplatesResult] = await Promise.all([
-    supabase
-      .from("test_templates")
-      .select(importSourceSelect())
-      .eq("company_id", companyId)
-      .eq("is_system", false),
-    systemTemplateIds.length > 0
-      ? supabase
-          .from("test_templates")
-          .select(importSourceSelect())
-          .in("id", systemTemplateIds)
-          .eq("is_system", true)
-          .is("company_id", null)
-          .eq("status", "active")
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-
-  if (companyTemplatesResult.error || systemTemplatesResult.error) {
-    return [];
-  }
-
-  type ImportTemplateRecord = {
-    test_versions?: Array<{
-      id: string;
-      status: string;
-      test_sections?: SectionRecord[] | null;
-      version_number: number;
-    }> | null;
-    title: string;
-  };
-
-  const templates = [
-    ...((systemTemplatesResult.data ?? []) as unknown as ImportTemplateRecord[]),
-    ...((companyTemplatesResult.data ?? []) as unknown as ImportTemplateRecord[]),
-  ];
-
-  return templates
-    .flatMap((template) =>
-      (template.test_versions ?? [])
-        .filter((version) => version.id !== currentVersionId && version.status === "published")
-        .map((version) => ({
-          id: version.id,
-          sections: (version.test_sections ?? [])
-            .map(normalizeSection)
-            .sort((left, right) => left.orderIndex - right.orderIndex),
-          title: template.title,
-          versionNumber: version.version_number,
-        })),
-    )
-    .filter((source) => source.sections.length > 0)
-    .sort((left, right) => left.title.localeCompare(right.title, "ru"));
-}
-
-export function getBuilderImportSources(companyId: string, currentVersionId: string) {
-  return measureServerOperation("builder.import_sources", () =>
-    getBuilderImportSourcesUninstrumented(companyId, currentVersionId),
   );
 }

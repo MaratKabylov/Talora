@@ -403,3 +403,43 @@ canary/rollback и 30+ cold/warm p50/p95 остаются условиями sta
 
 Новая миграция агентом в удаленную БД не применялась, реальные флаги не менялись.
 Инструкция и ограничения отката/recovery: `docs/24_COMPLETION_NAVIGATION_ROLLOUT.md`.
+
+## 18. PERF-006: ленивые источники импорта — 08.09.2026
+
+Прежде оба builder route запрашивали sections/questions/options всех доступных версий,
+после чего отфильтровывали published в Node и передавали весь контент в Client Component.
+Теперь первоначальный DTO содержит только `templateId`, `versionId`, `templateTitle`,
+`versionNumber`, `questionCount`. В PostgREST выбираются published версии и вложенные
+счетчики вопросов; section descriptions/settings и questions/options источников отсутствуют
+в начальном запросе и props. Текущий редактируемый документ по-прежнему загружается целиком.
+
+Для библиотеки до 500 версий на ветку: company — 2 metadata HTTP queries (own/system с
+grant активной компании), admin — 1 (system). Большие библиотеки читаются страницами по
+500 с детерминированным порядком ID. Это не константная SQL-стоимость: подсчет вопросов и
+RLS по-прежнему выполняются в БД, размер metadata списка зависит от числа версий/секций.
+
+После кнопки «Загрузить источник» выполняется Server Action: auth/role, проверка target
+draft/ownership, metadata источника для выбора company/system ветки и один content query
+ровно выбранной published версии. Content query включает template scope, а для system
+источника HR — активный template и актуальный grant именно активной компании. Client не
+задает company ID или привилегированный режим. Загрузка сама не меняет BuilderDocument.
+При явном импорте применяется прежний copySection; autosave и scoring semantics не изменены.
+
+Нет общего/permanent cache: только один загруженный источник в памяти picker, удаляемый
+при смене источника, новом запросе, импорте и unmount. Server Action нельзя отменить в БД
+из picker; поздний результат игнорируется. Запросы не запускаются автоматически/по retry timer.
+
+Локальные проверки: 418 Node tests, включая 8 новых проверок real Supabase query builder
+с synthetic HTTP (DTO/counts, pagination, company/grant/status filters, admin restrictions,
+role matrix, UUID/error handling и нормализация контента). Это не живой PostgREST/RLS E2E.
+8 новых headless Chrome component сценариев: loading/error/retry, stale selection,
+unmount, empty/mismatched/large source и 2 editor сценария с копированием/remediation
+и сохранением локальных правок. Транспорт Server Actions в browser fixture синтетический.
+Typecheck, lint и production build прошли. Реальное время открытия, RSC bytes, p50/p95,
+нагрузка счетчиков и отзыв доступа на staging еще не измерены/не проверены агентом.
+
+Метрики: `builder.import_sources` теперь измеряет только metadata; сравнение с прежним
+именем учитывает изменение семантики. Новая `builder.import_source_content` измеряет
+ленивую server operation вместе с auth; названия/ID/контент тестов в метрики не добавлены.
+Миграция/feature flag не требуются; удаленные данные и реальные env не менялись.
+Приемка/откат: `docs/25_BUILDER_LAZY_IMPORT_ROLLOUT.md`.

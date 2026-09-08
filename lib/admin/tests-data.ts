@@ -3,7 +3,6 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
 import type {
-  BuilderImportSource,
   BuilderQuestion,
   BuilderSection,
   TestBuilderData,
@@ -396,48 +395,4 @@ export async function getAdminSystemTestBuilderData(
     template,
     version,
   };
-}
-
-export async function getAdminSystemBuilderImportSources(
-  currentVersionId: string,
-): Promise<BuilderImportSource[]> {
-  await requirePlatformContext();
-  const admin = createAdminClient();
-  const { data: templates, error } = await admin
-    .from("test_templates")
-    .select(
-      "title, test_versions(id, version_number, status, test_sections(id, title, description, order_index, settings_json, time_limit_minutes, questions(id, question_type, text, description, order_index, points, competency_key, difficulty, settings_json, answer_options(id, text, match_text, order_index, is_correct, points, competency_effect_json, explanation))))",
-    )
-    .eq("is_system", true)
-    .is("company_id", null);
-
-  if (error) {
-    return [];
-  }
-
-  type ImportTemplateRecord = {
-    test_versions?: Array<{
-      id: string;
-      status: string;
-      test_sections?: SectionRecord[] | null;
-      version_number: number;
-    }> | null;
-    title: string;
-  };
-
-  return ((templates ?? []) as unknown as ImportTemplateRecord[])
-    .flatMap((template) =>
-      (template.test_versions ?? [])
-        .filter((version) => version.id !== currentVersionId && version.status === "published")
-        .map((version) => ({
-          id: version.id,
-          sections: (version.test_sections ?? [])
-            .map(normalizeSection)
-            .sort((left, right) => left.orderIndex - right.orderIndex),
-          title: template.title,
-          versionNumber: version.version_number,
-        })),
-    )
-    .filter((source) => source.sections.length > 0)
-    .sort((left, right) => left.title.localeCompare(right.title, "ru"));
 }

@@ -8,7 +8,9 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { requireCompanyContext } from "@/lib/auth/context";
 import { canManageTests, TEST_VERSION_STATUS_LABELS } from "@/lib/tests/constants";
 import { createDraftFromPublishedVersionAction } from "@/lib/tests/builder-actions";
-import { getBuilderImportSources, getTestBuilderData } from "@/lib/tests/builder-data";
+import { getTestBuilderData } from "@/lib/tests/builder-data";
+import { getBuilderImportSources } from "@/lib/tests/builder-import-data";
+import { loadCompanyBuilderImportSourceAction } from "@/lib/tests/builder-import-actions";
 import { cn } from "@/lib/utils";
 
 type BuilderParams = Promise<{ id: string }>;
@@ -129,7 +131,9 @@ export default async function TestBuilderPage({
 
       {isEditable ? (
         <TestBuilderEditor
+          key={`${context.activeCompany.id}:${data.version.id}`}
           imports={importSources}
+          loadImportAction={loadCompanyBuilderImportSourceAction}
           initialSections={data.sections}
           previewPath={`/dashboard/tests/${data.template.id}/preview?version=${data.version.id}`}
           templateId={data.template.id}
