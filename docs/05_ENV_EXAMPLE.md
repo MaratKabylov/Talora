@@ -36,6 +36,11 @@ ASSESSMENT_SECTION_SAVE_V2=false
 # Whole-section mode also requires ASSESSMENT_SECTION_SAVE_V2 + SESSION_CONTROL_V2=true.
 ASSESSMENT_SECTION_PREFETCH_V3=false
 
+# Server only. Apply 20260907190000_assessment_completion_v2.sql before enabling.
+# Requires SESSION_CONTROL_V2 + ASSESSMENT_SECTION_READ_V2 + ASSESSMENT_SOFT_NAVIGATION_V2=true.
+# Whole-section mode also requires ASSESSMENT_SECTION_SAVE_V2=true. Prefetch is independent.
+ASSESSMENT_COMPLETION_V2=false
+
 # Optional email provider for later
 RESEND_API_KEY=
 EMAIL_FROM=

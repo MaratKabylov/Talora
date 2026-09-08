@@ -9,6 +9,7 @@ import { getAssessmentByToken, getAssessmentQuestionPageData } from "@/lib/asses
 import { getAssessmentSectionSnapshot } from "@/lib/assessment/section-data";
 import { getAssessmentTestOverview } from "@/lib/assessment/test-overview";
 import { AssessmentTestFlow } from "@/components/assessment/assessment-test-flow";
+import { AssessmentCompletionRecovery } from "@/components/assessment/completion-recovery";
 
 type TestParams = Promise<{ sessionId: string; token: string }>;
 type TestSearchParams = Promise<{ error?: string; review?: string; section?: string }>;
@@ -42,6 +43,10 @@ export default async function CandidateTestPage({
   const session = overview.session;
 
   if (session.status === "completed") {
+    if (!overview.nextSessionId && process.env.ASSESSMENT_COMPLETION_V2 === "true" && process.env.SESSION_CONTROL_V2 === "true"
+      && process.env.ASSESSMENT_SOFT_NAVIGATION_V2 === "true" && process.env.ASSESSMENT_SECTION_READ_V2 === "true") {
+      return <AssessmentShell companyName={overview.companyName}><AssessmentCompletionRecovery assessmentType="candidate" token={token} sessionId={sessionId} /></AssessmentShell>;
+    }
     redirect(overview.nextSessionId ? `/assessment/${token}/test/${overview.nextSessionId}` : `/assessment/${token}/complete`);
   }
 
@@ -66,6 +71,7 @@ export default async function CandidateTestPage({
           In-test section transitions only update client state and never change this key. */}
       <AssessmentTestFlow key={`${sessionId}:${crypto.randomUUID()}`} snapshot={snapshot} assessmentType="candidate" token={token} sessionId={sessionId}
         sectionPrefetchEnabled={process.env.ASSESSMENT_SECTION_PREFETCH_V3 === "true"}
+        completionEnabled={process.env.ASSESSMENT_COMPLETION_V2 === "true" && process.env.SESSION_CONTROL_V2 === "true"}
         initialDeadlineAt={session.deadlineAt} contextTitle={overview.contextTitle} testTitle={session.test.title}
         description={session.test.description} instructions={session.test.instructions} presentationSettings={presentationSettings}
         completedSessionCount={overview.completedSessionCount} sessionCount={overview.sessionCount} error={feedback.error} />

@@ -166,17 +166,18 @@ test("real test pages gate soft navigation by flags/mode and reuse legacy overvi
   const jsxRuntime = createRequire(import.meta.url)("react/jsx-runtime");
   const Session = () => null;
   const SoftFlow = () => null;
+  const Recovery = () => null;
   type Element = { type: unknown; props?: Record<string, unknown> };
   const findSession = (node: unknown): Element | undefined => {
     if (!node || typeof node !== "object") return;
     if (Array.isArray(node)) return node.map(findSession).find(Boolean);
     const element = node as Element;
-    return element.type === Session || element.type === SoftFlow ? element : findSession(element.props?.children);
+    return element.type === Session || element.type === SoftFlow || element.type === Recovery ? element : findSession(element.props?.children);
   };
   for (const scope of ["candidate", "employee"] as const) {
     for (const overviewV2 of [false, true]) for (const sectionV2 of [false, true]) {
     for (const softV2 of [false, true]) for (const presentationMode of ["section", "one_question"] as const) {
-    for (const sectionSaveV2 of [false, true]) for (const controlV2 of [false, true]) for (const prefetchV3 of [false, true]) {
+    for (const sectionSaveV2 of [false, true]) for (const controlV2 of [false, true]) for (const prefetchV3 of [false, true]) for (const completionV2 of [false, true]) {
       let fullOverviewReads = 0; let fullContentReads = 0; let sectionReads = 0;
       const fixture = minimalFixture();
       fixture.session.test.presentationSettings = { ...presentation.DEFAULT_TEST_PRESENTATION_SETTINGS, presentationMode };
@@ -195,6 +196,7 @@ test("real test pages gate soft navigation by flags/mode and reuse legacy overvi
           "react/jsx-runtime": jsxRuntime, "next/navigation": { redirect: (path: string) => { throw Error(`redirect:${path}`); } },
           "@/components/assessment/assessment-shell": { AssessmentShell: () => null, AssessmentUnavailable: () => null },
           "@/components/assessment/candidate-test-session": { AssessmentTestSession: Session },
+          "@/components/assessment/completion-recovery": { AssessmentCompletionRecovery: Recovery },
           "@/components/assessment/test-taking-guard": { TestTakingGuard: () => null },
           "@/components/feedback-message": { FeedbackMessage: () => null }, "@/components/ui/rich-text-content": { RichTextContent: () => null },
           "@/lib/assessment/data": { getAssessmentByToken: legacyRead, getAssessmentQuestionPageData: legacyContentRead },
@@ -206,7 +208,8 @@ test("real test pages gate soft navigation by flags/mode and reuse legacy overvi
             return { section: null, sections: [], answers: {}, sectionIndex: 0, questionOffset: 0, otherVisibleQuestionCount: 0, reviewMode: false };
           } },
         }, { ASSESSMENT_SOFT_NAVIGATION_V2: String(softV2), ASSESSMENT_SECTION_READ_V2: String(sectionV2),
-          ASSESSMENT_SECTION_SAVE_V2: String(sectionSaveV2), SESSION_CONTROL_V2: String(controlV2), ASSESSMENT_SECTION_PREFETCH_V3: String(prefetchV3) });
+          ASSESSMENT_SECTION_SAVE_V2: String(sectionSaveV2), SESSION_CONTROL_V2: String(controlV2), ASSESSMENT_SECTION_PREFETCH_V3: String(prefetchV3),
+          ASSESSMENT_COMPLETION_V2: String(completionV2) });
       const props = { params: Promise.resolve({ token, sessionId: id(50) }), searchParams: Promise.resolve({}) };
       for (let count = 1; count <= 2; count++) {
         const result = await page.default(props);
@@ -214,6 +217,8 @@ test("real test pages gate soft navigation by flags/mode and reuse legacy overvi
           && (presentationMode === "one_question" || (sectionSaveV2 && controlV2)) ? SoftFlow : Session);
         if (findSession(result)?.type === SoftFlow) assert.equal(findSession(result)?.props?.sectionPrefetchEnabled, prefetchV3);
         else assert.equal(findSession(result)?.props?.sectionPrefetchEnabled, undefined);
+        if (findSession(result)?.type === SoftFlow) assert.equal(findSession(result)?.props?.completionEnabled, completionV2 && controlV2);
+        else assert.equal(findSession(result)?.props?.completionEnabled, undefined);
         assert.ok(!JSON.stringify(findSession(result)?.props).includes("private@example.invalid"));
         assert.equal(fullOverviewReads, overviewV2 && sectionV2 ? 0 : count);
         assert.equal(fullContentReads, sectionV2 ? 0 : count);
@@ -229,6 +234,10 @@ test("real test pages gate soft navigation by flags/mode and reuse legacy overvi
           ...["not_started", "expired", "cancelled"].map(status => [{ ...minimalFixture(), session: { ...minimalFixture().session, status } }, "/profile"]),
         ] as const) {
           rpcResult = payload;
+          if (completionV2 && controlV2 && softV2 && typeof payload === "object" && "session" in payload && payload.session.status === "completed" && !payload.nextSessionId) {
+            const recovery = findSession(await page.default(props)); assert.equal(recovery?.type, Recovery);
+            assert.deepEqual(recovery?.props, { assessmentType: scope, token, sessionId: id(50) }); continue;
+          }
           await assert.rejects(page.default(props), error => String(error) === `Error: redirect:/${prefix}/${token}${suffix}`);
         }
         for (const availability of ["invalid", "expired", "cancelled"]) {

@@ -363,3 +363,43 @@ ordering перестановка, одноэлементный кеш/TTL/ли�
 env не менял. Предыдущая инструкция выполнена со слов пользователя, без удаленной проверки.
 Кодовая часть prefetch готова; staging-приемка и оптимизация completion/смены теста
 остаются открытыми. Включение/ограничения/откат: `docs/23_SECTION_PREFETCH_ROLLOUT.md`.
+
+## 17. PERF-005d: ручное завершение и переход между тестами — 08.09.2026
+
+Под `ASSESSMENT_COMPLETION_V2` после ACK finalize/batch выполняется один
+`complete_assessment_session_v2` RPC. В промежуточном завершении endpoint не делает
+дополнительных overview/content reads и не запускает scoring readiness из Node: проверка
+сохраненных ответов, завершение и старт следующей сессии выполняются в SQL. Повтор не
+перезаписывает ответы/completed_at и не сбрасывает deadline следующей сессии. Последний
+тест вызывает прежнюю синхронную scoring finalization вне SQL-транзакции; она по-прежнему
+содержит дополнительные запросы и отдельно нуждается в замерах.
+
+Новый endpoint не получает ответы/вопросы, только client/device/session/token. Внутри RPC
+есть несколько SQL statements и вызовы нормализатора по вопросам; уменьшение HTTP нельзя
+приравнивать к уменьшению SQL нагрузки или достигнутому p95. Следующая test page намеренно
+читает свой overview/section и создает новый controller/claim. Клиент вызывает router.replace
+вместо document navigation, но реальные RSC/network-метрики на staging еще не собраны.
+
+Локально: 410 тестов; новые проверки используют реальную completion/lease/answer/integrity
+логику в PGlite. Подтверждены scope/company/person/context/consent/token/lease, все типы
+ответов, mandatory/optional/remediation, empty tests, ordering/eligibility, идемпотентность,
+rollback завершения/старта следующего/lease при trigger failure или expiry и service-only grants.
+Route/helper/page проверки покрывают флаги, no-store, отсутствие V1 fallback, неизменный
+scoring dispatch, processing/error/retry, отсутствие внутренних owner/invitation IDs в DTO,
+same-token destination и recovery вместо GET-scoring после reload.
+
+30 headless Chrome browser-component сценариев прошли: прежние 16 с выключенным completion,
+12 завершений (2 scope × 3 режима × intermediate/last) и 2 восстановления. Используются
+реальные компоненты с synthetic transport и **mock router**, не полный Next.js App Router.
+Проверены ACK, double click, ошибка после имитированного commit, повтор без новых answer
+записей, processing, сохранение ввода, подавление heartbeat/autosave во время ожидания,
+корректный scoped router destination и отсутствие автоматического scoring в recovery render.
+
+Полная Supabase/RLS интеграция, параллельные соединения, реальный scoring parity, RSC/E2E,
+canary/rollback и 30+ cold/warm p50/p95 остаются условиями staging-приемки. Реальное ускорение
+не заявляется. Метрики: server `assessment.finish_session`, endpoint Server-Timing
+`assessment_complete`, client `assessment.complete`; последняя не включает новый RSC/paint.
+Скоринг и time-expired pipeline не переписаны, фоновая очередь не внедрена.
+
+Новая миграция агентом в удаленную БД не применялась, реальные флаги не менялись.
+Инструкция и ограничения отката/recovery: `docs/24_COMPLETION_NAVIGATION_ROLLOUT.md`.

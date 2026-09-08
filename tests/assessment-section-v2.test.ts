@@ -168,6 +168,7 @@ test("both real test pages use the section reader and pass only its bounded DTO 
         "next/navigation": { redirect: (path: string) => { throw Error(`redirect:${path}`); } },
         "@/components/assessment/assessment-shell": { AssessmentShell: () => null, AssessmentUnavailable: Unavailable },
         "@/components/assessment/candidate-test-session": { AssessmentTestSession: Session },
+        "@/components/assessment/completion-recovery": { AssessmentCompletionRecovery: () => null },
         "@/components/assessment/test-taking-guard": { TestTakingGuard: () => null },
         "@/components/feedback-message": { FeedbackMessage: () => null }, "@/components/ui/rich-text-content": { RichTextContent: () => null },
         "@/lib/assessment/data": { getAssessmentByToken: overview, getAssessmentQuestionPageData: () => { fullReads++; throw Error("Must not read full content"); } },

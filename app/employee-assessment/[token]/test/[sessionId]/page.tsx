@@ -8,6 +8,7 @@ import { RichTextContent } from "@/components/ui/rich-text-content";
 import { getAssessmentSectionSnapshot } from "@/lib/assessment/section-data";
 import { getAssessmentTestOverview } from "@/lib/assessment/test-overview";
 import { AssessmentTestFlow } from "@/components/assessment/assessment-test-flow";
+import { AssessmentCompletionRecovery } from "@/components/assessment/completion-recovery";
 import {
   getEmployeeAssessmentByToken,
   getEmployeeAssessmentQuestionPageData,
@@ -44,6 +45,10 @@ export default async function EmployeeAssessmentTestPage({
   const session = overview.session;
 
   if (session.status === "completed") {
+    if (!overview.nextSessionId && process.env.ASSESSMENT_COMPLETION_V2 === "true" && process.env.SESSION_CONTROL_V2 === "true"
+      && process.env.ASSESSMENT_SOFT_NAVIGATION_V2 === "true" && process.env.ASSESSMENT_SECTION_READ_V2 === "true") {
+      return <AssessmentShell companyName={overview.companyName}><AssessmentCompletionRecovery assessmentType="employee" token={token} sessionId={sessionId} /></AssessmentShell>;
+    }
     redirect(
       overview.nextSessionId
         ? `/employee-assessment/${token}/test/${overview.nextSessionId}`
@@ -71,6 +76,7 @@ export default async function EmployeeAssessmentTestPage({
       {/* Server revisits restore fresh state; client-only section transitions keep this key. */}
       <AssessmentTestFlow key={`${sessionId}:${crypto.randomUUID()}`} snapshot={snapshot} assessmentType="employee" token={token} sessionId={sessionId}
         sectionPrefetchEnabled={process.env.ASSESSMENT_SECTION_PREFETCH_V3 === "true"}
+        completionEnabled={process.env.ASSESSMENT_COMPLETION_V2 === "true" && process.env.SESSION_CONTROL_V2 === "true"}
         initialDeadlineAt={session.deadlineAt} contextTitle={overview.contextTitle} testTitle={session.test.title}
         description={session.test.description} instructions={session.test.instructions} presentationSettings={presentationSettings}
         completedSessionCount={overview.completedSessionCount} sessionCount={overview.sessionCount} error={feedback.error} />

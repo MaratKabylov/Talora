@@ -12,6 +12,7 @@ await new Promise((done, reject) => webpack({
   entry: resolve(root, "tests/browser/assessment-navigation.entry.tsx"),
   output: { path: output, filename: "fixture.js" },
   resolve: { extensions: [".tsx", ".ts", ".js"], alias: {
+    "next/navigation$": resolve(root, "tests/browser/assessment-navigation-router.ts"),
     "@/lib/assessment/actions$": resolve(root, "tests/browser/assessment-navigation-actions.ts"),
     "@/lib/employee-assessments/public-actions$": resolve(root, "tests/browser/assessment-navigation-actions.ts"),
     "@": root,

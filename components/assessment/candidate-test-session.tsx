@@ -1,6 +1,7 @@
 "use client";
 
 import { ClipboardX, Cloud, CloudOff, ShieldAlert, ShieldCheck, Timer } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -28,6 +29,7 @@ import {
 import { requestedSectionIndex, type AssessmentSectionSnapshot, type PublicFlowQuestion as FlowQuestion, type PublicFlowSection as FlowSection, type SectionSavedAnswer as SavedAnswer } from "@/lib/assessment/section-contract";
 import { fetchAssessmentSection, firstQuestionIndex, saveAssessmentSection, sectionUrl } from "@/lib/assessment/section-navigation";
 import { SectionPrefetchCache } from "@/lib/assessment/section-prefetch";
+import { requestAssessmentCompletion, safeAssessmentDestination } from "@/lib/assessment/completion-contract";
 import { reportClientOperation } from "@/lib/observability/client-performance";
 import type { ClientPerformanceOperation } from "@/lib/observability/performance-core";
 import type { TestPresentationSettings } from "@/lib/tests/presentation-settings";
@@ -62,6 +64,7 @@ type AssessmentTestSessionProps = {
   token: string;
   onSectionChange?: (snapshot: AssessmentSectionSnapshot) => void;
   sectionPrefetchEnabled?: boolean;
+  completionEnabled?: boolean;
 };
 
 const DEVICE_STORAGE_KEY = "talvia_assessment_device_id";
@@ -346,7 +349,14 @@ export function AssessmentTestSession({
   token,
   onSectionChange,
   sectionPrefetchEnabled = false,
+  completionEnabled = false,
 }: AssessmentTestSessionProps) {
+  const router = useRouter();
+  const completionPendingRef = useRef(false);
+  const completionSubmittingRef = useRef(false);
+  const [completionPending, setCompletionPending] = useState(false);
+  const [completionSubmitting, setCompletionSubmitting] = useState(false);
+  const [terminalNavigating, setTerminalNavigating] = useState(false);
   const [navigatedSection, setNavigatedSection] = useState<AssessmentSectionSnapshot | null>(null);
   const section = navigatedSection ? navigatedSection.section : initialSection;
   const sectionIndex = navigatedSection?.sectionIndex ?? initialSectionIndex;
@@ -481,7 +491,11 @@ export function AssessmentTestSession({
       sectionRequestRef.current?.abort();
       sectionPrefetch.clear();
       navigatingRef.current = true;
-      window.location.assign(response.redirectTo);
+      if (completionEnabled && safeAssessmentDestination(response.redirectTo, { assessmentType, token })) {
+        setTerminalNavigating(true);
+        try { router.replace(response.redirectTo); }
+        catch (error) { navigatingRef.current = false; setTerminalNavigating(false); throw error; }
+      } else window.location.assign(response.redirectTo);
       return;
     }
 
@@ -497,7 +511,7 @@ export function AssessmentTestSession({
         : null,
     );
     setLockState("active");
-  }, [sectionPrefetch]);
+  }, [sectionPrefetch, completionEnabled, assessmentType, token, router]);
 
   const identity = useCallback(
     () => ({
@@ -696,7 +710,7 @@ export function AssessmentTestSession({
         setTimerWarning((current) => current ?? "five");
       }
 
-      if (seconds === 0 && !expiryRequestedRef.current) {
+      if (seconds === 0 && !expiryRequestedRef.current && !completionPendingRef.current && !navigatingRef.current) {
         expiryRequestedRef.current = true;
         setLockState("expiring");
         void postControl({
@@ -724,7 +738,7 @@ export function AssessmentTestSession({
       metadata?: Record<string, unknown>,
       keepalive = false,
     ) => {
-      if (lockState !== "active") {
+      if (lockState !== "active" || completionPendingRef.current || navigatingRef.current) {
         return;
       }
 
@@ -741,7 +755,7 @@ export function AssessmentTestSession({
           },
           keepalive,
         );
-        applyControlResponse(response);
+        if (!completionPendingRef.current && !navigatingRef.current) applyControlResponse(response);
       } catch {
         // A failed telemetry write must not discard the participant's answers.
       }
@@ -782,7 +796,7 @@ export function AssessmentTestSession({
     (questionId: string) => {
       const form = formRef.current;
       const question = questionsById.get(questionId);
-      if (!mountedRef.current || !form || !question || lockState !== "active" || (softNavigation && isOneQuestion) || sectionSubmittingRef.current) {
+      if (!mountedRef.current || !form || !question || lockState !== "active" || (softNavigation && isOneQuestion) || sectionSubmittingRef.current || completionPendingRef.current) {
         return;
       }
 
@@ -888,11 +902,12 @@ export function AssessmentTestSession({
     }
 
     async function heartbeat() {
+      if (completionPendingRef.current || navigatingRef.current) return;
       try {
         const response = await postControl({ ...identity(), operation: "heartbeat" });
-        applyControlResponse(response);
+        if (!completionPendingRef.current && !navigatingRef.current) applyControlResponse(response);
       } catch {
-        setSaveState(navigator.onLine ? "error" : "offline");
+        if (!completionPendingRef.current && !navigatingRef.current) setSaveState(navigator.onLine ? "error" : "offline");
       }
     }
 
@@ -1023,7 +1038,51 @@ export function AssessmentTestSession({
     void recordEvent(eventType, questionId);
   }
 
+  async function completeSavedSession() {
+    if (completionSubmittingRef.current || navigatingRef.current || !mountedRef.current || lockState !== "active") return;
+    completionSubmittingRef.current = true;
+    completionPendingRef.current = true;
+    setCompletionPending(true);
+    setCompletionSubmitting(true);
+    setQuestionError(null);
+    const completionStartedAt = performance.now();
+    let completionOutcome: "success" | "failure" = "failure";
+    sectionPrefetch.clear();
+    pauseQuestionTimer();
+    for (const timer of saveTimersRef.current.values()) clearTimeout(timer);
+    saveTimersRef.current.clear();
+    try {
+      await Promise.all([...saveChainsRef.current.values()]);
+      for (const timer of saveTimersRef.current.values()) clearTimeout(timer);
+      saveTimersRef.current.clear();
+      if (!mountedRef.current || navigatingRef.current) return;
+      const response = await requestAssessmentCompletion({ assessmentType, token, sessionId,
+        clientId: clientIdRef.current, deviceId: deviceIdRef.current });
+      completionOutcome = "success";
+      if (!mountedRef.current || navigatingRef.current) return;
+      if (response.status === "incomplete") {
+        completionPendingRef.current = false;
+        setCompletionPending(false);
+        setQuestionError(`Не все ответы подтверждены. Проверьте секцию ${response.sectionIndex + 1} и повторите завершение.`);
+        if (activeQuestion) startQuestionTimer(activeQuestion.id);
+      } else if (response.status === "processing") {
+        setQuestionError("Результаты ещё обрабатываются. Повторите завершение через несколько секунд.");
+      } else if (response.status === "expired") {
+        // Keep the existing time-expired scoring/event path, not a new scoring implementation.
+        const expired = await postControl({ ...identity(), operation: "expire", clientEventId: createId() });
+        if (mountedRef.current && !navigatingRef.current) applyControlResponse(expired);
+      } else applyControlResponse(response);
+    } catch {
+      if (mountedRef.current) setQuestionError("Не удалось завершить тест. Ответы уже сохранены — повторите завершение.");
+    } finally {
+      completionSubmittingRef.current = false;
+      reportClientOperation("assessment.complete", performance.now() - completionStartedAt, completionOutcome);
+      if (mountedRef.current) setCompletionSubmitting(false);
+    }
+  }
+
   async function completeOneQuestionSession() {
+    if (completionEnabled) { await completeSavedSession(); return; }
     setQuestionError(null);
     setSaveState("saving");
     try {
@@ -1150,7 +1209,7 @@ export function AssessmentTestSession({
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
     if (!navigator.onLine || connection?.saveData || ["slow-2g", "2g"].includes(connection?.effectiveType ?? "")) { clear(); return; }
     const timer = setTimeout(() => {
-      if (!sectionRequestRef.current && !navigatingRef.current && navigator.onLine) {
+      if (!sectionRequestRef.current && !navigatingRef.current && !completionPendingRef.current && navigator.onLine) {
         void sectionPrefetch.start({ assessmentType, token, sessionId, sectionIndex });
       }
     }, 500);
@@ -1162,7 +1221,7 @@ export function AssessmentTestSession({
     const restoreUrl = () => {
       if (historyMode === "replace") window.history.replaceState(null, "", currentSectionUrlRef.current);
     };
-    if (!softNavigation || !mountedRef.current || sectionRequestRef.current || navigatingRef.current || lockState !== "active") {
+    if (!softNavigation || !mountedRef.current || sectionRequestRef.current || navigatingRef.current || completionPendingRef.current || lockState !== "active") {
       restoreUrl(); return;
     }
     if (questionDirtyRef.current || (historyMode === "replace"
@@ -1354,6 +1413,7 @@ export function AssessmentTestSession({
       setSaveState("saved");
       questionDirtyRef.current = false;
       if (direction === "next" && sectionIndex === sectionCount - 1 && !response.needsRemediation) {
+        if (completionEnabled) { await completeSavedSession(); return; }
         // The last batch is confirmed, including remediation. Keep completion/scoring
         // on the native Server Action path; its repeated save is idempotent.
         legacySubmissionReadyRef.current = true;
@@ -1398,6 +1458,8 @@ export function AssessmentTestSession({
       </div>
     </div>
   );
+
+  if (terminalNavigating) return <p role="status" className="rounded-lg border p-6">Переходим к следующему этапу...</p>;
 
   if (lockState !== "active") {
     const blocked = lockState === "blocked";
@@ -1455,10 +1517,15 @@ export function AssessmentTestSession({
 
       {sectionLoading ? <p role="status" className="text-sm text-muted-foreground">Загружаем секцию...</p> : null}
       {sectionSaving ? <p role="status" className="text-sm text-muted-foreground">Сохраняем секцию...</p> : null}
+      {completionPending ? <div className="space-y-3 rounded-lg border p-4" aria-busy={completionSubmitting}>
+        <p role="status">{completionSubmitting ? "Завершаем тест..." : "Ответы сохранены. Подтвердите завершение теста."}</p>
+        {questionError ? <p role="alert" className="text-sm text-destructive">{questionError}</p> : null}
+        <Button type="button" disabled={completionSubmitting} onClick={() => void completeSavedSession()}>Повторить завершение</Button>
+      </div> : null}
 
       <div
         aria-busy={sectionLoading || sectionSaving}
-        inert={sectionLoading || sectionSaving || (softNavigation && isOneQuestion && saveState === "saving") || undefined}
+        inert={completionPending || sectionLoading || sectionSaving || (softNavigation && isOneQuestion && saveState === "saving") || undefined}
         onCopyCapture={(event) => handleClipboard(event, "clipboard_copy")}
         onCutCapture={(event) => handleClipboard(event, "clipboard_cut")}
         onPasteCapture={(event) => handleClipboard(event, "clipboard_paste")}
@@ -1470,7 +1537,10 @@ export function AssessmentTestSession({
               <CardDescription>Перейдите к следующему тесту в пакете оценки.</CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <form action={completeEmptyAction} onSubmit={() => { navigatingRef.current = true; }}>
+              <form action={completeEmptyAction} onSubmit={event => {
+                if (completionEnabled) { event.preventDefault(); void completeSavedSession(); }
+                else navigatingRef.current = true;
+              }}>
                 <input name="token" type="hidden" value={token} />
                 <input name="sessionId" type="hidden" value={sessionId} />
                 <input name="clientId" type="hidden" value={clientId} />

@@ -1,5 +1,5 @@
 -- TEST ONLY. Never run in Supabase SQL Editor. Loaded by npm test into PGlite.
-alter table public.test_versions add column settings_json jsonb default '{}'::jsonb;
+alter table public.test_versions add column if not exists settings_json jsonb default '{}'::jsonb;
 alter table public.test_sections add column order_index integer default 0;
 alter table public.questions add column question_type text default 'open_text',
   add column settings_json jsonb default '{}'::jsonb, add column order_index integer default 0;

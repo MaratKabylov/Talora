@@ -2,6 +2,8 @@ import { createRoot } from "react-dom/client";
 import { AssessmentTestFlow } from "../../components/assessment/assessment-test-flow";
 import type { AssessmentSectionSnapshot, PublicFlowQuestion, SectionSavedAnswer } from "../../lib/assessment/section-contract";
 import { setSectionActionHandler } from "./assessment-navigation-actions";
+import { routerTransitions } from "./assessment-navigation-router";
+import { AssessmentCompletionRecovery } from "../../components/assessment/completion-recovery";
 import type { SectionSaveRequest } from "../../lib/assessment/section-save-contract";
 
 const id = (n: number) => `f8000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -328,13 +330,102 @@ async function sectionScenario(assessmentType: "candidate" | "employee", allowBa
   } finally { root.unmount(); setSectionActionHandler(null); window.setInterval = originalSetInterval; }
 }
 
+async function completionScenario(assessmentType: "candidate" | "employee", mode: "one_question" | "section" | "empty", last: boolean, number: number) {
+  const path = `/${assessmentType === "candidate" ? "assessment" : "employee-assessment"}/${token}`;
+  window.history.replaceState(null, "", `${path}/test/${id(number)}`);
+  routerTransitions.length = 0;
+  const deadlineAt = new Date(Date.now() + 120_000).toISOString();
+  const question: PublicFlowQuestion = { id: id(801), text: "Final question", description: null, sectionTitle: "Last", questionType: "open_text",
+    orderIndex: 0, isRequired: true, isStructured: false, incorrectFeedback: null, remediationParentId: null, remediationQuestionId: null,
+    options: [], matchingTargets: [], minSelections: 1, maxSelections: 0, scaleMin: 1, scaleMax: 5, forcedChoiceMode: null };
+  const snapshot: AssessmentSectionSnapshot = { section: mode === "empty" ? null : { id: id(802), title: "Last", description: null, contentBlocks: [], questions: [question] },
+    sections: mode === "empty" ? [] : [{ id: id(802), title: "Last", orderIndex: 0, questionCount: 1, visibleQuestionCount: 1, incompleteQuestionCount: 1 }],
+    sectionIndex: 0, reviewMode: false, answers: {}, questionOffset: 0, otherVisibleQuestionCount: 0 };
+  let saved = mode === "empty"; let writes = 0; let completes = 0; let controlCalls = 0;
+  const heartbeats: Array<() => void> = [];
+  const originalSetInterval = window.setInterval;
+  window.setInterval = ((...args: Parameters<typeof window.setInterval>) => {
+    const callback = args[0]; if (args[1] === 30_000 && typeof callback === "function") heartbeats.push(() => callback());
+    return originalSetInterval(...args);
+  }) as typeof window.setInterval;
+  const destination = last ? `${path}/complete` : `${path}/test/${id(number + 1000)}`;
+  window.fetch = async (url, init) => {
+    const body = JSON.parse(String(init?.body));
+    check(body.assessmentType === assessmentType && body.sessionId === id(number), "Completion scope/session stable");
+    if (url === "/api/assessment/complete") {
+      completes++;
+      check(saved, "Completion must follow acknowledged save"); check(!body.answers && !body.answer, "Completion carries no answers");
+      await sleep(60);
+      if (completes === 1) return new Response("synthetic failure after SQL commit", { status: 503 });
+      if (completes === 2) return Response.json({ status: "processing" });
+      return Response.json({ status: "redirect", redirectTo: destination });
+    }
+    if (url === "/api/assessment/section-save") {
+      check(mode === "section", "Only section mode batches"); writes++; saved = true;
+      return Response.json({ status: "active", deadlineAt, savedAt: new Date().toISOString(), sectionIndex: 0, nextSectionIndex: 0, needsRemediation: false });
+    }
+    check(url === "/api/assessment/session-control", "No full read, legacy action or overview on completion");
+    controlCalls++;
+    check(body.operation !== "complete", "V2 never uses legacy completion");
+    if (body.operation === "autosave") { check(mode === "one_question" && body.finalize === true, "Expected finalized save"); writes++; saved = true; }
+    return Response.json({ status: "active", deadlineAt, savedAt: new Date().toISOString() });
+  };
+  const root = createRoot(host);
+  try {
+    root.render(<AssessmentTestFlow snapshot={snapshot} assessmentType={assessmentType} token={token} sessionId={id(number)}
+      initialDeadlineAt={deadlineAt} contextTitle="Synthetic completion" testTitle="Finish" description={null} instructions={null}
+      completedSessionCount={0} sessionCount={last ? 1 : 2} completionEnabled
+      presentationSettings={{ presentationMode: mode === "empty" ? "section" : mode, allowBack: true, captureQuestionTime: true }} />);
+    await waitFor(() => host.querySelector('button[type="submit"]'), "completion claim");
+    if (mode !== "empty") textInput("Final saved answer");
+    submit(); submit();
+    await waitFor(() => host.textContent?.includes("Не удалось завершить тест"), "completion transport error");
+    check(completes === 1 && routerTransitions.length === 0, "Double click finishes once and does not navigate on error");
+    check(writes === (mode === "empty" ? 0 : 1), "No duplicate last-answer batch");
+    if (mode !== "empty") check(host.querySelector("textarea")?.value === "Final saved answer", "Failed completion preserves visible saved input");
+    const beforeControl = controlCalls;
+    window.dispatchEvent(new Event("online")); for (const heartbeat of heartbeats) heartbeat(); await sleep(40);
+    check(controlCalls === beforeControl, "No heartbeat/autosave redirects race with pending completion");
+    const retry = () => { const button = Array.from(host.querySelectorAll("button")).find(b => b.textContent === "Повторить завершение")!; check(button && !button.disabled, "Retry available"); button.click(); };
+    retry(); await waitFor(() => host.textContent?.includes("Результаты ещё обрабатываются"), "scoring pending");
+    check(routerTransitions.length === 0, "Processing is not presented as completed");
+    retry(); await waitFor(() => routerTransitions.length === 1, "soft terminal router transition");
+    check(routerTransitions[0] === destination, "Server destination is used");
+    check(writes === (mode === "empty" ? 0 : 1) && completes === 3, "Retries only repeat completion, not answers");
+    check(performance.getEntriesByType("navigation").length === 1, "No document navigation");
+    logs.push(`PASS completion ${assessmentType}, ${mode}, last=${last}: ACK, errors/retry, scoring pending, no duplicate writes, router replace`);
+  } finally { root.unmount(); window.setInterval = originalSetInterval; }
+}
+
+async function recoveryScenario(assessmentType: "candidate" | "employee", number: number) {
+  routerTransitions.length = 0; let calls = 0;
+  window.fetch = async (_url, options) => {
+    calls++; const body = JSON.parse(String(options?.body)); check(body.assessmentType === assessmentType && body.sessionId === id(number), "Recovery is scoped");
+    return calls === 1 ? Response.json({ status: "processing" }) : Response.json({ status: "redirect",
+      redirectTo: `/${assessmentType === "employee" ? "employee-assessment" : "assessment"}/${token}/complete` });
+  };
+  const root = createRoot(host);
+  try {
+    root.render(<AssessmentCompletionRecovery assessmentType={assessmentType} token={token} sessionId={id(number)} />);
+    await waitFor(() => host.querySelector("button"), "recovery screen"); check(calls === 0, "Recovery never runs scoring during render");
+    host.querySelector("button")!.click(); host.querySelector("button")!.click();
+    await waitFor(() => host.textContent?.includes("Результаты ещё обрабатываются"), "recovery pending"); check(calls === 1, "Recovery double click guarded");
+    host.querySelector("button")!.click(); await waitFor(() => routerTransitions.length === 1, "recovery redirect");
+    logs.push(`PASS recovery ${assessmentType}: explicit POST, pending/retry, no claim/answer writes`);
+  } finally { root.unmount(); }
+}
+
 void (async () => {
   let number = 1;
   for (const prefetch of [false, true]) {
     for (const scope of ["candidate", "employee"] as const) for (const allowBack of [true, false]) await scenario(scope, allowBack, number++, prefetch);
     for (const scope of ["candidate", "employee"] as const) for (const allowBack of [true, false]) await sectionScenario(scope, allowBack, number++, prefetch);
   }
-  result.textContent = `PASS: 16 browser scenarios\n${logs.join("\n")}`;
+  for (const scope of ["candidate", "employee"] as const) {
+    for (const mode of ["one_question", "section", "empty"] as const) for (const last of [false, true]) await completionScenario(scope, mode, last, number++);
+    await recoveryScenario(scope, number++);
+  }
+  result.textContent = `PASS: 30 browser scenarios\n${logs.join("\n")}`;
   result.dataset.status = "passed";
 })().catch(error => {
   result.textContent = `FAIL: ${error instanceof Error ? error.stack : String(error)}\n${logs.join("\n")}`;

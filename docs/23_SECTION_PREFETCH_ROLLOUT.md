@@ -73,7 +73,7 @@ server-only allowlist/sanitizer; сырые связи вариантов или
 
 Локальные команды: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`.
 `npm run test:browser:navigation` запускает localhost:4318 с синтетическими данными;
-ожидается `PASS: 16 browser scenarios`, затем остановить Ctrl+C. Реальные React-компоненты
+ожидается `PASS: 30 browser scenarios` (расширено шагом 24), затем остановить Ctrl+C. Реальные React-компоненты
 проверяются с имитированными HTTP/Server Action, а SQL-миграции — в PGlite с минимальными
 fixtures и реальными integrity migrations. Это не полный Next.js/Supabase/RLS E2E.
 
@@ -101,3 +101,6 @@ Manifest/канонический выбор по версии все еще в�
 
 Реальное ускорение еще не измерено. Кодовая подзадача prefetch готова; performance/staging
 приемка и полный PERF-004/005 не закрыты. Следующая кодовая подзадача — завершение/смена теста.
+
+Продолжение от 08.09.2026: ручное завершение/смена теста реализованы отдельно в шаге 24,
+см. `docs/24_COMPLETION_NAVIGATION_ROLLOUT.md`; это отдельная миграция и флаг.

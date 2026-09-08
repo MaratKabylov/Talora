@@ -8,6 +8,7 @@ export type ServerPerformanceOperation =
   | "assessment.autosave"
   | "assessment.claim"
   | "assessment.complete"
+  | "assessment.finish_session"
   | "assessment.event"
   | "assessment.expire"
   | "assessment.heartbeat"
