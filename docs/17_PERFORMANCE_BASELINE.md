@@ -509,3 +509,29 @@ metadata, legacy fence, совместимость publication/archive/revert gu
 
 PGlite не заменяет full Supabase/RLS и реальные конкурентные PostgreSQL соединения.
 Оставшаяся реализация и условия rollout: `docs/27_BUILDER_ATOMIC_SAVE_STORAGE.md`.
+
+## 21. PERF-008.2: подключение и перепроверка — 08.09.2026
+
+Company/system builder используют V2 только при явном серверном flag. Начальный snapshot
+читается один раз, без предварительной полной V1-загрузки. Browser передаёт изменённые
+сущности/удалённые ID, server service после auth делает snapshot + commit RPC. Валидация
+полного документа на сервере остаётся; не заявляется O(1) стоимость чтения/CPU.
+
+Synthetic 100-question browser case подтвердил: trailing debounce 2 с, один изменённый
+option, ноль других questions/sections в payload. Ввод во время in-flight покрыт controller
+test; lost ACK повторяет тот же request. Preview/publish flush и publication CAS не дают
+опубликовать непроверенную revision. Metadata, matching target IDs и legacy order indexes
+сохраняются; неизвестный исход публикации замораживает UI до повторного подтверждения.
+
+Перепроверка выявила и исправила order-index регрессию старых черновиков и исключение на
+нечисловой revision. Добавлена проверка 900 000 bytes до отправки вместо retries большого
+HTTP body. HTML test приведён к реальному rich-text протоколу; legacy plain text не изменён.
+
+462 Node tests (включая 36 V2 storage/service/controller/contract/role tests с родительскими),
+8 browser editor scenarios и 8 browser import scenarios прошли; lint/typecheck/build проходят.
+Snapshot/publish/audit транзакции проверены реальными миграциями в PGlite. Это не full
+Supabase/RLS, не многосоединительный concurrency test, не production latency или INP.
+
+Флаг по умолчанию выключен, remote migrations/env не менялись. Staging-приёмка и rollout:
+`docs/28_BUILDER_INCREMENTAL_AUTOSAVE_ROLLOUT.md`. Выключение flag останавливает V2 draft
+writes; это не безопасный автоматический downgrade зарегистрированных версий в V1.

@@ -178,6 +178,7 @@ async function getTestBuilderDataUninstrumented(
   companyId: string,
   templateId: string,
   selectedVersionId?: string,
+  options?: { metadataOnly?: boolean },
 ): Promise<TestBuilderData | null> {
   const template = await getTestTemplatePageData(companyId, templateId);
 
@@ -193,6 +194,7 @@ async function getTestBuilderDataUninstrumented(
   if (!version) {
     return null;
   }
+  if (options?.metadataOnly) return { sections: [], template, version };
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -215,8 +217,9 @@ export function getTestBuilderData(
   companyId: string,
   templateId: string,
   selectedVersionId?: string,
+  options?: { metadataOnly?: boolean },
 ) {
   return measureServerOperation("builder.load", () =>
-    getTestBuilderDataUninstrumented(companyId, templateId, selectedVersionId),
+    getTestBuilderDataUninstrumented(companyId, templateId, selectedVersionId, options),
   );
 }

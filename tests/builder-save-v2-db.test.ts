@@ -41,6 +41,10 @@ test("builder V2 runs real migration with publication guards and atomic revision
         for each row execute function public.protect_published_${fn}()`);
     }
     await db.exec(migration("20260908120000_builder_save_v2"));
+    const adminSchema = migration("20260526100000_platform_admin_backoffice");
+    await db.exec(adminSchema.slice(adminSchema.indexOf("create table if not exists public.platform_audit_logs"),
+      adminSchema.indexOf("create table if not exists public.platform_company_notes")));
+    await db.exec(migration("20260908140000_builder_save_v2_integration"));
     await db.exec("grant usage on schema public to service_role; grant select, insert, update, delete on all tables in schema public to service_role");
     await db.exec(`insert into public.companies(id) values ('${id(1)}'), ('${id(2)}');
       insert into public.profiles values ('${id(3)}'), ('${id(4)}'), ('${id(5)}'), ('${id(6)}');
@@ -268,6 +272,90 @@ test("builder V2 runs real migration with publication guards and atomic revision
       await db.exec("set local role service_role");
       const delta = blank(); delta.options = [option()];
       assert.equal((await save(delta)).replayed, false);
+    });
+    const readSnapshot = async (opts: { version?: number; template?: number; actor?: number; company?: number | null } = {}) =>
+      (await db.query<{ result: { revision: string; version: { status: string }; sections: { questions: { answer_options: unknown[] }[] }[];
+        receipt: { client_payload_hash: string; last_revision: string } | null } }>(
+        "select public.read_builder_snapshot_v2($1,$2,$3,$4) result",
+        [id(opts.template ?? 10), id(opts.version ?? 13), id(opts.actor ?? 3), opts.company === null ? null : id(opts.company ?? 1)])).rows[0].result;
+    const publish = async (expected: string, opts: { version?: number; template?: number; actor?: number; company?: number | null; request?: number } = {}) =>
+      (await db.query<{ result: { published: boolean; revision: string } }>(
+        "select public.publish_builder_version_v2($1,$2,$3,$4,$5,$6,$7) result",
+        [id(opts.template ?? 10), id(opts.version ?? 13), id(opts.actor ?? 3), opts.company === null ? null : id(opts.company ?? 1),
+          expected, id(opts.request ?? 110), "Published v1"])).rows[0].result;
+    await scenario("V2 snapshot is scoped, complete, read-only and carries string revisions", async () => {
+      const before = await snapshot(), data = await readSnapshot();
+      assert.equal(data.revision, await revision()); assert.equal(data.sections.length, 2);
+      assert.equal(data.sections[0].questions[0].answer_options.length, 2);
+      assert.equal(data.receipt, null); assert.deepEqual(await snapshot(), before);
+      await rejection(() => readSnapshot({ actor: 4 }), /Cannot manage/);
+      await rejection(() => readSnapshot({ template: 11, version: 14 }), /scope mismatch/);
+      const system = await readSnapshot({ actor: 6, company: null, template: 12, version: 15 });
+      assert.equal(system.sections.length, 1);
+    });
+    await scenario("wrapper persists browser ACK hash in same transaction and rejects ID reuse", async () => {
+      const delta = blank(); delta.options = [option()]; const expected = await revision();
+      const commit = async (hash = "a".repeat(64)) => db.query(
+        "select public.commit_builder_delta_v2($1,$2,$3,$4,$5,$6,$7,$8)",
+        [id(10), id(13), id(3), id(1), expected, id(100), hash, JSON.stringify(delta)]);
+      await commit(); const receipt = (await readSnapshot()).receipt!;
+      assert.equal(receipt.client_payload_hash, "a".repeat(64)); assert.equal(typeof receipt.last_revision, "string");
+      const before = await snapshot(); await commit(); assert.deepEqual(await snapshot(), before);
+      await rejection(() => commit("b".repeat(64)), /request ID reused/);
+    });
+    await scenario("publish rejects edits after validation, publishes enrolled revision once, and is replay-safe", async () => {
+      await db.exec(`update public.test_versions set duration_minutes=10 where id='${id(13)}'`);
+      const expected = (await readSnapshot()).revision;
+      await db.exec(`update public.answer_options set text='Race' where id='${id(40)}'`);
+      await rejection(() => publish(expected), /revision conflict/);
+      const saved = await save(blank()); const before = await snapshot();
+      const result = await publish(saved.revision); assert.equal(result.published, true);
+      assert.equal(result.revision, String(BigInt(saved.revision) + BigInt(1)));
+      assert.equal((await readSnapshot()).version.status, "published");
+      assert.deepEqual((await snapshot()).answer_options, before.answer_options);
+      const published = await snapshot(); assert.deepEqual(await publish(saved.revision), result);
+      assert.deepEqual(await snapshot(), published);
+      await rejection(() => publish(saved.revision, { request: 111 }), /revision conflict/);
+      await rejection(() => save(blank()), /must be a draft/);
+    });
+    await scenario("system publication and audit commit or roll back together", async () => {
+      await db.exec(`update public.test_versions set duration_minutes=10 where id='${id(15)}'`);
+      const opts = { actor: 6, company: null, template: 12, version: 15 };
+      const expected = await revision(15);
+      await db.exec(`create function public.reject_builder_audit() returns trigger language plpgsql as $$ begin
+        raise exception 'synthetic audit failure'; end; $$;
+        create trigger reject_builder_audit before insert on public.platform_audit_logs for each row execute function public.reject_builder_audit()`);
+      await rejection(() => publish(expected, opts), /synthetic audit failure/);
+      await db.exec("drop trigger reject_builder_audit on public.platform_audit_logs");
+      await publish(expected, opts); await publish(expected, opts);
+      const audit = (await db.query<{ action: string; metadata_json: unknown }>("select action,metadata_json from public.platform_audit_logs")).rows;
+      assert.deepEqual(audit, [{ action: "publish_system_test_version", metadata_json: { templateId: id(12) } }]);
+    });
+    await scenario("all integration RPCs remain service-only", async () => {
+      const verification = await db.exec(read("../supabase/verification/builder_save_v2_integration.sql"));
+      for (const result of verification.slice(0, 2)) for (const row of result.rows as { check_name: string; passed: boolean }[]) {
+        assert.equal(row.passed, true, row.check_name);
+      }
+      for (const signature of ["lock_builder_version_v2(uuid,uuid,uuid,uuid)", "read_builder_snapshot_v2(uuid,uuid,uuid,uuid)",
+        "commit_builder_delta_v2(uuid,uuid,uuid,uuid,bigint,uuid,text,jsonb)", "publish_builder_version_v2(uuid,uuid,uuid,uuid,bigint,uuid,text)"]) {
+        for (const role of ["anon", "authenticated", "service_role"]) {
+          const rights = (await db.query<{ allowed: boolean }>("select has_function_privilege($1,$2,'execute') allowed", [role, `public.${signature}`])).rows[0];
+          assert.equal(rights.allowed, role === "service_role");
+        }
+      }
+    });
+    await scenario("explicit root draft deletion retains existing deletion semantics after enrollment", async () => {
+      await save(blank());
+      await db.query("delete from public.test_versions where id=$1", [id(13)]);
+      assert.equal((await db.query("select * from public.builder_save_state where version_id=$1", [id(13)])).rows.length, 0);
+      assert.equal((await db.query("select * from public.test_sections where test_version_id=$1", [id(13)])).rows.length, 0);
+    });
+    await scenario("terminal draft archive is allowed but cannot smuggle a metadata change past the fence", async () => {
+      await save(blank());
+      await rejection(() => db.query("update public.test_versions set status='archived', title='Stale' where id=$1", [id(13)]), /revision-checked batch/);
+      await db.query("update public.test_versions set status='archived' where id=$1", [id(13)]);
+      assert.equal((await readSnapshot()).version.status, "archived");
+      await rejection(() => save(blank()), /must be a draft/);
     });
   } finally { await db.close(); }
 });

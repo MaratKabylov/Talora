@@ -280,12 +280,15 @@ export default async function TestPage({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5 pt-6">
-            <form action={updateTestVersionAction} className="space-y-5">
+            {process.env.BUILDER_SAVE_V2 === "true" ? <Link className={buttonVariants({ variant: "outline" })}
+              href={`/dashboard/tests/${template.id}/builder?version=${draftVersion.id}`}>
+              Изменить параметры в конструкторе
+            </Link> : <form action={updateTestVersionAction} className="space-y-5">
               <input name="templateId" type="hidden" value={template.id} />
               <input name="versionId" type="hidden" value={draftVersion.id} />
               <TestVersionFields template={template} version={draftVersion} />
               <Button type="submit">Сохранить черновик</Button>
-            </form>
+            </form>}
             <form action={publishTestVersionAction} className="border-t pt-5">
               <input name="templateId" type="hidden" value={template.id} />
               <input name="versionId" type="hidden" value={draftVersion.id} />

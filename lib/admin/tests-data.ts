@@ -361,6 +361,7 @@ export async function getAdminSystemTestUsage(
 export async function getAdminSystemTestBuilderData(
   templateId: string,
   selectedVersionId?: string,
+  options?: { metadataOnly?: boolean },
 ): Promise<TestBuilderData | null> {
   const template = await getAdminSystemTest(templateId);
   if (!template) {
@@ -375,6 +376,7 @@ export async function getAdminSystemTestBuilderData(
   if (!version) {
     return null;
   }
+  if (options?.metadataOnly) return { sections: [], template, version };
 
   const admin = createAdminClient();
   const { data, error } = await admin

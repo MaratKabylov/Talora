@@ -8,7 +8,7 @@ import {
   type TestPresentationSettings,
 } from "./presentation-settings";
 
-type VersionRecord = {
+export type VersionRecord = {
   created_at: string;
   description: string | null;
   duration_minutes: number | null;
@@ -65,7 +65,7 @@ export type TestTemplate = {
   versions: TestVersion[];
 };
 
-function normalizeVersion(record: VersionRecord): TestVersion {
+export function normalizeVersion(record: VersionRecord): TestVersion {
   return {
     createdAt: record.created_at,
     description: sanitizeRichTextValue(record.description),

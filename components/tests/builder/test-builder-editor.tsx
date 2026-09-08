@@ -14,7 +14,6 @@ import {
 } from "@/lib/tests/actions";
 import {
   saveBuilderDocumentAction as defaultSaveBuilderDocumentAction,
-  type BuilderDocumentInput,
   type BuilderSaveResult,
 } from "@/lib/tests/builder-actions";
 import type {
@@ -25,12 +24,15 @@ import type { TestVersion } from "@/lib/tests/data";
 import { formatTestVersionTitle } from "@/lib/tests/version-title";
 import type { BuilderImportAction } from "@/lib/tests/builder-import-contract";
 import { BuilderImportPicker } from "./builder-import-picker";
-import { copySection, editableSections, nullableText, section } from "./builder-document";
+import { copySection, editableSections, section } from "./builder-document";
+import { serializeBuilderDocument } from "@/lib/tests/builder-serialize";
+import { createBuilderSaveController } from "@/lib/tests/builder-save-controller";
+import type { BuilderPublishRequest, BuilderV2PublishAction, BuilderV2SaveAction } from "@/lib/tests/builder-delta";
 import { useBuilderActions } from "./use-builder-actions";
 import { useQuestionDrag } from "./use-question-drag";
 import { SectionEditor } from "./section-editor";
 
-type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
+type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "conflict";
 
 export function TestBuilderEditor({
   imports,
@@ -38,6 +40,7 @@ export function TestBuilderEditor({
   initialSections,
   publishAction = defaultPublishTestVersionAction,
   saveAction = defaultSaveBuilderDocumentAction,
+  saveV2,
   templateId,
   previewPath,
   version: initialVersion,
@@ -47,6 +50,7 @@ export function TestBuilderEditor({
   initialSections: BuilderSection[];
   publishAction?: (formData: FormData) => Promise<void>;
   saveAction?: (input: unknown) => Promise<BuilderSaveResult>;
+  saveV2?: { revision: string; saveAction: BuilderV2SaveAction; publishAction: BuilderV2PublishAction; returnPath: string };
   templateId: string;
   previewPath: string;
   version: TestVersion;
@@ -67,14 +71,45 @@ export function TestBuilderEditor({
   const sectionsRef = useRef(sections);
   const versionRef = useRef(version);
   const saveInFlight = useRef<Promise<boolean> | null>(null);
+  const [editSequence, setEditSequence] = useState(0);
+  const [publishing, setPublishing] = useState(false);
+  const [publicationUncertain, setPublicationUncertain] = useState(false);
+  const publicationPending = useRef<BuilderPublishRequest | null>(null);
+  const publicationInFlight = useRef(false);
+  const [controller] = useState(() => saveV2 ? createBuilderSaveController({
+    initial: serializeBuilderDocument(sections, version, templateId, initialVersion.id, versionTitle),
+    revision: saveV2.revision,
+    save: async input => {
+      const startedAt = performance.now();
+      try {
+        const result = await saveV2.saveAction(input);
+        reportClientOperation("builder.autosave", performance.now() - startedAt, result.ok ? "success" : "failure");
+        return result;
+      } catch (error) {
+        reportClientOperation("builder.autosave", performance.now() - startedAt, "failure");
+        throw error;
+      }
+    },
+    onState: state => { setStatus(state.status); setFeedback(state.message); },
+  }) : null);
   const markChanged = useCallback(() => {
     revision.current += 1;
-    setStatus("dirty");
-    setFeedback("");
-  }, []);
+    setEditSequence(value => value + 1);
+    if (controller) controller.changed();
+    else { setStatus("dirty"); setFeedback(""); }
+  }, [controller]);
+  useEffect(() => {
+    controller?.resume();
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (controller?.hasUnsaved() || publicationPending.current) { event.preventDefault(); event.returnValue = ""; }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => { controller?.dispose(); window.removeEventListener("beforeunload", beforeUnload); };
+  }, [controller]);
 
   const updateSections = useCallback(
     (update: (current: BuilderSection[]) => BuilderSection[]) => {
+      if (publicationInFlight.current || publicationPending.current) return;
       const nextSections = update(sectionsRef.current);
       if (nextSections === sectionsRef.current) return;
       sectionsRef.current = nextSections;
@@ -120,60 +155,7 @@ export function TestBuilderEditor({
     const currentSections = sectionsRef.current;
     const currentVersion = versionRef.current;
     setStatus("saving");
-    const input: BuilderDocumentInput = {
-      sections: currentSections.map((currentSection) => ({
-        contentBlocks: currentSection.contentBlocks.map((block, orderIndex) => ({
-          ...block,
-          description: nullableText(block.description ?? ""),
-          orderIndex: orderIndex + 1,
-          positionIndex: Math.min(
-            Math.max(block.positionIndex, 0),
-            currentSection.questions.length,
-          ),
-        })),
-        description: nullableText(currentSection.description ?? ""),
-        id: currentSection.id,
-        questions: currentSection.questions.map((currentQuestion) => ({
-          competencyKey: currentQuestion.competencyKey,
-          description: nullableText(currentQuestion.description ?? ""),
-          difficulty: currentQuestion.difficulty,
-          id: currentQuestion.id,
-          incorrectFeedback: nullableText(currentQuestion.incorrectFeedback ?? ""),
-          isRequired: currentQuestion.isRequired,
-          isStructured: currentQuestion.isStructured,
-          options: currentQuestion.options.map((currentOption) => ({
-            competencyEffects: currentOption.competencyEffects,
-            explanation: nullableText(currentOption.explanation ?? ""),
-            id: currentOption.id,
-            isCorrect: Boolean(currentOption.isCorrect),
-            matchText: nullableText(currentOption.matchText ?? ""),
-            points: Number(currentOption.points) || 0,
-            text: currentOption.text,
-          })),
-          points: Number(currentQuestion.points) || 0,
-          questionType: currentQuestion.questionType,
-          matchingScoringMode: currentQuestion.matchingScoringMode,
-          orderingScoringMode: currentQuestion.orderingScoringMode,
-          remediationQuestionId: currentQuestion.remediationQuestionId,
-          scaleMax: Number(currentQuestion.scaleMax) || 5,
-          scaleMin: Number(currentQuestion.scaleMin) || 1,
-          shuffleOptions: currentQuestion.shuffleOptions,
-          text: currentQuestion.text,
-        })),
-        timeLimitMinutes: currentSection.timeLimitMinutes,
-        title: currentSection.title,
-      })),
-      templateId,
-      version: {
-        description: nullableText(currentVersion.description),
-        durationMinutes: currentVersion.durationMinutes ? Number(currentVersion.durationMinutes) : null,
-        instructions: nullableText(currentVersion.instructions),
-        presentationSettings: currentVersion.presentationSettings,
-        scoringType: currentVersion.scoringType,
-        title: versionTitle,
-      },
-      versionId: initialVersion.id,
-    };
+    const input = serializeBuilderDocument(currentSections, currentVersion, templateId, initialVersion.id, versionTitle);
 
     const request = (async () => {
       const startedAt = performance.now();
@@ -217,17 +199,51 @@ export function TestBuilderEditor({
   }, [initialVersion.id, saveAction, templateId, versionTitle]);
 
   const save = useCallback(async () => {
+    if (controller) return controller.flush(() => serializeBuilderDocument(sectionsRef.current, versionRef.current, templateId, initialVersion.id, versionTitle));
     while (savedRevision.current < revision.current) {
       if (!(await saveOnce())) return false;
     }
     return true;
-  }, [saveOnce]);
+  }, [controller, initialVersion.id, saveOnce, templateId, versionTitle]);
 
   useEffect(() => {
-    if (status !== "dirty") return;
-    const timer = window.setTimeout(() => void save(), 1200);
+    if (status !== "dirty" || publishing || publicationPending.current) return;
+    const timer = window.setTimeout(() => void save(), controller ? 2000 : 1200);
     return () => window.clearTimeout(timer);
-  }, [save, status]);
+  }, [controller, editSequence, publishing, save, status]);
+
+  function downloadLocalChanges() {
+    const document = serializeBuilderDocument(sectionsRef.current, versionRef.current, templateId, initialVersion.id, versionTitle);
+    const url = URL.createObjectURL(new Blob([JSON.stringify({ schemaVersion: "talvia.builder.recovery.v1",
+      revision: controller?.revision(), document }, null, 2)], { type: "application/json" }));
+    const link = window.document.createElement("a"); link.href = url; link.download = `builder-local-${initialVersion.id}.json`;
+    link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function publishV2() {
+    if (!saveV2 || !controller || publicationInFlight.current) return;
+    publicationInFlight.current = true; setPublishing(true);
+    try {
+      if (!publicationPending.current) {
+        if (!(await save())) return;
+        publicationPending.current = { templateId, versionId: initialVersion.id,
+          expectedRevision: controller.revision(), requestId: crypto.randomUUID() };
+        setPublicationUncertain(true);
+      }
+      const result = await saveV2.publishAction(publicationPending.current);
+      if (result.ok) {
+        publicationPending.current = null;
+        setPublicationUncertain(false);
+        window.location.assign(saveV2.returnPath); return;
+      }
+      if (result.code === "invalid" || result.code === "conflict") {
+        publicationPending.current = null; setPublicationUncertain(false);
+      }
+      setStatus(result.code === "conflict" ? "conflict" : "error");
+      setFeedback(result.error);
+    } catch {
+      setStatus("error"); setFeedback("Нет подтверждения публикации. Повторите публикацию; локальные данные сохранены в редакторе.");
+    } finally { publicationInFlight.current = false; setPublishing(false); }
+  }
 
   async function openPreview() {
     const previewWindow = window.open("", "_blank");
@@ -254,7 +270,7 @@ export function TestBuilderEditor({
       <div className="sticky top-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 shadow-sm backdrop-blur">
         <div className="text-sm">
           <p className="font-medium">Черновик v{initialVersion.versionNumber}</p>
-          <p className={status === "error" ? "text-destructive" : "text-muted-foreground"}>
+          <p aria-live="polite" className={status === "error" || status === "conflict" ? "text-destructive" : "text-muted-foreground"}>
             {status === "saving"
               ? "Сохраняем..."
               : status === "dirty"
@@ -263,13 +279,18 @@ export function TestBuilderEditor({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button disabled={status === "saving"} onClick={() => void openPreview()} type="button" variant="outline">
+          <Button disabled={status === "saving" || publishing || publicationUncertain || status === "conflict"} onClick={() => void openPreview()} type="button" variant="outline">
             <Eye /> Предпросмотр
           </Button>
-          <Button disabled={status === "saving"} onClick={() => void save()} type="button" variant="outline">
+          <Button disabled={status === "saving" || publishing || publicationUncertain || status === "conflict"} onClick={() => void save()} type="button" variant="outline">
             <Save /> Сохранить
           </Button>
-          <form action={publishAction}>
+          {saveV2 ? <>
+            <Button type="button" variant="outline" onClick={downloadLocalChanges}>Скачать локальные изменения</Button>
+            <Button type="button" disabled={publishing || status === "conflict"} onClick={() => void publishV2()}>
+              {publishing ? "Публикуем…" : publicationUncertain ? "Повторить публикацию" : "Опубликовать"}
+            </Button>
+          </> : <form action={publishAction}>
             <input name="templateId" type="hidden" value={templateId} />
             <input name="versionId" type="hidden" value={initialVersion.id} />
             <Button
@@ -278,11 +299,12 @@ export function TestBuilderEditor({
             >
               Опубликовать
             </Button>
-          </form>
+          </form>}
         </div>
       </div>
 
-      <div>
+      <fieldset disabled={publishing || publicationUncertain || status === "conflict"}
+        inert={publishing || publicationUncertain || status === "conflict"} className="min-w-0">
         <div className="space-y-5">
           <div className="rounded-xl border-t-8 border-t-primary bg-card p-6 shadow-sm">
             <Input
@@ -397,7 +419,7 @@ export function TestBuilderEditor({
           </div>
         </div>
 
-      </div>
+      </fieldset>
     </div>
   );
 }

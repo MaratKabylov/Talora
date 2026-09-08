@@ -446,6 +446,9 @@ export async function updateTestVersionAction(formData: FormData) {
   if (!template || template.status !== "active") {
     redirectWithFeedback(path, "error", "Черновики можно изменять только в активном тесте компании.");
   }
+  if (process.env.BUILDER_SAVE_V2 === "true") {
+    redirectWithFeedback(path, "error", "Изменяйте параметры версии в конструкторе: там включена защита от одновременного редактирования.");
+  }
 
   const { data: draftVersion, error: draftLookupError } = await supabase
     .from("test_versions")
@@ -579,6 +582,14 @@ export async function publishTestVersionAction(formData: FormData) {
 
   if (!template || template.status !== "active") {
     redirectWithFeedback(path, "error", "Публиковать версии можно только в активном тесте компании.");
+  }
+
+  if (process.env.BUILDER_SAVE_V2 === "true") {
+    const { publishCurrentBuilderV2 } = await import("./builder-v2-service");
+    const result = await publishCurrentBuilderV2({ userId: context.user.id, companyId: context.activeCompany.id }, templateId.data, versionId.data);
+    if (!result.ok) redirectWithFeedback(path, "error", result.error);
+    revalidatePath(path); revalidatePath("/dashboard/tests");
+    redirectWithFeedback(path, "message", "Версия опубликована и теперь доступна только для чтения.");
   }
 
   const { data: draftVersion, error: draftLookupError } = await supabase

@@ -12,6 +12,8 @@ import { getTestBuilderData } from "@/lib/tests/builder-data";
 import { getBuilderImportSources } from "@/lib/tests/builder-import-data";
 import { loadCompanyBuilderImportSourceAction } from "@/lib/tests/builder-import-actions";
 import { cn } from "@/lib/utils";
+import { builderSaveV2Enabled, readBuilderSnapshot, builderSnapshotEditorData } from "@/lib/tests/builder-v2-service";
+import { saveCompanyBuilderV2Action, publishCompanyBuilderV2Action } from "@/lib/tests/builder-v2-actions";
 
 type BuilderParams = Promise<{ id: string }>;
 type BuilderSearchParams = Promise<{
@@ -30,7 +32,7 @@ export default async function TestBuilderPage({
   const context = await requireCompanyContext();
   const { id } = await params;
   const query = await searchParams;
-  const data = await getTestBuilderData(context.activeCompany.id, id, query.version);
+  const data = await getTestBuilderData(context.activeCompany.id, id, query.version, { metadataOnly: builderSaveV2Enabled() });
 
   if (!data) {
     notFound();
@@ -45,6 +47,9 @@ export default async function TestBuilderPage({
   const importSources = isEditable
     ? await getBuilderImportSources(context.activeCompany.id, data.version.id)
     : [];
+  const v2 = isEditable && builderSaveV2Enabled() ? builderSnapshotEditorData(await readBuilderSnapshot(
+    { userId: context.user.id, companyId: context.activeCompany.id }, data.template.id, data.version.id)) : null;
+  if (v2 && v2.version.status !== "draft") throw new Error("Версия уже опубликована. Обновите страницу.");
 
   return (
     <div className="space-y-6">
@@ -134,10 +139,12 @@ export default async function TestBuilderPage({
           key={`${context.activeCompany.id}:${data.version.id}`}
           imports={importSources}
           loadImportAction={loadCompanyBuilderImportSourceAction}
-          initialSections={data.sections}
+          initialSections={v2?.sections ?? data.sections}
+          saveV2={v2 ? { revision: v2.revision, saveAction: saveCompanyBuilderV2Action,
+            publishAction: publishCompanyBuilderV2Action, returnPath: `/dashboard/tests/${data.template.id}` } : undefined}
           previewPath={`/dashboard/tests/${data.template.id}/preview?version=${data.version.id}`}
           templateId={data.template.id}
-          version={data.version}
+          version={v2?.version ?? data.version}
         />
       ) : (
         <Card className="border-dashed">

@@ -423,13 +423,15 @@ pointer target пропускает поддеревья редакторов. �
 
 #### PERF-008 — Инкрементальное атомарное автосохранение
 
-**Статус кода — 08.09.2026:** завершён подшаг PERF-008.1 (storage): миграция revision,
-server-only atomic delta RPC, проверки tenant/draft, идемпотентное последнее подтверждение
-и защита зарегистрированных V2-версий от V1 writers. Реальная миграция проверена в PGlite.
-UI/server actions пока не подключены, пользовательское autosave остаётся V1.
-PERF-008 **не закрыт**: следующий подшаг PERF-008.2 — snapshot/delta/controller,
-revision-aware publish и rollout flag. Миграция пока только для staging, не production.
-Контракт, ограничения и продолжение: `docs/27_BUILDER_ATOMIC_SAVE_STORAGE.md`.
+**Статус кода — 08.09.2026:** PERF-008.1/008.2 реализованы за `BUILDER_SAVE_V2=false`:
+consistent snapshot, sparse delta, atomic commit, retry ACK, trailing debounce 2 с,
+one-in-flight/coalescing, conflict/recovery export, flush перед preview/publish и revision-CAS
+публикация с прежней domain/scoring-валидацией. Legacy order indexes и terminal archive/delete
+сохранены; зарегистрированные V2-версии защищены от V1 content writers. Локально пройдены
+462 Node tests и 16 browser scenarios, lint/typecheck/build. **Performance/staging-приёмка
+не закрыта**: full RLS, реальные concurrent connections, latency/network baseline.
+Следующий шаг для выпуска — staging rollout обеих миграций; следующая кодовая задача — PERF-009.
+Инструкция и ограничения rollback: `docs/28_BUILDER_INCREMENTAL_AUTOSAVE_ROLLOUT.md`.
 
 **Задача**
 

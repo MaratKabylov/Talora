@@ -3,6 +3,7 @@ import { TestBuilderEditor } from "../../components/tests/builder/test-builder-e
 import type { BuilderQuestion, BuilderSection } from "../../lib/tests/builder-data";
 import type { BuilderDocumentInput } from "../../lib/tests/builder-actions";
 import { DEFAULT_TEST_PRESENTATION_SETTINGS } from "../../lib/tests/presentation-settings";
+import type { BuilderSaveRequest, BuilderV2PublishAction, BuilderV2SaveAction, BuilderPublishRequest, BuilderV2Result } from "../../lib/tests/builder-delta";
 
 const id = (n: number) => `fe000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const host = document.getElementById("root")!;
@@ -44,10 +45,10 @@ function inputValue(input: HTMLInputElement | HTMLTextAreaElement, value: string
 const saveRequests: BuilderDocumentInput[] = [];
 const loadImportAction = async () => ({ ok: false as const, error: "Not used" });
 const saveAction = async (input: unknown) => { saveRequests.push(structuredClone(input) as BuilderDocumentInput); return { ok: true, savedAt: new Date().toISOString() }; };
-function mount(sections: BuilderSection[]) {
+function mount(sections: BuilderSection[], saveV2?: { revision: string; saveAction: BuilderV2SaveAction; publishAction: BuilderV2PublishAction; returnPath: string }) {
   const root = createRoot(host);
   root.render(<TestBuilderEditor imports={[]} loadImportAction={loadImportAction} initialSections={sections}
-    templateId={id(1)} previewPath="/synthetic/preview" saveAction={saveAction} publishAction={async () => { throw Error("Unexpected publish"); }}
+    templateId={id(1)} previewPath="/synthetic/preview" saveAction={saveAction} saveV2={saveV2} publishAction={async () => { throw Error("Unexpected publish"); }}
     version={{ id: id(2), versionNumber: 2, status: "draft", title: "v2", description: null, instructions: null,
       durationMinutes: 10, scoringType: "points", createdAt: "2026-09-08T00:00:00Z", publishedAt: null,
       presentationSettings: DEFAULT_TEST_PRESENTATION_SETTINGS }} />);
@@ -212,10 +213,82 @@ async function dragScenario() {
   }
   return "keyboard question movement, stable drag target, cross-section pointer drop";
 }
+const v2Ack = (revision: string): BuilderV2Result => ({ ok: true, revision, savedAt: new Date().toISOString() });
+const invalidPublish: BuilderV2PublishAction = async () => ({ ok: false, code: "invalid", error: "Synthetic publication checked" });
+const firstOptionInput = () => [...host.querySelectorAll<HTMLInputElement>("input")].find(i => i.value.startsWith("Option 101-1"))!;
+async function v2DebounceScenario() {
+  const requests: BuilderSaveRequest[] = [];
+  const root = mount([section(1, 50), section(2, 50)], { revision: "7", returnPath: "/synthetic/published",
+    saveAction: async input => { requests.push(structuredClone(input)); return v2Ack("8"); }, publishAction: invalidPublish });
+  await waitFor(() => firstOptionInput(), "V2 mounted");
+  inputValue(firstOptionInput(), "Option 101-1 first"); await sleep(700);
+  inputValue(firstOptionInput(), "Option 101-1 latest"); await sleep(1500);
+  check(requests.length === 0, "Debounce restarts after last input, not first");
+  await waitFor(() => requests.length === 1, "debounced V2 save");
+  const patch = requests[0].delta;
+  check(patch.options.length === 1 && patch.questions.length === 0 && patch.sections.length === 0 && patch.version === null, "100-question document sends one option");
+  check(patch.options[0].text === "Option 101-1 latest", "Latest option is saved");
+  await waitFor(() => host.textContent?.includes("Все изменения сохранены"), "V2 ACK");
+  root.unmount(); return "V2 2s trailing debounce + sparse payload for 100 questions";
+}
+async function v2PublishFlushScenario() {
+  const saved: BuilderSaveRequest[] = [], published: BuilderPublishRequest[] = [];
+  let release!: (value: BuilderV2Result) => void;
+  const pending = new Promise<BuilderV2Result>(resolve => { release = resolve; });
+  const root = mount([section(1, 2)], { revision: "7", returnPath: "/synthetic/published",
+    saveAction: async input => { saved.push(input); return pending; },
+    publishAction: async input => { published.push(input); return invalidPublish(input); } });
+  await waitFor(() => firstOptionInput(), "publish mounted"); inputValue(firstOptionInput(), "Option 101-1 flush");
+  button("Опубликовать").click(); await waitFor(() => saved.length === 1, "flush started");
+  check(published.length === 0 && host.querySelector("fieldset")?.disabled, "Publish waits for ACK and locks editor");
+  release(v2Ack("8")); await waitFor(() => published.length === 1, "publish after flush");
+  check(published[0].expectedRevision === "8", "Publishes confirmed revision");
+  check(saved[0].delta.options[0].text === "Option 101-1 flush", "Pending edit flushed before publish");
+  await waitFor(() => host.textContent?.includes("Synthetic publication checked"), "validation error visible");
+  check(!host.querySelector("fieldset")?.disabled, "Validation error permits correction");
+  root.unmount(); return "V2 publish flush + editor lock + validation recovery";
+}
+async function v2ConflictScenario() {
+  const requests: BuilderSaveRequest[] = [];
+  const root = mount([section(1, 1)], { revision: "7", returnPath: "/synthetic/published",
+    saveAction: async input => { requests.push(input); return { ok: false, code: "conflict", error: "Synthetic revision conflict" }; }, publishAction: invalidPublish });
+  await waitFor(() => firstOptionInput(), "conflict mounted"); inputValue(firstOptionInput(), "Option 101-1 local recovery");
+  button("Сохранить").click(); await waitFor(() => host.textContent?.includes("Synthetic revision conflict"), "conflict visible");
+  check(requests.length === 1 && button("Сохранить").disabled && button("Опубликовать").disabled, "Conflict freezes writes");
+  check(firstOptionInput().value === "Option 101-1 local recovery", "Conflict retains local edit");
+  let exported: Blob | null = null;
+  const createUrl = URL.createObjectURL, revokeUrl = URL.revokeObjectURL, click = HTMLAnchorElement.prototype.click;
+  URL.createObjectURL = blob => { exported = blob as Blob; return "blob:synthetic"; };
+  URL.revokeObjectURL = () => {}; HTMLAnchorElement.prototype.click = () => {};
+  try {
+    button("Скачать локальные изменения").click();
+    check(exported, "Recovery export created");
+    const recovery = JSON.parse(await (exported as Blob).text());
+    check(recovery.document.sections[0].questions[0].options[0].text === "Option 101-1 local recovery", "Recovery contains latest local value");
+    const unload = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(unload);
+    check(unload.defaultPrevented, "Unsaved changes protect closing/reloading");
+  } finally { URL.createObjectURL = createUrl; URL.revokeObjectURL = revokeUrl; HTMLAnchorElement.prototype.click = click; root.unmount(); }
+  return "V2 conflict preserves local document + recovery export + beforeunload";
+}
+async function v2LostPublishScenario() {
+  const publications: BuilderPublishRequest[] = [];
+  const root = mount([section(1, 1)], { revision: "7", returnPath: "/synthetic/published",
+    saveAction: async () => { throw Error("Unexpected save"); }, publishAction: async input => {
+      publications.push(structuredClone(input)); if (publications.length === 1) throw Error("Lost publication ACK"); return invalidPublish(input);
+    } });
+  await waitFor(() => firstOptionInput(), "lost publish mounted"); button("Опубликовать").click();
+  await waitFor(() => host.textContent?.includes("Нет подтверждения публикации"), "lost publish feedback");
+  check(host.querySelector("fieldset")?.disabled, "Unknown publication outcome freezes edits");
+  button("Повторить публикацию").click(); await waitFor(() => publications.length === 2, "publish retry");
+  check(JSON.stringify(publications[0]) === JSON.stringify(publications[1]), "Publish retry preserves exact identity and revision");
+  await waitFor(() => host.textContent?.includes("Synthetic publication checked"), "retry settled");
+  root.unmount(); return "V2 lost publish ACK retains request identity and freezes edits";
+}
 void (async () => {
   try {
     const summary = await profileLargeEditor();
-    const scenarios = baseline ? [] : [await crudScenario(), await typesScenario(), await dragScenario()];
+    const scenarios = baseline ? [] : [await crudScenario(), await typesScenario(), await dragScenario(),
+      await v2DebounceScenario(), await v2PublishFlushScenario(), await v2ConflictScenario(), await v2LostPublishScenario()];
     result.dataset.status = "passed"; result.textContent = JSON.stringify({ ...summary, scenarios });
   } catch (error) { result.dataset.status = "failed"; result.textContent = String(error); }
 })();

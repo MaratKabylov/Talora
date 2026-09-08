@@ -19,6 +19,8 @@ import { getAdminSystemBuilderImportSources } from "@/lib/tests/builder-import-d
 import { loadSystemBuilderImportSourceAction } from "@/lib/tests/builder-import-actions";
 import { TEST_VERSION_STATUS_LABELS } from "@/lib/tests/constants";
 import { cn } from "@/lib/utils";
+import { builderSaveV2Enabled, readBuilderSnapshot, builderSnapshotEditorData } from "@/lib/tests/builder-v2-service";
+import { saveSystemBuilderV2Action, publishSystemBuilderV2Action } from "@/lib/tests/builder-v2-actions";
 
 type PageParams = Promise<{ id: string }>;
 type SearchParams = Promise<{ error?: string; message?: string; version?: string }>;
@@ -35,7 +37,7 @@ export default async function AdminSystemTestBuilderPage({
     searchParams,
     requirePlatformContext(),
   ]);
-  const data = await getAdminSystemTestBuilderData(id, query.version);
+  const data = await getAdminSystemTestBuilderData(id, query.version, { metadataOnly: builderSaveV2Enabled() });
   if (!data) {
     notFound();
   }
@@ -46,6 +48,9 @@ export default async function AdminSystemTestBuilderPage({
   const importSources = isEditable
     ? await getAdminSystemBuilderImportSources(data.version.id)
     : [];
+  const v2 = isEditable && builderSaveV2Enabled() ? builderSnapshotEditorData(await readBuilderSnapshot(
+    { userId: context.user.id, companyId: null }, data.template.id, data.version.id)) : null;
+  if (v2 && v2.version.status !== "draft") throw new Error("Версия уже опубликована. Обновите страницу.");
 
   return (
     <div className="space-y-6">
@@ -134,12 +139,14 @@ export default async function AdminSystemTestBuilderPage({
           key={data.version.id}
           imports={importSources}
           loadImportAction={loadSystemBuilderImportSourceAction}
-          initialSections={data.sections}
+          initialSections={v2?.sections ?? data.sections}
+          saveV2={v2 ? { revision: v2.revision, saveAction: saveSystemBuilderV2Action,
+            publishAction: publishSystemBuilderV2Action, returnPath: `/admin/tests/${data.template.id}` } : undefined}
           previewPath={`/admin/tests/${data.template.id}/preview?version=${data.version.id}`}
           publishAction={publishSystemTestVersionAction}
           saveAction={saveSystemTestBuilderDocumentAction}
           templateId={data.template.id}
-          version={data.version}
+          version={v2?.version ?? data.version}
         />
       ) : (
         <Card className="border-dashed">
