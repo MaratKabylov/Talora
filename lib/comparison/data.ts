@@ -1,3 +1,4 @@
+import { comparisonPage, COMPARISON_PAGE_SIZE, DEFAULT_COMPARISON_FILTERS, type ComparisonPageFilters } from "./pagination";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerOperation } from "@/lib/observability/server-performance";
 
@@ -59,7 +60,11 @@ export type ComparisonCandidate = {
   status: ApplicationStatus;
 };
 
+export type ComparisonSummary = { participantCount: number; completedCount: number; shortlistedCount: number; averageFitScore: number | null };
+
 export type JobComparisonData = {
+  nextCursor: string | null;
+  summary: ComparisonSummary;
   applications: ComparisonCandidate[];
   job: {
     id: string;
@@ -104,27 +109,26 @@ function normalizeApplication(record: ApplicationRecord): ComparisonCandidate | 
   };
 }
 
-async function getJobComparisonDataUninstrumented(companyId: string, jobId: string) {
+async function getJobComparisonDataUninstrumented(companyId: string, jobId: string, filters: ComparisonPageFilters, cursor?: string) {
   const supabase = await createClient();
-  const [jobResult, applicationsResult] = await Promise.all([
-    supabase
-      .from("jobs")
-      .select("id, title, status")
-      .eq("company_id", companyId)
-      .eq("id", jobId)
-      .maybeSingle(),
-    supabase
-      .from("candidate_applications")
-      .select(
-        "id, status, completed_at, overall_score, fit_score, motivation_fit, behavior_fit, composite_score, recommendation, risk_level, requires_review, candidates(id, full_name, email), application_competency_summary(competency_key, percentage)",
-      )
-      .eq("company_id", companyId)
-      .eq("job_id", jobId)
-      .order("fit_score", { ascending: false, nullsFirst: false })
-      .order("completed_at", { ascending: false, nullsFirst: false }),
+  const page = comparisonPage(companyId, jobId, filters, cursor);
+  let query = supabase.from("candidate_applications")
+    .select("id, status, completed_at, overall_score, fit_score, motivation_fit, behavior_fit, composite_score, recommendation, risk_level, requires_review, candidates!inner(id, full_name, email), application_competency_summary(competency_key, percentage)")
+    .eq("company_id", companyId).eq("job_id", jobId);
+  if (filters.status) query = query.eq("status", filters.status);
+  if (filters.recommendation) query = query.eq("recommendation", filters.recommendation);
+  if (filters.riskLevel) query = query.eq("risk_level", filters.riskLevel);
+  if (page.predicate) query = query.or(page.predicate);
+  const [jobResult, applicationsResult, summaryResult] = await Promise.all([
+    supabase.from("jobs").select("id, title, status").eq("company_id", companyId).eq("id", jobId).maybeSingle(),
+    query.order("fit_score", { ascending: page.ascending, nullsFirst: false })
+      .order("id", { ascending: true }).limit(COMPARISON_PAGE_SIZE + 1),
+    supabase.from("job_comparison_summary")
+      .select("participant_count, completed_count, shortlisted_count, average_fit_score")
+      .eq("company_id", companyId).eq("id", jobId).maybeSingle(),
   ]);
 
-  if (jobResult.error || applicationsResult.error) {
+  if (jobResult.error || applicationsResult.error || summaryResult.error) {
     throw new Error("Unable to load candidate comparison.");
   }
 
@@ -132,18 +136,26 @@ async function getJobComparisonDataUninstrumented(companyId: string, jobId: stri
     return null;
   }
 
-  const applications = ((applicationsResult.data ?? []) as unknown as ApplicationRecord[])
+  const resultPage = page.finish((applicationsResult.data ?? []) as unknown as ApplicationRecord[]);
+  const applications = resultPage.items
     .map(normalizeApplication)
     .filter((application): application is ComparisonCandidate => application !== null);
 
   return {
     applications,
+    nextCursor: resultPage.nextCursor,
+    summary: {
+      participantCount: Number(summaryResult.data?.participant_count ?? 0),
+      completedCount: Number(summaryResult.data?.completed_count ?? 0),
+      shortlistedCount: Number(summaryResult.data?.shortlisted_count ?? 0),
+      averageFitScore: summaryResult.data?.average_fit_score == null ? null : Number(summaryResult.data.average_fit_score),
+    },
     job: jobResult.data as JobRecord,
   } satisfies JobComparisonData;
 }
 
-export function getJobComparisonData(companyId: string, jobId: string) {
+export function getJobComparisonData(companyId: string, jobId: string, filters: ComparisonPageFilters = DEFAULT_COMPARISON_FILTERS, cursor?: string) {
   return measureServerOperation("comparisons.candidate", () =>
-    getJobComparisonDataUninstrumented(companyId, jobId),
+    getJobComparisonDataUninstrumented(companyId, jobId, filters, cursor),
   );
 }

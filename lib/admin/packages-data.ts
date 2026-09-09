@@ -1,3 +1,4 @@
+import { PACKAGE_LIST_SELECT, normalizeAssessmentPackageList, type AssessmentPackageListRecord } from "@/lib/lists/read-models";
 import "server-only";
 
 import type {
@@ -113,13 +114,13 @@ function systemPackageQuery() {
 
 export async function listAdminSystemAssessmentPackages() {
   await requirePlatformContext();
-  const { data, error } = await systemPackageQuery().order("updated_at", { ascending: false });
+  const { data, error } = await createAdminClient().from("assessment_package_list").select(PACKAGE_LIST_SELECT).eq("is_system", true).is("company_id", null).order("updated_at", { ascending: false });
 
   if (error) {
     throw new Error("Unable to load system assessment packages.");
   }
 
-  return ((data ?? []) as unknown as PackageRecord[]).map(normalizePackage);
+  return ((data ?? []) as unknown as AssessmentPackageListRecord[]).map(normalizeAssessmentPackageList);
 }
 
 export async function listAdminPublishedSystemTestVersionOptions(): Promise<

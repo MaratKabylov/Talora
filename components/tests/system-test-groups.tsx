@@ -1,3 +1,4 @@
+import type { TestTemplateListItem } from "@/lib/lists/read-models";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 
@@ -13,15 +14,17 @@ import {
 import type { TestTemplate } from "@/lib/tests/data";
 import { getLatestPublishedVersion } from "@/lib/tests/version-selection";
 
+type GroupTemplate = TestTemplate | TestTemplateListItem;
+
 type SystemTestGroupsProps = {
   emptyText: string;
   hrefBase: "/admin/tests" | "/dashboard/tests";
   statusMode: "system-badge" | "template-status";
-  templates: TestTemplate[];
+  templates: GroupTemplate[];
 };
 
-function groupTemplates(templates: TestTemplate[]) {
-  const groups = new Map<SystemTestGroup, TestTemplate[]>(
+function groupTemplates(templates: GroupTemplate[]) {
+  const groups = new Map<SystemTestGroup, GroupTemplate[]>(
     SYSTEM_TEST_GROUPS.map((group) => [group.key, []]),
   );
 
@@ -53,7 +56,7 @@ function SystemTestsTable({
         </thead>
         <tbody>
           {templates.map((template) => {
-            const latestPublishedVersion = getLatestPublishedVersion(template.versions);
+            const latestPublishedVersion = "latestPublishedVersion" in template ? template.latestPublishedVersion : getLatestPublishedVersion(template.versions);
 
             return (
               <tr className="border-t first:border-t-0" key={template.id}>

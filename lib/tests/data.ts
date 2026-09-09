@@ -1,3 +1,4 @@
+import { TEST_TEMPLATE_LIST_SELECT, normalizeTestTemplateList, type TestTemplateListRecord, type TestTemplateListItem } from "@/lib/lists/read-models";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerOperation } from "@/lib/observability/server-performance";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
@@ -100,7 +101,7 @@ function normalizeTemplate(record: TemplateRecord): TestTemplate {
   };
 }
 
-function sortTemplates(left: TestTemplate, right: TestTemplate) {
+function sortTemplates(left: TestTemplateListItem, right: TestTemplateListItem) {
   if (left.isSystem !== right.isSystem) {
     return left.isSystem ? -1 : 1;
   }
@@ -133,14 +134,14 @@ async function listTestTemplatesUninstrumented(companyId: string) {
   const systemTemplateIds = await listGrantedSystemTemplateIds(supabase, companyId);
   const [companyTemplatesResult, systemTemplatesResult] = await Promise.all([
     supabase
-      .from("test_templates")
-      .select(testTemplateSelect())
+      .from("test_template_list")
+      .select(TEST_TEMPLATE_LIST_SELECT)
       .eq("company_id", companyId)
       .eq("is_system", false),
     systemTemplateIds.length > 0
       ? supabase
-          .from("test_templates")
-          .select(testTemplateSelect())
+          .from("test_template_list")
+          .select(TEST_TEMPLATE_LIST_SELECT)
           .in("id", systemTemplateIds)
           .eq("is_system", true)
           .is("company_id", null)
@@ -153,10 +154,10 @@ async function listTestTemplatesUninstrumented(companyId: string) {
   }
 
   return [
-    ...((systemTemplatesResult.data ?? []) as unknown as TemplateRecord[]),
-    ...((companyTemplatesResult.data ?? []) as unknown as TemplateRecord[]),
+    ...((systemTemplatesResult.data ?? []) as unknown as TestTemplateListRecord[]),
+    ...((companyTemplatesResult.data ?? []) as unknown as TestTemplateListRecord[]),
   ]
-    .map(normalizeTemplate)
+    .map(normalizeTestTemplateList)
     .sort(sortTemplates);
 }
 

@@ -1,3 +1,4 @@
+import { TEST_TEMPLATE_LIST_SELECT, normalizeTestTemplateList, type TestTemplateListRecord } from "@/lib/lists/read-models";
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -202,13 +203,13 @@ function systemTemplateQuery() {
 
 export async function listAdminSystemTests() {
   await requirePlatformContext();
-  const { data, error } = await systemTemplateQuery().order("updated_at", { ascending: false });
+  const { data, error } = await createAdminClient().from("test_template_list").select(TEST_TEMPLATE_LIST_SELECT).eq("is_system", true).is("company_id", null).order("updated_at", { ascending: false });
 
   if (error) {
     throw new Error("Unable to load system tests.");
   }
 
-  return ((data ?? []) as unknown as TemplateRecord[]).map(normalizeTemplate);
+  return ((data ?? []) as unknown as TestTemplateListRecord[]).map(normalizeTestTemplateList);
 }
 
 export async function getAdminSystemTest(templateId: string) {

@@ -10,7 +10,7 @@ import { requireCompanyContext } from "@/lib/auth/context";
 import { canManageCandidates } from "@/lib/candidates/constants";
 import { listJobCandidateApplications } from "@/lib/candidates/data";
 import { JOB_STATUS_LABELS } from "@/lib/jobs/constants";
-import { getJobPageData } from "@/lib/jobs/data";
+import { getJobCandidateListContext } from "@/lib/jobs/data";
 
 type JobCandidatesParams = Promise<{ id: string }>;
 type JobCandidatesSearchParams = Promise<{
@@ -29,7 +29,7 @@ export default async function JobCandidatesPage({
   const { id } = await params;
   const feedback = await searchParams;
   const [data, applications] = await Promise.all([
-    getJobPageData(context.activeCompany.id, id),
+    getJobCandidateListContext(context.activeCompany.id, id),
     listJobCandidateApplications(context.activeCompany.id, id),
   ]);
 

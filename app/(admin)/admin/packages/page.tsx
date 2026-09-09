@@ -78,21 +78,15 @@ export default async function AdminPackagesPage({ searchParams }: { searchParams
                 </thead>
                 <tbody>
                   {packages.map((assessmentPackage) => {
-                    const duration = assessmentPackage.tests.reduce(
-                      (total, test) => total + (test.durationMinutes ?? 0),
-                      0,
-                    );
-                    const required = assessmentPackage.tests.filter((test) => test.isRequired).length;
+                    const duration = assessmentPackage.durationMinutes;
+                    const required = assessmentPackage.requiredCount;
 
                     return (
                       <tr className="border-t" key={assessmentPackage.id}>
                         <td className="px-4 py-3">
                           <p className="font-medium">{assessmentPackage.title}</p>
-                          <p className="max-w-xl text-muted-foreground">
-                            {assessmentPackage.description ?? "Описание не указано"}
-                          </p>
                         </td>
-                        <td className="px-4 py-3">{assessmentPackage.tests.length}</td>
+                        <td className="px-4 py-3">{assessmentPackage.testCount}</td>
                         <td className="px-4 py-3">{required}</td>
                         <td className="px-4 py-3">{duration > 0 ? `${duration} мин.` : "—"}</td>
                         <td className="px-4 py-3">{formatDate(assessmentPackage.updatedAt)}</td>

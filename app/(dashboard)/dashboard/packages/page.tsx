@@ -83,16 +83,13 @@ export default async function PackagesPage({
                     <tr className="border-t" key={assessmentPackage.id}>
                       <td className="px-4 py-3">
                         <p className="font-medium">{assessmentPackage.title}</p>
-                        <p className="text-muted-foreground">
-                          {assessmentPackage.description ?? "Описание не указано"}
-                        </p>
                       </td>
                       <td className="px-4 py-3">
                         <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
                           {assessmentPackage.isSystem ? "Системный" : "Компании"}
                         </span>
                       </td>
-                      <td className="px-4 py-3">{assessmentPackage.tests.length}</td>
+                      <td className="px-4 py-3">{assessmentPackage.testCount}</td>
                       <td className="px-4 py-3">{formatDate(assessmentPackage.updatedAt)}</td>
                       <td className="px-4 py-3 text-right">
                         <Link

@@ -6,7 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { requireCompanyContext } from "@/lib/auth/context";
 import { canManageCandidates } from "@/lib/candidates/constants";
 import { JOB_STATUS_LABELS } from "@/lib/jobs/constants";
-import { getJobPageData } from "@/lib/jobs/data";
+import { getJobCandidateListContext } from "@/lib/jobs/data";
 
 type JobCandidateImportParams = Promise<{ id: string }>;
 
@@ -17,7 +17,7 @@ export default async function JobCandidateImportPage({
 }) {
   const context = await requireCompanyContext();
   const { id } = await params;
-  const data = await getJobPageData(context.activeCompany.id, id);
+  const data = await getJobCandidateListContext(context.activeCompany.id, id);
 
   if (!data) {
     notFound();

@@ -1,43 +1,43 @@
 # Текущее состояние Talvia
 
-Обновлено: 2026-09-09. Снимок для продолжения работы, не журнал и не доказательство состояния удалённой БД.
+Обновлено: 2026-09-09. Снимок для продолжения работы, не доказательство состояния удалённой БД.
 
 ## Текущая задача и следующий шаг
 
-- **PERF-009 реализован и локально проверен**: атомарное клонирование published → draft для company/system. Исходные N+1 actions заменены одной server-only RPC с повторной проверкой роли/tenant/ownership.
-- Копируются settings, remediation, matching targets и scoring V2, включая SJT/Forced Choice и criterion references. Повтор открывает существующий draft, system audit атомарен, ошибка не оставляет частичной версии.
-- **Staging/performance-приёмка PERF-009 открыта**: миграция удалённо не применялась, p95 ≤ 2 с на 100 вопросах и реальные конкурентные подключения не проверены. Полный порядок: [rollout PERF-009](29_ATOMIC_TEST_VERSION_CLONE_ROLLOUT.md).
-- Следующий шаг выпуска — разрешённое применение миграции на staging до deploy кода и приёмка. Следующая кодовая задача — **PERF-010: лёгкие list read models** в [плане](16_PERFORMANCE_OPTIMIZATION_PLAN.md).
+- **PERF-010: код основных лёгких списков и comparison pagination готов, локально проверен.** Полная приёмка открыта: staging/PostgREST, замеры и отказ от scoring JSON в employee comparison (зависимость PERF-014).
+- Jobs используют отдельный list DTO; список кандидатов вакансии/импорт — краткий job context. Candidate и employee invitations ограничены последней строкой внутри PostgREST embedding.
+- Tests/packages используют summary views с counts и latest versions; employee assessment list получает SQL counts/average без массива participants. Company/admin detail DTO сохранены отдельно.
+- Оба comparison route фильтруют и сортируют в БД, читают страницы по 50 строк с keyset `(fit_score, id)`. Сводные карточки остаются общими по parent, employee department/role options агрегируются в SQL.
+- Следующий шаг выпуска — разрешённое применение миграции на staging до deploy кода и приёмка по [rollout PERF-010](30_DASHBOARD_LIST_READ_MODELS_ROLLOUT.md). Следующая кодовая задача — **PERF-011**, pagination остальных списков.
 
-## Изменённые области и проверки PERF-009
+## Изменённые области и проверки PERF-010
 
-- Actions: `lib/tests/builder-actions.ts`, `lib/admin/test-actions.ts`; общий серверный путь: `lib/tests/clone-service.ts`.
-- Миграция: `supabase/migrations/20260909120000_atomic_test_version_clone.sql`. Проверка после применения: `supabase/verification/atomic_test_version_clone.sql` (read-only, все `passed=true`).
-- Тесты: `tests/test-version-clone-db.test.ts`, `tests/test-version-clone.test.ts`. PGlite исполняет реальную миграцию с production content DDL/guards и обеими миграциями PERF-008; auth/company окружение — локальные заглушки.
-- Текущий прогон: **475/475 Node tests**, lint/typecheck/build успешно; **8 builder editor + 8 builder import browser scenarios** успешно. После lint-правки имени локальной переменной повторены профильные action-тесты и lint; build включает TypeScript.
-- Windows sandbox заблокировал первый build/Chrome (`EPERM`/IPC); повтор с разрешением на запуск дочерних процессов прошёл. Настройки приложения не менялись.
-- Последний полный Node-прогон: один локальный clone 5 секций / 100 вопросов / 400 вариантов — **156 мс**. Это не staging, не p95 и не подтверждённый SLA. Детали: §22 [baseline](17_PERFORMANCE_BASELINE.md).
-- Обновлены план, baseline, security notes и rollout. Новых env нет; реальные env и удалённая история миграций не проверялись.
+- `lib/lists/read-models.ts`, data loaders jobs/candidates/tests/packages/employee-assessments/comparison/admin; соответствующие dashboard/admin pages и `SystemTestGroups`.
+- Миграция: `supabase/migrations/20260909140000_dashboard_list_read_models.sql`. Пять SELECT-only views с `security_invoker=true`; исходные table grants/RLS сохраняются. Новых env/флагов/индексов нет.
+- Проверка после применения: `supabase/verification/dashboard_list_read_models.sql` — 19 read-only checks. Локально все `passed=true`; удалённо не запускалась.
+- `tests/list-read-models-db.test.ts`: реальный SQL/production DDL/выбранные SELECT policies в PGlite; auth/membership/system access helpers — локальные stand-ins. `tests/list-read-models.test.ts`: реальный Supabase query builder с mock HTTP.
+- Проверены DTO/select contracts, tenant/system visibility, counts/average/null/empty, anon/привилегии, embedded invitation order/limit, compare filters и bounded child reads, SQL keyset с ties/nulls, невалидные cursor, admin auth и ошибки.
+- **489/489 Node tests**, lint/typecheck/production build прошли; детали в [baseline §23](17_PERFORMANCE_BASELINE.md). Browser import regression: **8/8**; sandbox блокировал Chrome IPC, разрешённый запуск прошёл.
+- Обновлены PERF-план, security notes и rollout. Full Next/Supabase E2E, фактические remote grants/env, payload/latency/EXPLAIN не проверялись.
 
 ## Выпуск и ограничения
 
-- PERF-009 требует обе миграции builder V2: `20260908120000_builder_save_v2.sql`, затем `20260908140000_builder_save_v2_integration.sql`; перед применением проверить реальную историю. Их staging/production-применение здесь не подтверждено.
-- У PERF-009 нет нового feature flag или автоматического legacy fallback: сначала миграция, затем deploy приложения. При отсутствии RPC операция возвращает ошибку. Старый clone имеет известные риски потери данных и не является безопасным fallback.
-- Новая копия не наследует `builder_revision`/receipt исходника и не регистрируется в `builder_save_state` при клонировании; действующие triggers формируют её собственную revision. Редактирование доступно через V1/V2 по существующим правилам.
-- PERF-008.1/008.2: код локально проверен, staging/performance-приёмка открыта. Источник: [rollout PERF-008](28_BUILDER_INCREMENTAL_AUTOSAVE_ROLLOUT.md); в `.env.example` — `BUILDER_SAVE_V2=false`, фактическое значение неизвестно.
-- Первая V2-запись регистрирует draft в `builder_save_state`. Выключение флага не возвращает зарегистрированный draft к V1; нельзя удалять регистрацию для обхода защиты. Recovery JSON — ручная резервная копия, не формат импорта; автоматического rebase нет.
-- Клиент V2 отправляет delta, сервер читает весь документ для валидации. PGlite/React fixtures не заменяют full Supabase/Next E2E, RLS matrix, network/latency и конкурентность на отдельных соединениях.
-- `tests/fixtures/*.sql` — локальные заглушки, не миграции Supabase. Удалённые миграции, production-флаги и downgrade/destructive действия требуют соответствующего разрешения.
+- Миграция PERF-010 удалённо **не применялась**. Требуется PostgreSQL 15+, сначала migration, затем deploy; автоматического тяжёлого fallback нет. Откат приложения допускает сохранение read-only views.
+- Employee comparison ещё читает scoring JSON, но только для текущих максимум 50 участников. Столбцы dimensions строятся по странице; материализация/полный отказ от JSON — PERF-014. Общий критерий PERF-010 без scoring JSON пока не закрыт для этого route.
+- Верхнеуровневые списки, кроме comparison, ещё без cursor pagination — PERF-011. При изменении fit между запросами cursor не гарантирует snapshot списка; порядок ties теперь по ID, не имени.
+- Browser fixture не заменяет реальный PostgREST embedded limit/RLS и staging-приёмку. Удалённые миграции, production-флаги и destructive/downgrade требуют соответствующего разрешения.
+- **PERF-009** реализован и ранее локально проверен, staging/performance-приёмка открыта: [rollout PERF-009](29_ATOMIC_TEST_VERSION_CLONE_ROLLOUT.md). Атомарный clone требует обе builder V2 migrations и `20260909120000_atomic_test_version_clone.sql`; их remote-применение не подтверждено.
+- **PERF-008.1/008.2** локально проверены, staging-приёмка открыта: [rollout PERF-008](28_BUILDER_INCREMENTAL_AUTOSAVE_ROLLOUT.md). `.env.example`: `BUILDER_SAVE_V2=false`, фактическое значение неизвестно. Зарегистрированный V2 draft нельзя возвращать к V1 удалением регистрации; Recovery JSON не является форматом импорта.
+- `tests/fixtures/*.sql` — локальные заглушки, не миграции Supabase. PGlite не заменяет Supabase/RLS matrix и конкурентность на отдельных соединениях.
 
 ## Что осталось по плану
 
-- PERF-010–012: лёгкие списки, cursor pagination/фильтры, подтверждённые индексами и EXPLAIN оптимизации.
-- PERF-013–014: summary/details отчёта и materialized dimension scores для сравнения.
-- PERF-015: completion/scoring только по замерам; PERF-016–017: кэширование, размещение и local development.
-- Итого 8 следующих кодовых пунктов, включая условный PERF-015; отдельно открыта staging-приёмка уже написанного кода.
+- PERF-011–012: pagination остальных list routes, серверные фильтры и подтверждённые EXPLAIN индексы.
+- PERF-013–014: summary/details отчёта и materialized employee dimension scores для comparison.
+- PERF-015: completion/scoring по замерам; PERF-016–017: кэширование, размещение и local development.
+- Семь следующих кодовых пунктов, включая условный PERF-015; отдельно открыта полная приёмка PERF-010 и staging-приёмка ранее написанного кода.
 
 ## Как продолжать
 
-- Новый запрос имеет приоритет. Перед изменениями сверить git status, профильный раздел плана и затронутый модуль; не повторять весь аудит проекта.
-- Команды: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`; профильные browser scripts — по затронутому пути.
-- После изменений обновить этот снимок и профильный rollout/план. Разделять «код готов», «локально проверено», «миграции применены» и «staging/production принят»; неизвестное отмечать явно.
+- Новый запрос имеет приоритет. Проверить git status, нужный PERF-раздел и затронутый модуль; не повторять весь аудит проекта.
+- После изменений обновить снимок и профильный rollout/план. Разделять «код готов», «локально проверено», «миграции применены» и «staging/production принят».

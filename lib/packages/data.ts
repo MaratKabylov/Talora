@@ -1,3 +1,4 @@
+import { PACKAGE_LIST_SELECT, normalizeAssessmentPackageList, type AssessmentPackageListRecord } from "@/lib/lists/read-models";
 import { listAccessibleSystemPackageIds } from "@/lib/jobs/package-access";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerOperation } from "@/lib/observability/server-performance";
@@ -167,15 +168,15 @@ async function listAssessmentPackagesUninstrumented(companyId: string) {
   const systemPackageIds = await listAccessibleSystemPackageIds(supabase, companyId);
   const [companyPackagesResult, systemPackagesResult] = await Promise.all([
     supabase
-      .from("assessment_packages")
-      .select(packageSelect())
+      .from("assessment_package_list")
+      .select(PACKAGE_LIST_SELECT)
       .eq("company_id", companyId)
       .eq("is_system", false)
       .order("updated_at", { ascending: false }),
     systemPackageIds.length > 0
       ? supabase
-          .from("assessment_packages")
-          .select(packageSelect())
+          .from("assessment_package_list")
+          .select(PACKAGE_LIST_SELECT)
           .in("id", systemPackageIds)
           .eq("is_system", true)
           .order("title")
@@ -187,9 +188,9 @@ async function listAssessmentPackagesUninstrumented(companyId: string) {
   }
 
   return [
-    ...((systemPackagesResult.data ?? []) as unknown as PackageRecord[]),
-    ...((companyPackagesResult.data ?? []) as unknown as PackageRecord[]),
-  ].map(normalizePackage);
+    ...((systemPackagesResult.data ?? []) as unknown as AssessmentPackageListRecord[]),
+    ...((companyPackagesResult.data ?? []) as unknown as AssessmentPackageListRecord[]),
+  ].map(normalizeAssessmentPackageList);
 }
 
 export function listAssessmentPackages(companyId: string) {

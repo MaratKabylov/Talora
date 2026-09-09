@@ -15,12 +15,9 @@ export default async function SystemTestImportPage() {
     .filter((template) => template.status === "active")
     .map((template) => ({
       category: template.category,
-      hasDraft: template.versions.some((version) => version.status === "draft"),
+      hasDraft: template.hasDraft,
       id: template.id,
-      latestVersionNumber: Math.max(
-        0,
-        ...template.versions.map((version) => version.versionNumber),
-      ),
+      latestVersionNumber: template.latestVersion?.versionNumber ?? 0,
       title: template.title,
     }));
 

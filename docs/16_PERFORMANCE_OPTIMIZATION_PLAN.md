@@ -469,7 +469,7 @@ settings и scoring V2 (включая SJT/Forced Choice и criterion references
 сценариев, lint/typecheck/build. Миграция удалённо не применялась.
 **Staging/performance-приёмка открыта:** p95 ≤ 2 с, full RLS и реальные конкурентные
 подключения не проверены. Инструкция: [rollout PERF-009](29_ATOMIC_TEST_VERSION_CLONE_ROLLOUT.md).
-Следующая кодовая задача — PERF-010.
+Следующая кодовая задача после PERF-009 — PERF-010; её локальный статус описан ниже.
 
 **Задача**
 
@@ -491,6 +491,14 @@ settings и scoring V2 (включая SJT/Forced Choice и criterion references
 ### Этап 3. Dashboard-списки и SQL
 
 #### PERF-010 — Легкие list read models
+
+**Статус на 09.09.2026:** основные list DTO и SQL aggregates реализованы и локально
+проверены; обе comparison-страницы используют DB filters/sort и cursor на 50 строк.
+Миграция `20260909140000_dashboard_list_read_models.sql` удалённо не применялась.
+Полная приёмка открыта: staging/PostgREST/замеры и исключение employee comparison,
+который до PERF-014 читает scoring JSON текущей страницы. У остальных перечисленных
+списков rich text/scoring JSON и полные дочерние коллекции удалены из list path.
+Подробности и проверки: [rollout PERF-010](30_DASHBOARD_LIST_READ_MODELS_ROLLOUT.md).
 
 **Задача**
 

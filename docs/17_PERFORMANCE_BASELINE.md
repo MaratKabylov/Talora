@@ -558,3 +558,33 @@ matching IDs, неизменность источника, откат каждо
 Удалённые миграции/env не менялись. Staging-порог остаётся открытым; нужны минимум
 30 cold и 30 warm замеров настоящего создания draft, отдельный click-to-visible и
 приёмка concurrency/ролей. Инструкция: [rollout PERF-009](29_ATOMIC_TEST_VERSION_CLONE_ROLLOUT.md).
+
+## 23. PERF-010: лёгкие списки и comparison pagination — 09.09.2026
+
+Изменена форма данных: jobs без descriptions/scoring profiles; candidates получают
+одно latest invitation на application; tests — latest/latest published summary,
+version count и hasDraft; packages — SQL counts/duration; employee assessments —
+SQL participant/completed counts и average fit без передачи participants.
+Company/admin detail DTO отделены от list DTO. Страницы кандидатов вакансии и
+импорта больше не вызывают полный job-detail loader.
+
+Comparison query возвращает максимум 51 строку: 50 отображаемых и одну lookahead.
+Filters/sort/keyset выполняются до limit в БД. Employee sessions/results/dimensions
+читаются только для 50 участников страницы; lookahead исключён из дочерних reads.
+Общие карточки и employee department/role options считаются отдельными invoker views.
+SQL keyset проверен на 127 строках с одинаковыми/null score в обоих направлениях.
+
+Финальный полный прогон: **489/489 Node tests**, в том числе 14 новых проверок
+с родительским DB test. Lint/typecheck/production build прошли; **8/8 browser import
+scenarios**. После дополнительной SQL aggregate-проверки исправлена локальная fixture:
+исходный DDL candidates не имеет company_id; tenant принадлежность applications
+проверяется на её реальном company_id. Полный suite повторён успешно.
+19 deployment verification checks прошли в PGlite. SQL использует production DDL
+и выбранные SELECT policies; auth/system-access helpers — локальные stand-ins.
+Контракты HTTP используют настоящий Supabase query builder с mock transport.
+
+Это проверка корректности/границ payload, не замер экономии bytes, p50/p95,
+PostgREST embedding latency или production EXPLAIN. Удалённая миграция не применена.
+Employee comparison до PERF-014 сохраняет чтение scoring JSON текущей страницы;
+общий критерий полного отказа от JSON для этого route пока открыт.
+Staging-проверки и порядок выпуска: [rollout PERF-010](30_DASHBOARD_LIST_READ_MODELS_ROLLOUT.md).

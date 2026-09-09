@@ -1,3 +1,4 @@
+import type { TestTemplateListItem } from "@/lib/lists/read-models";
 import Link from "next/link";
 
 import { EmptyState } from "@/components/empty-state";
@@ -11,7 +12,7 @@ import {
   TEST_TEMPLATE_STATUS_LABELS,
   TEST_VERSION_STATUS_LABELS,
 } from "@/lib/tests/constants";
-import { listTestTemplates, type TestTemplate } from "@/lib/tests/data";
+import { listTestTemplates } from "@/lib/tests/data";
 import { getCompanyTestPermissions } from "@/lib/tests/permissions";
 
 type TestsSearchParams = Promise<{
@@ -24,7 +25,7 @@ function TemplatesTable({
   templates,
 }: {
   emptyText: string;
-  templates: TestTemplate[];
+  templates: TestTemplateListItem[];
 }) {
   if (templates.length === 0) {
     return (

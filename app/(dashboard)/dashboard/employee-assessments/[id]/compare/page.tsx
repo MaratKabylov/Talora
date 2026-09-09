@@ -21,11 +21,11 @@ import {
 } from "@/lib/employee-assessments/constants";
 import {
   getEmployeeComparisonData,
-  type EmployeeComparisonParticipant,
 } from "@/lib/employee-assessments/data";
 
 type EmployeeCompareParams = Promise<{ id: string }>;
 type EmployeeCompareSearchParams = Promise<{
+  cursor?: string;
   department?: string;
   error?: string;
   message?: string;
@@ -41,58 +41,8 @@ function validFilter<T extends string>(value: string | undefined, values: readon
   return values.includes(value as T) ? value ?? "" : "";
 }
 
-function uniqueValues(values: Array<string | null>) {
-  return [...new Set(values.flatMap((value) => (value ? [value] : [])))].sort((left, right) =>
-    left.localeCompare(right, "ru"),
-  );
-}
-
-function filterParticipants(
-  participants: EmployeeComparisonParticipant[],
-  filters: EmployeeComparisonFilters,
-) {
-  return participants.filter(
-    (participant) =>
-      (!filters.status || participant.status === filters.status) &&
-      (!filters.department || participant.employee.department === filters.department) &&
-      (!filters.roleTitle || participant.employee.roleTitle === filters.roleTitle) &&
-      (!filters.recommendation || participant.recommendation === filters.recommendation) &&
-      (!filters.riskLevel || participant.riskLevel === filters.riskLevel),
-  );
-}
-
-function sortByFitScore(
-  participants: EmployeeComparisonParticipant[],
-  sort: EmployeeComparisonFilters["sort"],
-) {
-  return participants.slice().sort((left, right) => {
-    if (left.fitScore === null && right.fitScore !== null) {
-      return 1;
-    }
-
-    if (left.fitScore !== null && right.fitScore === null) {
-      return -1;
-    }
-
-    if (left.fitScore !== null && right.fitScore !== null && left.fitScore !== right.fitScore) {
-      return sort === "fit_desc" ? right.fitScore - left.fitScore : left.fitScore - right.fitScore;
-    }
-
-    return left.employee.fullName.localeCompare(right.employee.fullName, "ru");
-  });
-}
-
-function averageFitScore(participants: EmployeeComparisonParticipant[]) {
-  const values = participants.flatMap((participant) =>
-    participant.fitScore === null ? [] : [participant.fitScore],
-  );
-
-  if (values.length === 0) {
-    return "-";
-  }
-
-  const value = values.reduce((total, score) => total + score, 0) / values.length;
-  return `${value.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}%`;
+function formatAverage(value: number | null) {
+  return value === null ? "-" : `${value.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}%`;
 }
 
 export default async function EmployeeAssessmentComparePage({
@@ -105,37 +55,44 @@ export default async function EmployeeAssessmentComparePage({
   const context = await requireCompanyContext();
   const { id } = await params;
   const query = await searchParams;
-  const data = await getEmployeeComparisonData(context.activeCompany.id, id);
+  const pageFilters = {
+    department: (query.department ?? "").slice(0, 180),
+    roleTitle: (query.role ?? "").slice(0, 180),
+    recommendation: validFilter(query.recommendation, RECOMMENDATION_VALUES),
+    riskLevel: validFilter(query.risk, RISK_LEVEL_VALUES),
+    sort: query.sort === "fit_asc" ? "fit_asc" as const : "fit_desc" as const,
+    status: validFilter(query.status, EMPLOYEE_PARTICIPANT_STATUS_VALUES),
+  };
+  const data = await getEmployeeComparisonData(context.activeCompany.id, id, pageFilters, query.cursor);
 
   if (!data) {
     notFound();
   }
 
-  const departments = uniqueValues(data.participants.map((participant) => participant.employee.department));
-  const roleTitles = uniqueValues(data.participants.map((participant) => participant.employee.roleTitle));
-  const reportGroups = Array.from(new Set(data.dimensions.map((dimension) => dimension.group))).map(
+  const departments = data.departments;
+  const roleTitles = data.roleTitles;
+  const availableGroups = new Set(data.dimensions.map((dimension) => dimension.group));
+  // Retain an explicitly selected group even when this page has no dimensions in it.
+  if (query.group && Object.hasOwn(ASSESSMENT_REPORT_GROUP_TITLES, query.group)) {
+    availableGroups.add(query.group as keyof typeof ASSESSMENT_REPORT_GROUP_TITLES);
+  }
+  const reportGroups = Array.from(availableGroups).map(
     (group) => ({ key: group, title: ASSESSMENT_REPORT_GROUP_TITLES[group] }),
   );
   const selectedGroup = reportGroups.some((group) => group.key === query.group)
     ? query.group!
     : reportGroups[0]?.key ?? "";
-  const filters: EmployeeComparisonFilters = {
-    department: departments.includes(query.department ?? "") ? query.department ?? "" : "",
-    group: selectedGroup,
-    recommendation: validFilter(query.recommendation, RECOMMENDATION_VALUES),
-    riskLevel: validFilter(query.risk, RISK_LEVEL_VALUES),
-    roleTitle: roleTitles.includes(query.role ?? "") ? query.role ?? "" : "",
-    sort: query.sort === "fit_asc" ? "fit_asc" : "fit_desc",
-    status: validFilter(query.status, EMPLOYEE_PARTICIPANT_STATUS_VALUES),
-  };
-  const participants = sortByFitScore(
-    filterParticipants(data.participants, filters),
-    filters.sort,
-  );
+  const filters: EmployeeComparisonFilters = { ...pageFilters, group: selectedGroup };
+  const participants = data.participants;
+  const nextParams = new URLSearchParams({ status: filters.status, recommendation: filters.recommendation,
+    risk: filters.riskLevel, sort: filters.sort, department: filters.department,
+    role: filters.roleTitle, group: selectedGroup });
+  const firstHref = `/dashboard/employee-assessments/${id}/compare?${nextParams}`;
+  if (data.nextCursor) nextParams.set("cursor", data.nextCursor);
+  const nextHref = `/dashboard/employee-assessments/${id}/compare?${nextParams}`;
   const comparisonDimensions = data.dimensions.filter(
     (dimension) => dimension.group === selectedGroup,
   );
-  const completedCount = data.participants.filter((participant) => participant.status === "completed").length;
 
   return (
     <div className="space-y-6">
@@ -158,19 +115,19 @@ export default async function EmployeeAssessmentComparePage({
         <Card>
           <CardHeader>
             <CardDescription>Всего сотрудников</CardDescription>
-            <CardTitle>{data.participants.length}</CardTitle>
+            <CardTitle>{data.summary.participantCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Завершили оценку</CardDescription>
-            <CardTitle>{completedCount}</CardTitle>
+            <CardTitle>{data.summary.completedCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Средний fit score</CardDescription>
-            <CardTitle>{averageFitScore(data.participants)}</CardTitle>
+            <CardTitle>{formatAverage(data.summary.averageFitScore)}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
@@ -203,11 +160,15 @@ export default async function EmployeeAssessmentComparePage({
         <CardHeader>
           <CardTitle>Результаты сравнения</CardTitle>
           <CardDescription>
-            Показано {participants.length} из {data.participants.length} сотрудников.
+            Показано {participants.length} из {data.summary.participantCount} сотрудников.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           <EmployeeComparisonTable dimensions={comparisonDimensions} participants={participants} />
+          <div className="mt-4 flex gap-3">
+            {query.cursor ? <Link className={buttonVariants({ variant: "outline" })} href={firstHref}>К началу</Link> : null}
+            {data.nextCursor ? <Link className={buttonVariants({ variant: "outline" })} href={nextHref}>Следующие 50</Link> : null}
+          </div>
         </CardContent>
       </Card>
     </div>

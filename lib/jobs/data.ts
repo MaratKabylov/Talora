@@ -1,3 +1,4 @@
+import { JOB_LIST_SELECT } from "@/lib/lists/read-models";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerOperation } from "@/lib/observability/server-performance";
 import { normalizeProfileTargets, type ProfileTarget } from "@/lib/scoring/profile-fit";
@@ -95,25 +96,37 @@ function normalizeJob(record: JobRecord): JobDetails {
   };
 }
 
-async function listJobsUninstrumented(companyId: string) {
+export type JobListItem = Pick<JobDetails, "id" | "title" | "department" | "location" | "status" | "updatedAt" | "assessmentPackageTitle">;
+
+async function listJobsUninstrumented(companyId: string): Promise<JobListItem[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("jobs")
-    .select(
-      "id, title, description, department, location, employment_type, status, assessment_package_id, passing_score, motivation_target_profile_json, behavior_target_profile_json, composite_scoring_config_json, created_at, updated_at, assessment_packages(id, title, is_system)",
-    )
-    .eq("company_id", companyId)
-    .order("updated_at", { ascending: false });
-
-  if (error) {
-    throw new Error("Unable to load jobs.");
-  }
-
-  return ((data ?? []) as unknown as JobRecord[]).map(normalizeJob);
+  const { data, error } = await supabase.from("jobs").select(JOB_LIST_SELECT)
+    .eq("company_id", companyId).order("updated_at", { ascending: false });
+  if (error) throw new Error("Unable to load jobs.");
+  type Row = Pick<JobRecord, "id" | "title" | "department" | "location" | "status" | "updated_at"> & {
+    assessment_packages: { title: string } | { title: string }[] | null;
+  };
+  return ((data ?? []) as unknown as Row[]).map((row) => ({
+    id: row.id, title: row.title, department: row.department, location: row.location,
+    status: row.status, updatedAt: row.updated_at,
+    assessmentPackageTitle: (Array.isArray(row.assessment_packages)
+      ? row.assessment_packages[0] : row.assessment_packages)?.title ?? null,
+  }));
 }
 
 export function listJobs(companyId: string) {
   return measureServerOperation("jobs.list", () => listJobsUninstrumented(companyId));
+}
+
+export async function getJobCandidateListContext(companyId: string, jobId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("jobs")
+    .select("id, title, status, assessment_package_id")
+    .eq("company_id", companyId).eq("id", jobId).maybeSingle();
+  if (error) throw new Error("Unable to load job summary.");
+  if (!data) return null;
+  return { job: { id: data.id as string, title: data.title as string,
+    status: data.status as JobStatus, assessmentPackageId: data.assessment_package_id as string | null } };
 }
 
 export async function listAssessmentPackages(companyId: string) {

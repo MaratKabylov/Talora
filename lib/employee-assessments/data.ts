@@ -1,3 +1,5 @@
+import { comparisonPage, COMPARISON_PAGE_SIZE, DEFAULT_COMPARISON_FILTERS, type ComparisonPageFilters } from "@/lib/comparison/pagination";
+import { EMPLOYEE_ASSESSMENT_LIST_SELECT } from "@/lib/lists/read-models";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerOperation } from "@/lib/observability/server-performance";
 import { renderStructuredAnswer } from "@/lib/answers/render-structured-answer";
@@ -49,12 +51,6 @@ type EmployeeAssessmentRecord = {
   assessment_packages: Relation<PackageRecord>;
   created_at: string;
   description: string | null;
-  employee_assessment_participants?: Array<{
-    fit_score: number | null;
-    id: string;
-    overall_score: number | null;
-    status: EmployeeParticipantStatus;
-  }> | null;
   id: string;
   passing_score: number | null;
   status: EmployeeAssessmentStatus;
@@ -209,8 +205,6 @@ type ReportParticipantRecord = ParticipantRecord & {
 export type EmployeeAssessmentListItem = {
   assessmentPackageTitle: string | null;
   completedCount: number;
-  createdAt: string;
-  description: string | null;
   id: string;
   invitedCount: number;
   averageFitScore: number | null;
@@ -287,6 +281,10 @@ export type EmployeeComparisonParticipant = Omit<EmployeeAssessmentParticipant, 
 };
 
 export type EmployeeComparisonData = {
+  nextCursor: string | null;
+  departments: string[];
+  roleTitles: string[];
+  summary: { participantCount: number; completedCount: number; averageFitScore: number | null };
   assessment: {
     id: string;
     status: EmployeeAssessmentStatus;
@@ -506,9 +504,7 @@ function normalizeParticipant(record: ParticipantRecord): EmployeeAssessmentPart
     return null;
   }
 
-  const invitation = (record.employee_assessment_invitations ?? [])
-    .slice()
-    .sort((left, right) => right.created_at.localeCompare(left.created_at))[0];
+  const invitation = record.employee_assessment_invitations?.[0];
 
   return {
     completedAt: record.completed_at,
@@ -547,44 +543,21 @@ function jsonArray(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
 
-async function listEmployeeAssessmentsUninstrumented(companyId: string) {
+async function listEmployeeAssessmentsUninstrumented(companyId: string): Promise<EmployeeAssessmentListItem[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("employee_assessments")
-    .select(
-      "id, title, description, status, assessment_package_id, passing_score, created_at, updated_at, assessment_packages(id, title, is_system), employee_assessment_participants(id, status, overall_score, fit_score)",
-    )
-    .eq("company_id", companyId)
+  const { data, error } = await supabase.from("employee_assessment_list")
+    .select(EMPLOYEE_ASSESSMENT_LIST_SELECT).eq("company_id", companyId)
     .order("updated_at", { ascending: false });
-
-  if (error) {
-    throw new Error("Unable to load employee assessments.");
-  }
-
-  return ((data ?? []) as unknown as EmployeeAssessmentRecord[]).map((record) => {
-    const assessment = normalizeAssessment(record);
-    const participants = record.employee_assessment_participants ?? [];
-    const fitScores = participants.flatMap((participant) =>
-      participant.fit_score === null ? [] : [participant.fit_score],
-    );
-
-    return {
-      assessmentPackageTitle: assessment.assessmentPackageTitle,
-      averageFitScore:
-        fitScores.length > 0
-          ? fitScores.reduce((sum, score) => sum + score, 0) / fitScores.length
-          : null,
-      completedCount: participants.filter((participant) => participant.status === "completed")
-        .length,
-      createdAt: assessment.createdAt,
-      description: assessment.description,
-      id: assessment.id,
-      invitedCount: participants.length,
-      status: assessment.status,
-      title: assessment.title,
-      updatedAt: assessment.updatedAt,
-    } satisfies EmployeeAssessmentListItem;
-  });
+  if (error) throw new Error("Unable to load employee assessments.");
+  type Row = { id: string; title: string; status: EmployeeAssessmentStatus; updated_at: string;
+    assessment_package_title: string | null; participant_count: number; completed_count: number;
+    average_fit_score: number | null };
+  return ((data ?? []) as unknown as Row[]).map((row) => ({
+    id: row.id, title: row.title, status: row.status, updatedAt: row.updated_at,
+    assessmentPackageTitle: row.assessment_package_title,
+    invitedCount: Number(row.participant_count), completedCount: Number(row.completed_count),
+    averageFitScore: row.average_fit_score === null ? null : Number(row.average_fit_score),
+  }));
 }
 
 export function listEmployeeAssessments(companyId: string) {
@@ -621,7 +594,10 @@ export async function getEmployeeAssessmentPageData(companyId: string, assessmen
       )
       .eq("company_id", companyId)
       .eq("employee_assessment_id", assessmentId)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .order("created_at", { referencedTable: "employee_assessment_invitations", ascending: false })
+      .order("id", { referencedTable: "employee_assessment_invitations", ascending: false })
+      .limit(1, { referencedTable: "employee_assessment_invitations" }),
     listAccessibleAssessmentPackages(supabase, companyId),
   ]);
 
@@ -648,27 +624,31 @@ export async function getEmployeeAssessmentPageData(companyId: string, assessmen
   } satisfies EmployeeAssessmentPageData;
 }
 
-async function getEmployeeComparisonDataUninstrumented(companyId: string, assessmentId: string) {
+async function getEmployeeComparisonDataUninstrumented(companyId: string, assessmentId: string, filters: ComparisonPageFilters, cursor?: string) {
   const supabase = await createClient();
-  const [assessmentResult, participantsResult] = await Promise.all([
-    supabase
-      .from("employee_assessments")
-      .select("id, title, status")
-      .eq("company_id", companyId)
-      .eq("id", assessmentId)
-      .maybeSingle(),
-    supabase
-      .from("employee_assessment_participants")
-      .select(
-        "id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees(id, full_name, email, phone, department, role_title), employee_assessment_competency_summary(competency_key, percentage, interpretation_direction)",
-      )
-      .eq("company_id", companyId)
-      .eq("employee_assessment_id", assessmentId)
-      .order("fit_score", { ascending: false, nullsFirst: false })
-      .order("completed_at", { ascending: false, nullsFirst: false }),
+  const page = comparisonPage(companyId, assessmentId, filters, cursor);
+  let query = supabase.from("employee_assessment_participants")
+    .select("id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees!inner(id, full_name, email, phone, department, role_title), employee_assessment_competency_summary(competency_key, percentage, interpretation_direction)")
+    .eq("company_id", companyId).eq("employee_assessment_id", assessmentId);
+  if (filters.status) query = query.eq("status", filters.status);
+  if (filters.recommendation) query = query.eq("recommendation", filters.recommendation);
+  if (filters.riskLevel) query = query.eq("risk_level", filters.riskLevel);
+  if (filters.department) query = query.eq("employees.department", filters.department);
+  if (filters.roleTitle) query = query.eq("employees.role_title", filters.roleTitle);
+  if (page.predicate) query = query.or(page.predicate);
+  const [assessmentResult, participantsResult, summaryResult, filterResult] = await Promise.all([
+    supabase.from("employee_assessments").select("id, title, status")
+      .eq("company_id", companyId).eq("id", assessmentId).maybeSingle(),
+    query.order("fit_score", { ascending: page.ascending, nullsFirst: false })
+      .order("id", { ascending: true }).limit(COMPARISON_PAGE_SIZE + 1),
+    supabase.from("employee_assessment_list")
+      .select("participant_count, completed_count, average_fit_score")
+      .eq("company_id", companyId).eq("id", assessmentId).maybeSingle(),
+    supabase.from("employee_comparison_filters").select("departments, role_titles")
+      .eq("company_id", companyId).eq("id", assessmentId).maybeSingle(),
   ]);
 
-  if (assessmentResult.error || participantsResult.error) {
+  if (assessmentResult.error || participantsResult.error || summaryResult.error || filterResult.error) {
     throw new Error("Unable to load employee comparison.");
   }
 
@@ -676,7 +656,8 @@ async function getEmployeeComparisonDataUninstrumented(companyId: string, assess
     return null;
   }
 
-  const rawParticipants = (participantsResult.data ?? []) as unknown as ParticipantRecord[];
+  const resultPage = page.finish((participantsResult.data ?? []) as unknown as ParticipantRecord[]);
+  const rawParticipants = resultPage.items;
   const participantIds = rawParticipants.map((participant) => participant.id);
   const sessionsResult =
     participantIds.length === 0
@@ -846,12 +827,20 @@ async function getEmployeeComparisonDataUninstrumented(companyId: string, assess
         left.id.localeCompare(right.id),
     ),
     participants,
+    nextCursor: resultPage.nextCursor,
+    departments: (filterResult.data?.departments ?? []) as string[],
+    roleTitles: (filterResult.data?.role_titles ?? []) as string[],
+    summary: {
+      participantCount: Number(summaryResult.data?.participant_count ?? 0),
+      completedCount: Number(summaryResult.data?.completed_count ?? 0),
+      averageFitScore: summaryResult.data?.average_fit_score == null ? null : Number(summaryResult.data.average_fit_score),
+    },
   } satisfies EmployeeComparisonData;
 }
 
-export function getEmployeeComparisonData(companyId: string, assessmentId: string) {
+export function getEmployeeComparisonData(companyId: string, assessmentId: string, filters: ComparisonPageFilters = DEFAULT_COMPARISON_FILTERS, cursor?: string) {
   return measureServerOperation("comparisons.employee", () =>
-    getEmployeeComparisonDataUninstrumented(companyId, assessmentId),
+    getEmployeeComparisonDataUninstrumented(companyId, assessmentId, filters, cursor),
   );
 }
 

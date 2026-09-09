@@ -58,6 +58,20 @@ Actions передают actor/company из проверенного серве�
 совместимость с действующими publication/revision guards.
 Проверки, ограничения и порядок выпуска: [rollout PERF-009](29_ATOMIC_TEST_VERSION_CLONE_ROLLOUT.md).
 
+## List read models (PERF-010)
+
+`test_template_list`, `assessment_package_list`, `employee_assessment_list`,
+`job_comparison_summary`, `employee_comparison_filters` — SELECT-only views с
+`security_invoker=true`. Агрегаты и latest-version lateral joins соблюдают RLS
+вызывающего на исходных таблицах. Не заменять их обычными owner-executed views.
+Доступ: authenticated/service_role SELECT, без anon/public и без DML grants.
+Dashboard использует session client и явные tenant/parent/grant filters;
+admin system lists — service client после `requirePlatformContext` с system scope.
+Cursor comparison не даёт доступа: независимо проверяются tenant/parent и RLS.
+Последнее invitation выбирается через order/limit внутри PostgREST embedding;
+ограничение действует отдельно для каждого родителя. Token не логируется.
+Миграция и реальная RLS-приёмка: [rollout PERF-010](30_DASHBOARD_LIST_READ_MODELS_ROLLOUT.md).
+
 ## Sensitive data
 
 Не использовать для скоринга:

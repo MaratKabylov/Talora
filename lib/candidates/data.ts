@@ -87,9 +87,7 @@ function related<T>(value: Relation<T>) {
 function normalizeApplication(record: ApplicationRecord): CandidateApplication {
   const candidate = related(record.candidates);
   const job = related(record.jobs);
-  const invitation = (record.invitations ?? [])
-    .slice()
-    .sort((left, right) => right.created_at.localeCompare(left.created_at))[0];
+  const invitation = record.invitations?.[0];
 
   return {
     candidate: {
@@ -132,7 +130,10 @@ async function queryApplicationsUninstrumented(companyId: string, jobId?: string
     .select(
       "id, candidate_id, status, current_stage, overall_score, fit_score, composite_score, recommendation, risk_level, requires_review, created_at, candidates(id, full_name, email, phone, city, source), jobs(id, title), invitations(id, token, status, expires_at, sent_at, opened_at, created_at)",
     )
-    .eq("company_id", companyId);
+    .eq("company_id", companyId)
+    .order("created_at", { referencedTable: "invitations", ascending: false })
+    .order("id", { referencedTable: "invitations", ascending: false })
+    .limit(1, { referencedTable: "invitations" });
 
   if (jobId) {
     query = query.eq("job_id", jobId);

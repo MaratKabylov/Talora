@@ -16,11 +16,12 @@ import {
   RISK_LEVEL_VALUES,
   canManageCandidates,
 } from "@/lib/candidates/constants";
-import { getJobComparisonData, type ComparisonCandidate } from "@/lib/comparison/data";
+import { getJobComparisonData } from "@/lib/comparison/data";
 import { JOB_STATUS_LABELS } from "@/lib/jobs/constants";
 
 type JobCompareParams = Promise<{ id: string }>;
 type JobCompareSearchParams = Promise<{
+  cursor?: string;
   error?: string;
   message?: string;
   recommendation?: string;
@@ -33,44 +34,8 @@ function validFilter<T extends string>(value: string | undefined, values: readon
   return values.includes(value as T) ? value ?? "" : "";
 }
 
-function filterApplications(applications: ComparisonCandidate[], filters: ComparisonFilters) {
-  return applications.filter(
-    (application) =>
-      (!filters.status || application.status === filters.status) &&
-      (!filters.recommendation || application.recommendation === filters.recommendation) &&
-      (!filters.riskLevel || application.riskLevel === filters.riskLevel),
-  );
-}
-
-function sortByFitScore(applications: ComparisonCandidate[], sort: ComparisonFilters["sort"]) {
-  return applications.slice().sort((left, right) => {
-    if (left.fitScore === null && right.fitScore !== null) {
-      return 1;
-    }
-
-    if (left.fitScore !== null && right.fitScore === null) {
-      return -1;
-    }
-
-    if (left.fitScore !== null && right.fitScore !== null && left.fitScore !== right.fitScore) {
-      return sort === "fit_desc" ? right.fitScore - left.fitScore : left.fitScore - right.fitScore;
-    }
-
-    return left.candidate.fullName.localeCompare(right.candidate.fullName, "ru");
-  });
-}
-
-function averageFitScore(applications: ComparisonCandidate[]) {
-  const values = applications.flatMap((application) =>
-    application.fitScore === null ? [] : [application.fitScore],
-  );
-
-  if (values.length === 0) {
-    return "-";
-  }
-
-  const value = values.reduce((total, score) => total + score, 0) / values.length;
-  return `${value.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}%`;
+function formatAverage(value: number | null) {
+  return value === null ? "-" : `${value.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}%`;
 }
 
 export default async function JobComparePage({
@@ -83,25 +48,20 @@ export default async function JobComparePage({
   const context = await requireCompanyContext();
   const { id } = await params;
   const query = await searchParams;
-  const data = await getJobComparisonData(context.activeCompany.id, id);
-
-  if (!data) {
-    notFound();
-  }
-
   const filters: ComparisonFilters = {
     recommendation: validFilter(query.recommendation, RECOMMENDATION_VALUES),
     riskLevel: validFilter(query.risk, RISK_LEVEL_VALUES),
     sort: query.sort === "fit_asc" ? "fit_asc" : "fit_desc",
     status: validFilter(query.status, APPLICATION_STATUS_VALUES),
   };
-  const applications = sortByFitScore(filterApplications(data.applications, filters), filters.sort);
-  const completedCount = data.applications.filter(
-    (application) => application.status === "completed" || application.status === "shortlisted",
-  ).length;
-  const shortlistedCount = data.applications.filter(
-    (application) => application.status === "shortlisted",
-  ).length;
+  const data = await getJobComparisonData(context.activeCompany.id, id, filters, query.cursor);
+  if (!data) notFound();
+  const applications = data.applications;
+  const nextParams = new URLSearchParams({ status: filters.status, recommendation: filters.recommendation,
+    risk: filters.riskLevel, sort: filters.sort });
+  const firstHref = `/dashboard/jobs/${id}/compare?${nextParams}`;
+  if (data.nextCursor) nextParams.set("cursor", data.nextCursor);
+  const nextHref = `/dashboard/jobs/${id}/compare?${nextParams}`;
 
   return (
     <div className="space-y-6">
@@ -132,25 +92,25 @@ export default async function JobComparePage({
         <Card>
           <CardHeader>
             <CardDescription>Всего кандидатов</CardDescription>
-            <CardTitle>{data.applications.length}</CardTitle>
+            <CardTitle>{data.summary.participantCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Завершили оценку</CardDescription>
-            <CardTitle>{completedCount}</CardTitle>
+            <CardTitle>{data.summary.completedCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Средний fit score</CardDescription>
-            <CardTitle>{averageFitScore(data.applications)}</CardTitle>
+            <CardTitle>{formatAverage(data.summary.averageFitScore)}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>В шорт-листе</CardDescription>
-            <CardTitle>{shortlistedCount}</CardTitle>
+            <CardTitle>{data.summary.shortlistedCount}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -171,7 +131,7 @@ export default async function JobComparePage({
         <CardHeader>
           <CardTitle>Результаты сравнения</CardTitle>
           <CardDescription>
-            Показано {applications.length} из {data.applications.length} кандидатов. Решение о найме принимает HR.
+            Показано {applications.length} из {data.summary.participantCount} кандидатов. Решение о найме принимает HR.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
@@ -180,6 +140,10 @@ export default async function JobComparePage({
             jobId={data.job.id}
             mayManage={canManageCandidates(context.activeCompany.role)}
           />
+          <div className="mt-4 flex gap-3">
+            {query.cursor ? <Link className={buttonVariants({ variant: "outline" })} href={firstHref}>К началу</Link> : null}
+            {data.nextCursor ? <Link className={buttonVariants({ variant: "outline" })} href={nextHref}>Следующие 50</Link> : null}
+          </div>
         </CardContent>
       </Card>
     </div>
