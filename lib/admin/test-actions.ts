@@ -31,6 +31,7 @@ import {
   type PublicationSection,
 } from "@/lib/tests/publication-validation";
 import { formatTestVersionTitle } from "@/lib/tests/version-title";
+import { clonePublishedTestVersion } from "@/lib/tests/clone-service";
 
 import { canManageSystemTests } from "./constants";
 import { requirePlatformContext, type PlatformContext } from "./context";
@@ -844,34 +845,6 @@ export async function revertUnusedSystemTestPublicationAction(formData: FormData
   );
 }
 
-type CloneSection = {
-  description: string | null;
-  order_index: number;
-  questions?: Array<{
-    answer_options?: Array<{
-      competency_effect_json: Record<string, number>;
-      explanation: string | null;
-      is_correct: boolean | null;
-      match_text: string | null;
-      order_index: number;
-      points: number;
-      text: string;
-    }> | null;
-    competency_key: string | null;
-    description: string | null;
-    difficulty: string | null;
-    media_url: string | null;
-    order_index: number;
-    points: number;
-    question_type: string;
-    settings_json: Record<string, unknown>;
-    text: string;
-  }> | null;
-  settings_json: Record<string, unknown>;
-  time_limit_minutes: number | null;
-  title: string;
-};
-
 export async function createSystemDraftFromPublishedVersionAction(formData: FormData) {
   const templateId = parseId(formData, "templateId");
   const versionId = parseId(formData, "versionId");
@@ -880,148 +853,17 @@ export async function createSystemDraftFromPublishedVersionAction(formData: Form
   }
 
   const sourcePath = getBuilderPath(templateId.data, versionId.data);
-  const { admin, context } = await requireSystemTestManager(sourcePath);
-  const template = await findEditableSystemTemplate(admin, templateId.data);
-  if (!template || template.status !== "active") {
-    redirectWithFeedback(sourcePath, "error", "Новая версия доступна только для активного системного теста.");
-  }
+  const { context } = await requireSystemTestManager(sourcePath);
+  const result = await clonePublishedTestVersion(
+    { userId: context.user.id, companyId: null }, templateId.data, versionId.data,
+  );
+  if (!result.ok) redirectWithFeedback(sourcePath, "error", result.error);
 
-  const { data: existingDraft } = await admin
-    .from("test_versions")
-    .select("id")
-    .eq("test_template_id", templateId.data)
-    .eq("status", "draft")
-    .limit(1)
-    .maybeSingle();
-  if (existingDraft) {
-    redirectWithFeedback(
-      getBuilderPath(templateId.data, existingDraft.id),
-      "message",
-      "Открыт уже существующий черновик.",
-    );
-  }
-
-  const [{ data: source }, { data: latest }] = await Promise.all([
-    admin
-      .from("test_versions")
-      .select("description, instructions, duration_minutes, scoring_type, settings_json")
-      .eq("id", versionId.data)
-      .eq("test_template_id", templateId.data)
-      .eq("status", "published")
-      .maybeSingle(),
-    admin
-      .from("test_versions")
-      .select("version_number")
-      .eq("test_template_id", templateId.data)
-      .order("version_number", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ]);
-
-  if (!source) {
-    redirectWithFeedback(sourcePath, "error", "Копировать можно только опубликованную версию.");
-  }
-
-  const nextVersionNumber = (latest?.version_number ?? 0) + 1;
-  const { data: draft, error: draftError } = await admin
-    .from("test_versions")
-    .insert({
-      description: source.description,
-      duration_minutes: source.duration_minutes,
-      instructions: source.instructions,
-      scoring_type: source.scoring_type,
-      settings_json: source.settings_json,
-      status: "draft",
-      test_template_id: templateId.data,
-      title: formatTestVersionTitle(nextVersionNumber),
-      version_number: nextVersionNumber,
-    })
-    .select("id")
-    .single();
-  if (draftError || !draft) {
-    redirectWithFeedback(sourcePath, "error", "Не удалось создать черновую версию.");
-  }
-
-  const { data: sourceSections, error: contentError } = await admin
-    .from("test_sections")
-    .select(
-      "title, description, order_index, time_limit_minutes, settings_json, questions(question_type, text, description, media_url, order_index, points, competency_key, difficulty, settings_json, answer_options(text, match_text, order_index, is_correct, points, competency_effect_json, explanation))",
-    )
-    .eq("test_version_id", versionId.data)
-    .order("order_index");
-
-  if (contentError) {
-    await admin.from("test_versions").delete().eq("id", draft.id).eq("status", "draft");
-    redirectWithFeedback(sourcePath, "error", "Не удалось скопировать содержание опубликованной версии.");
-  }
-
-  for (const section of (sourceSections ?? []) as unknown as CloneSection[]) {
-    const { data: copiedSection, error: sectionError } = await admin
-      .from("test_sections")
-      .insert({
-        description: section.description,
-        order_index: section.order_index,
-        settings_json: section.settings_json,
-        test_version_id: draft.id,
-        time_limit_minutes: section.time_limit_minutes,
-        title: section.title,
-      })
-      .select("id")
-      .single();
-    if (sectionError || !copiedSection) {
-      await admin.from("test_versions").delete().eq("id", draft.id).eq("status", "draft");
-      redirectWithFeedback(sourcePath, "error", "Не удалось скопировать секции версии.");
-    }
-
-    for (const question of section.questions ?? []) {
-      const { data: copiedQuestion, error: questionError } = await admin
-        .from("questions")
-        .insert({
-          competency_key: question.competency_key,
-          description: question.description,
-          difficulty: question.difficulty,
-          media_url: question.media_url,
-          order_index: question.order_index,
-          points: question.points,
-          question_type: question.question_type,
-          section_id: copiedSection.id,
-          settings_json: question.settings_json,
-          text: question.text,
-        })
-        .select("id")
-        .single();
-      if (questionError || !copiedQuestion) {
-        await admin.from("test_versions").delete().eq("id", draft.id).eq("status", "draft");
-        redirectWithFeedback(sourcePath, "error", "Не удалось скопировать вопросы версии.");
-      }
-
-      if (question.answer_options?.length) {
-        const { error: optionsError } = await admin.from("answer_options").insert(
-          question.answer_options.map((option) => ({
-            competency_effect_json: option.competency_effect_json,
-            explanation: option.explanation,
-            is_correct: option.is_correct,
-            match_text: option.match_text,
-            order_index: option.order_index,
-            points: option.points,
-            question_id: copiedQuestion.id,
-            text: option.text,
-          })),
-        );
-        if (optionsError) {
-          await admin.from("test_versions").delete().eq("id", draft.id).eq("status", "draft");
-          redirectWithFeedback(sourcePath, "error", "Не удалось скопировать варианты ответов версии.");
-        }
-      }
-    }
-  }
-
-  await auditSystemVersion(context, "create_system_test_draft_from_published", draft.id, templateId.data);
   revalidateSystemTestPaths(templateId.data);
   redirectWithFeedback(
-    getBuilderPath(templateId.data, draft.id),
+    getBuilderPath(templateId.data, result.versionId),
     "message",
-    "Создан новый черновик на основе опубликованной версии.",
+    result.created ? "Создан новый черновик на основе опубликованной версии." : "Открыт уже существующий черновик.",
   );
 }
 

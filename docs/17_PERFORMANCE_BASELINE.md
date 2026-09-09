@@ -30,7 +30,7 @@
   `assessment.complete`, `assessment.expire`;
 - `scoring.candidate.calculate`, `scoring.candidate.persist`;
 - `scoring.employee.calculate`, `scoring.employee.persist`;
-- `builder.load`, `builder.import_sources`, `builder.save`.
+- `builder.load`, `builder.import_sources`, `builder.save`, `builder.clone`.
 
 Клиентские события:
 
@@ -535,3 +535,26 @@ Supabase/RLS, не многосоединительный concurrency test, не
 Флаг по умолчанию выключен, remote migrations/env не менялись. Staging-приёмка и rollout:
 `docs/28_BUILDER_INCREMENTAL_AUTOSAVE_ROLLOUT.md`. Выключение flag останавливает V2 draft
 writes; это не безопасный автоматический downgrade зарегистрированных версий в V1.
+
+## 22. PERF-009: атомарное клонирование версии — 09.09.2026
+
+Company/system actions после auth вызывают один HTTP RPC `clone_published_test_version`.
+N+1 чтение/вставки содержимого в Next.js заменены set-based копированием в одной
+транзакции с old→new ID mapping. Ответ — только ID черновика и признак создания.
+System audit входит в транзакцию; telemetry `builder.clone` измеряет RPC и проверку
+ответа, без auth, revalidation и последующей загрузки редактора.
+
+Локальный PGlite, последний полный `npm test`: **156 мс** на один clone 5 секций /
+100 вопросов / 400 вариантов (текст вопроса 2200 символов, варианта 700 символов).
+Это один синтетический замер с действующими publication/revision triggers,
+не PostgreSQL/Supabase staging, не cold/warm распределение и не подтверждение p95 ≤ 2 с.
+
+Пройдены 475 Node tests, lint/typecheck/production build, 8 browser editor и 8 browser
+import сценариев. Проверены структура всех типов в обоих scope, scoring/remediation/
+matching IDs, неизменность источника, откат каждой стадии вместе с аудитом, права и
+повторный вызов. Browser fixtures и PGlite не заменяют full Next/Supabase/RLS matrix
+или конкуренцию через отдельные соединения.
+
+Удалённые миграции/env не менялись. Staging-порог остаётся открытым; нужны минимум
+30 cold и 30 warm замеров настоящего создания draft, отдельный click-to-visible и
+приёмка concurrency/ролей. Инструкция: [rollout PERF-009](29_ATOMIC_TEST_VERSION_CLONE_ROLLOUT.md).

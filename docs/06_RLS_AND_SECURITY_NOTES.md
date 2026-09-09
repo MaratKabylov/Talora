@@ -41,6 +41,23 @@ Legacy `SUPABASE_SERVICE_ROLE_KEY` также можно использоват�
 
 Создание пакетов и assessment-сессий должно брать `FOR KEY SHARE` lock на версию перед проверкой статуса, чтобы исключить гонку с отменой публикации. Любая уже использованная опубликованная версия остается неизменяемой; для нее создается новая версия-черновик.
 
+## Atomic version clone (PERF-009)
+
+`clone_published_test_version` вызывается только сервером с `service_role`; EXECUTE для
+`public/anon/authenticated` отозван. Функция `SECURITY INVOKER`, `search_path=''`.
+Actions передают actor/company из проверенного серверного контекста, RPC повторно
+проверяет tenant, активность компании/членства, роль и ownership шаблона/версии.
+Для company scope разрешены `owner/admin/recruiter/super_admin`, для system — только
+`platform_owner/platform_admin`. Как и действующая RLS вставки версий, клонирование
+существующего теста не требует entitlement создания нового test template.
+
+Шаблон и опубликованный источник блокируются на время копирования. Полный draft,
+переназначение внутренних ID и system audit создаются одной транзакцией. Временная
+таблица mapping не переиспользует объекты вызывающего кода. Ответ не содержит
+содержимое/ключи ответов; автоматического N+1 fallback нет. Новая версия сохраняет
+совместимость с действующими publication/revision guards.
+Проверки, ограничения и порядок выпуска: [rollout PERF-009](29_ATOMIC_TEST_VERSION_CLONE_ROLLOUT.md).
+
 ## Sensitive data
 
 Не использовать для скоринга:

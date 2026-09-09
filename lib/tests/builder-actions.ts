@@ -20,6 +20,7 @@ import {
   type TestCompetencyKey,
 } from "./builder-constants";
 import { canManageTests } from "./constants";
+import { clonePublishedTestVersion } from "./clone-service";
 import { withTestContentBlocks } from "./content-blocks";
 import {
   mergePresentationSettings,
@@ -850,165 +851,16 @@ export async function createDraftFromPublishedVersionAction(formData: FormData) 
     redirectWithFeedback(previewPath, "error", "У вашей роли нет права создавать новую версию.");
   }
 
-  const supabase = await createClient();
-  const { data: template } = await supabase
-    .from("test_templates")
-    .select("id")
-    .eq("id", templateId.data)
-    .eq("company_id", context.activeCompany.id)
-    .eq("is_system", false)
-    .eq("status", "active")
-    .maybeSingle();
-  if (!template) {
-    redirectWithFeedback(previewPath, "error", "Новая версия доступна только для активного теста компании.");
-  }
-
-  const { data: existingDraft } = await supabase
-    .from("test_versions")
-    .select("id")
-    .eq("test_template_id", templateId.data)
-    .eq("status", "draft")
-    .limit(1)
-    .maybeSingle();
-  if (existingDraft) {
-    redirectWithFeedback(
-      getBuilderPath(templateId.data, existingDraft.id),
-      "message",
-      "Открыт уже существующий черновик.",
-    );
-  }
-
-  const [{ data: source }, { data: latest }] = await Promise.all([
-    supabase
-      .from("test_versions")
-      .select("description, instructions, duration_minutes, scoring_type, settings_json")
-      .eq("id", versionId.data)
-      .eq("test_template_id", templateId.data)
-      .eq("status", "published")
-      .maybeSingle(),
-    supabase
-      .from("test_versions")
-      .select("version_number")
-      .eq("test_template_id", templateId.data)
-      .order("version_number", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ]);
-  if (!source) {
-    redirectWithFeedback(previewPath, "error", "Копировать для редактирования можно только опубликованную версию.");
-  }
-
-  const nextVersionNumber = (latest?.version_number ?? 0) + 1;
-  const { data: draft, error: draftError } = await supabase
-    .from("test_versions")
-    .insert({
-      description: source.description,
-      duration_minutes: source.duration_minutes,
-      instructions: source.instructions,
-      scoring_type: source.scoring_type,
-      settings_json: source.settings_json,
-      status: "draft",
-      test_template_id: templateId.data,
-      title: formatTestVersionTitle(nextVersionNumber),
-      version_number: nextVersionNumber,
-    })
-    .select("id")
-    .single();
-  if (draftError || !draft) {
-    redirectWithFeedback(previewPath, "error", "Не удалось создать черновую версию.");
-  }
-
-  const { data: sourceSections, error: contentError } = await supabase
-    .from("test_sections")
-    .select(
-      "title, description, order_index, time_limit_minutes, settings_json, questions(question_type, text, description, media_url, order_index, points, competency_key, difficulty, settings_json, answer_options(text, match_text, order_index, is_correct, points, competency_effect_json, explanation))",
-    )
-    .eq("test_version_id", versionId.data)
-    .order("order_index");
-  if (contentError) {
-    redirectWithFeedback(getBuilderPath(templateId.data, draft.id), "error", "Черновик создан, но содержание не удалось скопировать.");
-  }
-
-  type CloneSection = {
-    description: string | null;
-    order_index: number;
-    questions?: Array<{
-      answer_options?: Array<{
-        competency_effect_json: Record<string, number>;
-        explanation: string | null;
-        is_correct: boolean | null;
-        match_text: string | null;
-        order_index: number;
-        points: number;
-        text: string;
-      }> | null;
-      competency_key: string | null;
-      description: string | null;
-      difficulty: string | null;
-      media_url: string | null;
-      order_index: number;
-      points: number;
-      question_type: string;
-      settings_json: Record<string, unknown>;
-      text: string;
-    }> | null;
-    settings_json: Record<string, unknown>;
-    time_limit_minutes: number | null;
-    title: string;
-  };
-
-  for (const section of (sourceSections ?? []) as unknown as CloneSection[]) {
-    const { data: copiedSection } = await supabase
-      .from("test_sections")
-      .insert({
-        description: section.description,
-        order_index: section.order_index,
-        settings_json: section.settings_json,
-        test_version_id: draft.id,
-        time_limit_minutes: section.time_limit_minutes,
-        title: section.title,
-      })
-      .select("id")
-      .single();
-    if (!copiedSection) continue;
-
-    for (const question of section.questions ?? []) {
-      const { data: copiedQuestion } = await supabase
-        .from("questions")
-        .insert({
-          competency_key: question.competency_key,
-          description: question.description,
-          difficulty: question.difficulty,
-          media_url: question.media_url,
-          order_index: question.order_index,
-          points: question.points,
-          question_type: question.question_type,
-          section_id: copiedSection.id,
-          settings_json: question.settings_json,
-          text: question.text,
-        })
-        .select("id")
-        .single();
-      if (!copiedQuestion || !question.answer_options?.length) continue;
-      await supabase.from("answer_options").insert(
-        question.answer_options.map((option) => ({
-          competency_effect_json: option.competency_effect_json,
-          explanation: option.explanation,
-          is_correct: option.is_correct,
-          match_text: option.match_text,
-          order_index: option.order_index,
-          points: option.points,
-          question_id: copiedQuestion.id,
-          text: option.text,
-        })),
-      );
-    }
-  }
+  const result = await clonePublishedTestVersion(
+    { userId: context.user.id, companyId: context.activeCompany.id }, templateId.data, versionId.data,
+  );
+  if (!result.ok) redirectWithFeedback(previewPath, "error", result.error);
 
   revalidatePath(`/dashboard/tests/${templateId.data}`);
+  revalidatePath("/dashboard/tests");
   redirectWithFeedback(
-    getBuilderPath(templateId.data, draft.id),
+    getBuilderPath(templateId.data, result.versionId),
     "message",
-    "Создан новый черновик на основе опубликованной версии.",
+    result.created ? "Создан новый черновик на основе опубликованной версии." : "Открыт уже существующий черновик.",
   );
 }

@@ -430,7 +430,7 @@ one-in-flight/coalescing, conflict/recovery export, flush перед preview/pub
 сохранены; зарегистрированные V2-версии защищены от V1 content writers. Локально пройдены
 462 Node tests и 16 browser scenarios, lint/typecheck/build. **Performance/staging-приёмка
 не закрыта**: full RLS, реальные concurrent connections, latency/network baseline.
-Следующий шаг для выпуска — staging rollout обеих миграций; следующая кодовая задача — PERF-009.
+Следующий шаг для выпуска — staging rollout обеих миграций; клонирование вынесено в PERF-009 ниже.
 Инструкция и ограничения rollback: `docs/28_BUILDER_INCREMENTAL_AUTOSAVE_ROLLOUT.md`.
 
 **Задача**
@@ -461,6 +461,15 @@ one-in-flight/coalescing, conflict/recovery export, flush перед preview/pub
 - Добавлены integration-тесты rollback и revision conflict.
 
 #### PERF-009 — Атомарное клонирование версии
+
+**Статус кода — 09.09.2026:** реализована общая server-only RPC для company/system actions:
+одна транзакция, set-based копирование, old→new ID mapping, remediation, matching targets,
+settings и scoring V2 (включая SJT/Forced Choice и criterion references). Повтор открывает
+существующий draft, system audit атомарен. Локально прошли 475 Node tests, 16 browser
+сценариев, lint/typecheck/build. Миграция удалённо не применялась.
+**Staging/performance-приёмка открыта:** p95 ≤ 2 с, full RLS и реальные конкурентные
+подключения не проверены. Инструкция: [rollout PERF-009](29_ATOMIC_TEST_VERSION_CLONE_ROLLOUT.md).
+Следующая кодовая задача — PERF-010.
 
 **Задача**
 
