@@ -1,0 +1,53 @@
+﻿{
+    "capturedAt":  "2026-09-10T16:21:27.6255733Z",
+    "type":  "builder_browser_acceptance_step",
+    "scope":  "No schema changes. Local acceptance only.",
+    "checks":  [
+                   {
+                       "name":  "targeted_node_builder_session_regression",
+                       "command":  "node --experimental-strip-types --test --test-isolation=none tests/builder-save-v2.test.ts tests/builder-save-v2-db.test.ts tests/builder-import-lazy.test.ts tests/builder-editor.test.ts tests/assessment-section-save-v2-db.test.ts tests/assessment-answer-v2-db.test.ts tests/assessment-completion-v2-db.test.ts",
+                       "result":  "pass",
+                       "tests":  164
+                   },
+                   {
+                       "name":  "browser_fixture_builder_import_compile_server",
+                       "command":  "npm run test:browser:builder-import",
+                       "result":  "server_started",
+                       "url":  "http://127.0.0.1:4319",
+                       "dom_status":  "not_read",
+                       "limitation":  "CUA transport closed"
+                   },
+                   {
+                       "name":  "browser_fixture_builder_editor_compile_server",
+                       "command":  "npm run test:browser:builder-editor",
+                       "result":  "server_started",
+                       "url":  "http://127.0.0.1:4320",
+                       "dom_status":  "not_read",
+                       "limitation":  "CUA transport closed"
+                   },
+                   {
+                       "name":  "browser_fixture_assessment_navigation_compile_server",
+                       "command":  "npm run test:browser:navigation",
+                       "result":  "server_started",
+                       "url":  "http://127.0.0.1:4318",
+                       "dom_status":  "not_read",
+                       "limitation":  "CUA transport closed"
+                   }
+               ],
+    "conclusion":  "Builder/session Node acceptance passed, full npm test passed 501/501, lint and typecheck passed. Browser fixtures compile and serve, but in-app browser CUA transport is closed so #result[data-status] PASS/FAIL remains unconfirmed in this environment.",
+    "fullRegression":  {
+                           "npm_test":  {
+                                            "result":  "pass",
+                                            "tests":  501,
+                                            "command":  "npm test"
+                                        },
+                           "lint":  {
+                                        "result":  "pass",
+                                        "command":  "npm run lint"
+                                    },
+                           "typecheck":  {
+                                             "result":  "pass",
+                                             "command":  "npm run typecheck"
+                                         }
+                       }
+}

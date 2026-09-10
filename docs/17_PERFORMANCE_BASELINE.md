@@ -765,3 +765,14 @@ draft fixture в транзакции с rollback, потому что published
 Артефакты сохранены в `docs/performance/PERF012_WRITE_GATE_BEFORE_*` и
 `PERF012_RLS_CATALOG_CHECK_2026-09-10.json`. Индексы всё ещё не добавлены; следующий шаг —
 по одному DDL-кандидату с after EXPLAIN/read+write gate.
+## 32. Builder/browser acceptance retry — 10.09.2026
+
+После решения остановить PERF-012 без DDL выполнен следующий безопасный acceptance step.
+Targeted Node regression для builder/session paths прошёл: **164/164**; затем полный `npm test` прошёл **501/501**, `npm run lint` и `npm run typecheck` успешны. Команда targeted regression покрыла
+builder V2 DB/RPC, builder import lazy/actions, builder editor pure logic, assessment answer,
+section save и completion V2 DB flows.
+
+Browser fixtures `test:browser:builder-import`, `test:browser:builder-editor` и
+`test:browser:navigation` собрались и подняли synthetic servers на 4319/4320/4318. DOM статус
+`#result[data-status]` не подтверждён: in-app browser CUA transport в текущем окружении закрыт.
+Артефакт: `docs/performance/PERF012_BUILDER_BROWSER_ACCEPTANCE_2026-09-10.json`.
