@@ -574,7 +574,9 @@ shapes, 30 warm EXPLAIN до/после, девять индексов и чет
 на синтетических данных текущего проекта с настоящими JWT, девять запросов ×30 warm
 замеров; тестовые доступы отключены. Дополнительно 75/75 candidate/employee RPC checks
 на тесте 100 вопросов/400 вариантов: autosave, section upsert, completion/retry; ссылки
-отключены. SQL EXPLAIN, scoring finalizer и before/after write gate не закрыты. Условия
+отключены. Scoring route/finalizer проверен отдельно: 29/29 checks через локальный
+Next `/api/assessment/complete` в текущий Supabase, persisted scores/results/reports
+и idempotent retry. SQL EXPLAIN и before/after write gate не закрыты. Условия
 выпуска: [PERF-012 benchmark](32_QUERY_INDEX_BENCHMARK.md). PERF-012 целиком не принят.
 
 **Предварительные кандидаты**

@@ -709,7 +709,8 @@ representative dataset и полных autosave/completion замеров. Об�
 По разрешению пользователя созданы два synthetic tenants, три Auth users и объёмные
 list fixtures. [Отчёт](33_STAGING_LIST_ACCEPTANCE.md),
 [list/grants JSON](performance/PERF012_STAGING_2026-09-10.json),
-[session JSON](performance/PERF012_SESSIONS_2026-09-10.json).
+[session JSON](performance/PERF012_SESSIONS_2026-09-10.json),
+[scoring JSON](performance/PERF012_SCORING_2026-09-10.json).
 
 List/RLS/grants: **122/122**, реальные JWT A/B/dual, cursor ties/nulls, полный обход,
 requested-company grants/revoke, disabled membership. Девять API shapes ×30 warm;
@@ -718,12 +719,20 @@ p95 от 308 до 532 ms, ответы примерно 6–22 KB. Это сет
 Candidate/employee RPC: **75/75**, отдельный published fixture из 100 вопросов/400 вариантов.
 Answer upsert p50/p95: candidate 293/313 ms, employee 291/330 ms; section из 100 ответов —
 389/527 и 391/552 ms, по 30 warm. Один completion в каждой области — 328/306 ms;
-retry сохраняет timestamps/answers. Скоринг не запускался, сессии дошли до ready-for-scoring.
-Нет before/after index gate.
+retry сохраняет timestamps/answers. Эти сессии дошли до ready-for-scoring; scoring
+проверен отдельным route-прогоном ниже. Нет before/after index gate.
 
-Все **197/197** проверок успешны. Три аккаунта заблокированы, четыре memberships disabled,
-две assessment invitation-ссылки expired; независимая финальная проверка 6/6.
-Тестовые данные оставлены, реальные бизнес-строки не изменялись. Миграции, индексы и flags
-не менялись. SQL EXPLAIN недоступен; полные browser, scoring, builder и performance-приёмка
-остаются открытыми. Локально **500/500 tests**, lint/typecheck/build успешны; build повторён
-вне sandbox после `spawn EPERM`. Подробная матрица и ограничения — в отчёте staging.
+Scoring route/finalizer: **29/29**, локальный Next `/api/assessment/complete` с флагами
+в текущий Supabase. Для candidate и employee проверены claim, section save, route 200,
+`completed`, `assessment_completed`, `overall_score=100`, `fit_score=100`, scoring
+revision 1, result/summary/report rows и retry без роста revision. Один first completion:
+candidate 6 058 ms, employee 3 092 ms; retry 693/344 ms. Это локальный dev server +
+удалённый Supabase, не production SLA и не p95.
+
+Все **226/226** staging-проверок успешны. Три аккаунта заблокированы, четыре memberships
+disabled, две session invitation-ссылки expired; две completed scoring-ссылки получили
+`expires_at=1970-01-01`. Тестовые данные оставлены, реальные бизнес-строки не изменялись.
+Миграции, индексы и flags не менялись. SQL EXPLAIN недоступен; полные browser, builder
+и performance-приёмка остаются открытыми. Локально **501/501 tests**, lint и typecheck
+успешны после добавления scoring; ранее production build успешен. Build/dev server
+повторялись вне sandbox после `spawn EPERM`. Подробная матрица и ограничения — в отчёте staging.

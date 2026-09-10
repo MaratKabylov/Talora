@@ -108,9 +108,9 @@ perf_run_id аккаунта и имена обеих компаний; испо
 
 - SQL EXPLAIN и стоимость индексов: SQL connection отсутствует, REST plan format
   ранее возвращал 406/PGRST107. Ни migration, ни настройка PostgREST не менялись.
-- Scoring finalizer, полный consent/token lifecycle, successor/concurrent completion,
-  draft/published builder write flows и критерий записи ≤10% остаются открытыми.
-  RPC-прогон ниже не заменяет browser/server-action acceptance.
+- Полный consent/token lifecycle, successor/concurrent completion, draft/published
+  builder write flows и критерий записи ≤10% остаются открытыми. RPC/route-прогоны
+  ниже не заменяют browser/server-action acceptance.
 - Browser E2E/Next.js route latency, admin roles/PII и остальные RLS paths вне
   перечисленной матрицы остаются отдельной приёмкой.
 - PERF-012 целиком открыт. Уже подтверждённые 25 API smoke и 32 SQL-каталожных
@@ -134,7 +134,7 @@ completion, отказ при неверном token/session/client без из�
 upsert одного ответа и раздела из 100 ответов без дублей, сохранённые option IDs/time,
 атомарный отказ duplicate-question batch, completion → ready, освобождение lease,
 сохранность ответов, идемпотентный retry и отказ late autosave.
-Ready означает готовность к отдельному scoring finalizer; итоговые scores не вычислялись.
+Ready означает готовность к отдельному scoring finalizer; итоговые scores в этом прогоне не вычислялись.
 Согласие и started/in_progress заданы как synthetic fixture: UI согласия/старта не проходился.
 Wrong-session использовал несуществующий UUID; межтенантовая подмена реальной
 assessment-сессии здесь не проверялась.
@@ -165,6 +165,38 @@ sessions-report.json до удалённых вызовов. Он пишет т�
 token/client/device IDs остаются в памяти. При аварийном завершении проверять manifest
 и expiry отдельно. Remote migrations, индексы и feature flags не изменялись.
 
-Итоговые локальные проверки: **500/500 tests**, lint, typecheck, production build.
-Build повторён вне sandbox после `spawn EPERM` на TypeScript worker. Локальные тесты
-проверяют ownership/manifest guard до любых удалённых запросов.
+## Дополнение: completion route и scoring finalizer
+
+[Scoring JSON](performance/PERF012_SCORING_2026-09-10.json): **29/29 checks**;
+общая staging-матрица стала **226/226**. Для нового прогона поднят локальный Next
+server на `localhost:3020` с completion-флагами и создан отдельный private fixture
+в той же synthetic company A: один published test version, 20 single-choice вопросов,
+80 вариантов, competency `communication`, package и по одной candidate/employee цепочке.
+Токены, client/device IDs и ответы не записывались в отчёты.
+
+Обе ветки прошли путь через реальный `/api/assessment/complete`: предварительный claim,
+section save, route completion, `completion-v2`, SQL `complete_assessment_session_v2`,
+server-side finalizer, scorer и `try_persist_scoring_snapshot`. Проверено:
+parent до запуска был unscored, после — `completed`, `current_stage=assessment_completed`,
+`overall_score=100`, `fit_score=100`, `scoring_revision=1`; invitation status `completed`;
+session score `20/20`, percentage `100`; result row, competency summary и report row
+созданы для candidate и employee. Retry completion вернул 200 и не увеличил revision.
+
+Route timings одной машины: candidate first completion 6 058 ms, retry 693 ms; employee
+first completion 3 092 ms, retry 344 ms. Это локальный Next dev + удалённый Supabase,
+не production build SLA, не browser Web Vitals и не p95.
+
+Команда требует уже поднятый локальный Next с флагами:
+
+```bash
+npm run staging:scoring -- --execute artifacts/performance/staging-new-run/report.json --base-url http://localhost:3020
+```
+
+После успешного прогона обе completed invitation-ссылки получили `expires_at=1970-01-01`
+при сохранённом `status=completed`; это подтверждено в shutdown checks. Первый ошибочный
+прогон зафиксировал неверный fixture weight `100` для `numeric(6,4)` и не дошёл до
+создания invitation; script исправлен на weight `1`, guard-тест добавлен.
+
+Итоговые локальные проверки: **501/501 tests**, lint и typecheck после добавления scoring.
+Ранее production build прошёл. Build/dev server повторялись вне sandbox после `spawn EPERM`.
+Локальные тесты проверяют ownership/manifest guard до любых удалённых запросов.

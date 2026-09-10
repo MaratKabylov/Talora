@@ -237,14 +237,19 @@ npm run perf:remote:check
 ## Авторизованный staging-прогон на текущем проекте
 
 После отдельного разрешения пользователя создан синтетический dataset и выполнены
-**122/122** assertions с настоящими Auth JWT/PostgREST/RLS, включая dual membership,
-system grant/revoke, full cursor traversal и disabled membership. Сняты 30 warm
-API-замеров для девяти запросов. Все тестовые аккаунты/членства отключены, данные
-сохранены; проверки отключения успешны. [Отчёт и ограничения](33_STAGING_LIST_ACCEPTANCE.md),
-[JSON](performance/PERF012_STAGING_2026-09-10.json).
+**122/122** list/grants assertions с настоящими Auth JWT/PostgREST/RLS, включая dual
+membership, system grant/revoke, full cursor traversal и disabled membership. Сняты
+30 warm API-замеров для девяти запросов. Затем выполнены **75/75** candidate/employee
+RPC checks на private fixture 100 вопросов/400 вариантов и **29/29** scoring route checks
+через локальный Next `/api/assessment/complete`: persisted scores/results/reports и
+idempotent retry. Все тестовые аккаунты/членства отключены, assessment links выключены
+или истекли; проверки отключения успешны. [Отчёт и ограничения](33_STAGING_LIST_ACCEPTANCE.md),
+[list/grants JSON](performance/PERF012_STAGING_2026-09-10.json),
+[session JSON](performance/PERF012_SESSIONS_2026-09-10.json),
+[scoring JSON](performance/PERF012_SCORING_2026-09-10.json).
 
-Это закрывает перечисленные list/RLS сценарии, которые раньше ожидали JWT/dataset;
-не закрывает полный browser/Next, autosave/completion и SQL EXPLAIN. Индексы не добавлены.
+Это закрывает перечисленные list/RLS/RPC/scoring-route сценарии, которые раньше ожидали
+JWT/dataset; не закрывает полный browser UI, builder flows и SQL EXPLAIN. Индексы не добавлены.
 
 ## Staging: измерения и условия выпуска
 

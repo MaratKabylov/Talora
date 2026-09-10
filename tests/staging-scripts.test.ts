@@ -51,3 +51,28 @@ test("session staging verifies source ownership and preserves an existing manife
     await unlink(source); await unlink(destination); await rmdir(directory);
   }
 });
+
+test("scoring staging verifies source ownership and preserves an existing manifest before remote access", async () => {
+  const { runScoringAcceptance } = await import(new URL("../scripts/staging-scoring-acceptance.mjs", import.meta.url).href);
+  const directory = await mkdtemp(join(tmpdir(), "talvia-scoring-manifest-"));
+  const source = join(directory, "report.json"), destination = join(directory, "scoring-report.json");
+  const env = { NEXT_PUBLIC_SUPABASE_URL: "https://fixture.example.invalid", NEXT_PUBLIC_SUPABASE_ANON_KEY: "fixture", SUPABASE_SERVICE_ROLE_KEY: "fixture" };
+  const previous = JSON.stringify({ fixtures: { owner: "owned-fixture" } });
+  await writeFile(destination, previous);
+  const manifest = { completed: true, companies: [{ id: "a" }, { id: "b" }], runId: "12345678-fixture", prefix: "PERF-STAGING-12345678", projectFingerprint: "wrong-project" };
+  await writeFile(source, JSON.stringify(manifest));
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error("Unexpected remote request"); };
+  try {
+    await assert.rejects(runScoringAcceptance(env, source, "http://localhost:3020"), /source-ownership/);
+    manifest.projectFingerprint = createHash("sha256").update(new URL(env.NEXT_PUBLIC_SUPABASE_URL).origin).digest("hex");
+    await writeFile(source, JSON.stringify(manifest));
+    await assert.rejects(runScoringAcceptance(env, source, "http://localhost:3020"), { code: "EEXIST" });
+    assert.equal(calls, 0);
+    assert.equal(await readFile(destination, "utf8"), previous);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await unlink(source); await unlink(destination); await rmdir(directory);
+  }
+});
