@@ -1,0 +1,421 @@
+{
+  "runId": "f8cc07a7-84df-43c4-a00f-c0e9cb718c6b",
+  "parentRunId": "342e429f-819f-4f68-9a18-d249fd8b4f7d",
+  "projectFingerprint": "dca5278c627042a7427abd389a8aa6b6611641290de1dc51e3cbfbf3cb6bf9b6",
+  "startedAt": "2026-09-10T10:03:20.775Z",
+  "completed": true,
+  "checks": [
+    {
+      "name": "verified-synthetic-tenant",
+      "passed": true
+    },
+    {
+      "name": "candidate:control_assessment_session_lease_v2:anon-denied",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_answer_v2:anon-denied",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_section_v2:anon-denied",
+      "passed": true
+    },
+    {
+      "name": "candidate:complete_assessment_session_v2:anon-denied",
+      "passed": true
+    },
+    {
+      "name": "candidate:claim",
+      "passed": true
+    },
+    {
+      "name": "candidate:incomplete",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_answer_v2:wrong-token",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_answer_v2:wrong-token:unchanged",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_answer_v2:wrong-session",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_answer_v2:wrong-session:unchanged",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_answer_v2:wrong-client",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_answer_v2:wrong-client:unchanged",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_section_v2:wrong-token",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_section_v2:wrong-token:unchanged",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_section_v2:wrong-session",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_section_v2:wrong-session:unchanged",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_section_v2:wrong-client",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_section_v2:wrong-client:unchanged",
+      "passed": true
+    },
+    {
+      "name": "candidate:complete_assessment_session_v2:wrong-token",
+      "passed": true
+    },
+    {
+      "name": "candidate:complete_assessment_session_v2:wrong-token:unchanged",
+      "passed": true
+    },
+    {
+      "name": "candidate:complete_assessment_session_v2:wrong-session",
+      "passed": true
+    },
+    {
+      "name": "candidate:complete_assessment_session_v2:wrong-session:unchanged",
+      "passed": true
+    },
+    {
+      "name": "candidate:complete_assessment_session_v2:wrong-client",
+      "passed": true
+    },
+    {
+      "name": "candidate:complete_assessment_session_v2:wrong-client:unchanged",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_answer_v2:upsert-cardinality",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_answer_v2:saved-values",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_section_v2:upsert-cardinality",
+      "passed": true
+    },
+    {
+      "name": "candidate:save_assessment_section_v2:saved-values",
+      "passed": true
+    },
+    {
+      "name": "candidate:duplicate-question-rejected",
+      "passed": true
+    },
+    {
+      "name": "candidate:invalid-batch-atomic",
+      "passed": true
+    },
+    {
+      "name": "candidate:ready-for-scoring",
+      "passed": true
+    },
+    {
+      "name": "candidate:session-completed",
+      "passed": true
+    },
+    {
+      "name": "candidate:completion-preserves-answers",
+      "passed": true
+    },
+    {
+      "name": "candidate:completion-retry",
+      "passed": true
+    },
+    {
+      "name": "candidate:retry-idempotent",
+      "passed": true
+    },
+    {
+      "name": "candidate:late-answer-terminal",
+      "passed": true
+    },
+    {
+      "name": "candidate:late-answer-unchanged",
+      "passed": true
+    },
+    {
+      "name": "employee:control_assessment_session_lease_v2:anon-denied",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_answer_v2:anon-denied",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_section_v2:anon-denied",
+      "passed": true
+    },
+    {
+      "name": "employee:complete_assessment_session_v2:anon-denied",
+      "passed": true
+    },
+    {
+      "name": "employee:claim",
+      "passed": true
+    },
+    {
+      "name": "employee:incomplete",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_answer_v2:wrong-token",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_answer_v2:wrong-token:unchanged",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_answer_v2:wrong-session",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_answer_v2:wrong-session:unchanged",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_answer_v2:wrong-client",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_answer_v2:wrong-client:unchanged",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_section_v2:wrong-token",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_section_v2:wrong-token:unchanged",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_section_v2:wrong-session",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_section_v2:wrong-session:unchanged",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_section_v2:wrong-client",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_section_v2:wrong-client:unchanged",
+      "passed": true
+    },
+    {
+      "name": "employee:complete_assessment_session_v2:wrong-token",
+      "passed": true
+    },
+    {
+      "name": "employee:complete_assessment_session_v2:wrong-token:unchanged",
+      "passed": true
+    },
+    {
+      "name": "employee:complete_assessment_session_v2:wrong-session",
+      "passed": true
+    },
+    {
+      "name": "employee:complete_assessment_session_v2:wrong-session:unchanged",
+      "passed": true
+    },
+    {
+      "name": "employee:complete_assessment_session_v2:wrong-client",
+      "passed": true
+    },
+    {
+      "name": "employee:complete_assessment_session_v2:wrong-client:unchanged",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_answer_v2:upsert-cardinality",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_answer_v2:saved-values",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_section_v2:upsert-cardinality",
+      "passed": true
+    },
+    {
+      "name": "employee:save_assessment_section_v2:saved-values",
+      "passed": true
+    },
+    {
+      "name": "employee:duplicate-question-rejected",
+      "passed": true
+    },
+    {
+      "name": "employee:invalid-batch-atomic",
+      "passed": true
+    },
+    {
+      "name": "employee:ready-for-scoring",
+      "passed": true
+    },
+    {
+      "name": "employee:session-completed",
+      "passed": true
+    },
+    {
+      "name": "employee:completion-preserves-answers",
+      "passed": true
+    },
+    {
+      "name": "employee:completion-retry",
+      "passed": true
+    },
+    {
+      "name": "employee:retry-idempotent",
+      "passed": true
+    },
+    {
+      "name": "employee:late-answer-terminal",
+      "passed": true
+    },
+    {
+      "name": "employee:late-answer-unchanged",
+      "passed": true
+    }
+  ],
+  "metrics": [
+    {
+      "scope": "candidate",
+      "rpc": "save_assessment_answer_v2",
+      "warmRepetitions": 30,
+      "firstMs": 309.5681000000004,
+      "p50Ms": 292.5600000000013,
+      "p95Ms": 313.46169999999984
+    },
+    {
+      "scope": "candidate",
+      "rpc": "save_assessment_section_v2",
+      "warmRepetitions": 30,
+      "firstMs": 389.1133999999947,
+      "p50Ms": 388.55189999999857,
+      "p95Ms": 526.8622000000032
+    },
+    {
+      "scope": "candidate",
+      "rpc": "complete_assessment_session_v2",
+      "repetitions": 1,
+      "durationMs": 327.91369999999733
+    },
+    {
+      "scope": "employee",
+      "rpc": "save_assessment_answer_v2",
+      "warmRepetitions": 30,
+      "firstMs": 325.0908999999956,
+      "p50Ms": 291.40359999999055,
+      "p95Ms": 329.68039999999746
+    },
+    {
+      "scope": "employee",
+      "rpc": "save_assessment_section_v2",
+      "warmRepetitions": 30,
+      "firstMs": 433.6695000000036,
+      "p50Ms": 390.98679999999877,
+      "p95Ms": 551.765699999989
+    },
+    {
+      "scope": "employee",
+      "rpc": "complete_assessment_session_v2",
+      "repetitions": 1,
+      "durationMs": 306.22359999999753
+    }
+  ],
+  "fixtures": {
+    "company": "4042019d-0b25-43b8-a0c1-c44c55897a9d",
+    "template": "b815780a-ec50-4753-a782-1cf3749de7b4",
+    "version": "5f399cc6-07f4-4cd2-aa30-7539687086cf",
+    "section": "fea494ce-9f7c-409e-9354-20766330e3c1",
+    "package": "b0f65aaa-604f-43e8-a144-fff1086384c5",
+    "scopes": [
+      {
+        "scope": "candidate",
+        "person": "f2fd2e24-a364-4cb4-8f46-ec4609fc2e39",
+        "context": "5620119b-4fbf-4b87-87e6-0c6f092e3a91",
+        "owner": "4a402031-8e24-4984-a306-9219e9b6b76f",
+        "session": "77b65b54-5ecb-405f-ba04-12d5c0fb3ef6",
+        "invitation": "6ed75fdb-a5be-4cd6-8773-3c76bc970d56"
+      },
+      {
+        "scope": "employee",
+        "person": "0c17e003-1094-4bea-82c9-a0ea01daf948",
+        "context": "9f1ba728-f88c-4796-b3d4-68ba8ae32fda",
+        "owner": "ddbbb967-f225-4652-a509-e6f8ed665eb6",
+        "session": "e3f9148f-8c40-414b-8e9f-11e64aabf8a7",
+        "invitation": "f4cd6e57-d845-4144-83e6-24482ca10bb3"
+      }
+    ]
+  },
+  "shutdown": [
+    {
+      "name": "invitations:expire-test-token",
+      "passed": true
+    },
+    {
+      "name": "employee_assessment_invitations:expire-test-token",
+      "passed": true
+    }
+  ],
+  "scope": "Synthetic candidate/employee server-only RPC behavior; real 100-question/400-option published version. No scoring finalizer or browser, no index before/after comparison.",
+  "finishedAt": "2026-09-10T10:04:58.691Z",
+  "independentShutdown": {
+    "checkedAt": "2026-09-10T10:05:59.992Z",
+    "checks": [
+      {
+        "name": "candidate:invitation-expired",
+        "passed": true
+      },
+      {
+        "name": "employee:invitation-expired",
+        "passed": true
+      },
+      {
+        "name": "all-four-memberships-disabled",
+        "passed": true
+      },
+      {
+        "name": "A:user-banned",
+        "passed": true
+      },
+      {
+        "name": "B:user-banned",
+        "passed": true
+      },
+      {
+        "name": "dual:user-banned",
+        "passed": true
+      }
+    ]
+  }
+}

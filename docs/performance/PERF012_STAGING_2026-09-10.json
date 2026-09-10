@@ -1,0 +1,1004 @@
+{
+  "acceptance": {
+    "runId": "342e429f-819f-4f68-9a18-d249fd8b4f7d",
+    "prefix": "PERF-STAGING-342e429f",
+    "startedAt": "2026-09-10T09:38:14.733Z",
+    "completed": true,
+    "projectFingerprint": "dca5278c627042a7427abd389a8aa6b6611641290de1dc51e3cbfbf3cb6bf9b6",
+    "scope": "Authorized current project, isolated synthetic tenants. Real Supabase Auth/PostgREST/RLS; no SQL DDL, flags, deletes or existing business-row changes.",
+    "limitations": "List acceptance and API latency only. Seeded completed statuses/scores are fixtures, not execution of scoring. No native browser, SQL EXPLAIN, cold I/O, index before/after or full autosave/completion acceptance.",
+    "companies": [
+      {
+        "id": "4042019d-0b25-43b8-a0c1-c44c55897a9d",
+        "name": "PERF-STAGING-342e429f A"
+      },
+      {
+        "id": "25ea2b61-70a6-4b2b-af80-8b16a3739c77",
+        "name": "PERF-STAGING-342e429f B"
+      }
+    ],
+    "users": [
+      {
+        "label": "A",
+        "id": "730d2d1e-7faa-427e-b81b-614b6b89b65c"
+      },
+      {
+        "label": "B",
+        "id": "8b9aaed0-57a5-434e-9fac-163f5d2cf786"
+      },
+      {
+        "label": "dual",
+        "id": "1c9d3c09-2b91-49d2-8ac7-bf447efa39aa"
+      }
+    ],
+    "dataset": {
+      "companies": 2,
+      "company_users": 4,
+      "assessment_packages": 38,
+      "jobs": 126,
+      "test_templates": 64,
+      "test_versions": 64,
+      "candidates": 1314,
+      "candidate_applications": 1314,
+      "invitations": 12,
+      "employee_assessments": 110,
+      "employees": 154,
+      "employee_assessment_participants": 154
+    },
+    "checks": [
+      {
+        "name": "rls:jobs:A",
+        "passed": true
+      },
+      {
+        "name": "rls:jobs:B",
+        "passed": true
+      },
+      {
+        "name": "rls:jobs:dual",
+        "passed": true
+      },
+      {
+        "name": "rls:candidate_applications:A",
+        "passed": true
+      },
+      {
+        "name": "rls:candidate_applications:B",
+        "passed": true
+      },
+      {
+        "name": "rls:candidate_applications:dual",
+        "passed": true
+      },
+      {
+        "name": "rls:employee_assessment_participants:A",
+        "passed": true
+      },
+      {
+        "name": "rls:employee_assessment_participants:B",
+        "passed": true
+      },
+      {
+        "name": "rls:employee_assessment_participants:dual",
+        "passed": true
+      },
+      {
+        "name": "rls:test_template_list:A",
+        "passed": true
+      },
+      {
+        "name": "rls:test_template_list:B",
+        "passed": true
+      },
+      {
+        "name": "rls:test_template_list:dual",
+        "passed": true
+      },
+      {
+        "name": "rls:assessment_package_list:A",
+        "passed": true
+      },
+      {
+        "name": "rls:assessment_package_list:B",
+        "passed": true
+      },
+      {
+        "name": "rls:assessment_package_list:dual",
+        "passed": true
+      },
+      {
+        "name": "rls:employee_assessment_list:A",
+        "passed": true
+      },
+      {
+        "name": "rls:employee_assessment_list:B",
+        "passed": true
+      },
+      {
+        "name": "rls:employee_assessment_list:dual",
+        "passed": true
+      },
+      {
+        "name": "list_company_test_templates:dual-requested-company",
+        "passed": true
+      },
+      {
+        "name": "list_company_test_templates:nonmember",
+        "passed": true
+      },
+      {
+        "name": "list_company_assessment_packages:dual-requested-company",
+        "passed": true
+      },
+      {
+        "name": "list_company_assessment_packages:nonmember",
+        "passed": true
+      },
+      {
+        "name": "cross-tenant-update-empty",
+        "passed": true
+      },
+      {
+        "name": "cross-tenant-update-unchanged",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-0:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-1:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-2:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-3:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-4:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-5:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-6:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-7:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-8:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-9:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-10:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-11:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-12:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-13:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-14:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-15:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-16:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-17:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-18:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-19:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-20:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-21:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:page-22:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_asc:no-gaps-or-duplicates",
+        "passed": true
+      },
+      {
+        "name": "jobs-date_asc:page-0:bounded",
+        "passed": true
+      },
+      {
+        "name": "jobs-date_asc:page-1:bounded",
+        "passed": true
+      },
+      {
+        "name": "jobs-date_asc:no-gaps-or-duplicates",
+        "passed": true
+      },
+      {
+        "name": "participants-date_asc:page-0:bounded",
+        "passed": true
+      },
+      {
+        "name": "participants-date_asc:page-1:bounded",
+        "passed": true
+      },
+      {
+        "name": "participants-date_asc:page-2:bounded",
+        "passed": true
+      },
+      {
+        "name": "participants-date_asc:no-gaps-or-duplicates",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-0:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-1:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-2:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-3:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-4:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-5:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-6:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-7:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-8:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-9:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-10:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-11:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-12:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-13:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-14:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-15:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-16:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-17:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-18:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-19:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-20:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-21:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:page-22:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-date_desc:no-gaps-or-duplicates",
+        "passed": true
+      },
+      {
+        "name": "jobs-date_desc:page-0:bounded",
+        "passed": true
+      },
+      {
+        "name": "jobs-date_desc:page-1:bounded",
+        "passed": true
+      },
+      {
+        "name": "jobs-date_desc:no-gaps-or-duplicates",
+        "passed": true
+      },
+      {
+        "name": "participants-date_desc:page-0:bounded",
+        "passed": true
+      },
+      {
+        "name": "participants-date_desc:page-1:bounded",
+        "passed": true
+      },
+      {
+        "name": "participants-date_desc:page-2:bounded",
+        "passed": true
+      },
+      {
+        "name": "participants-date_desc:no-gaps-or-duplicates",
+        "passed": true
+      },
+      {
+        "name": "applications-filtered:page-0:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-filtered:page-1:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-filtered:page-2:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-filtered:page-3:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-filtered:page-4:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-filtered:page-5:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-filtered:page-6:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-filtered:page-7:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-filtered:page-8:bounded",
+        "passed": true
+      },
+      {
+        "name": "applications-filtered:no-gaps-or-duplicates",
+        "passed": true
+      },
+      {
+        "name": "candidate_applications:fit_asc:ties-nulls-no-gaps",
+        "passed": true
+      },
+      {
+        "name": "candidate_applications:fit_desc:ties-nulls-no-gaps",
+        "passed": true
+      },
+      {
+        "name": "employee_assessment_participants:fit_asc:ties-nulls-no-gaps",
+        "passed": true
+      },
+      {
+        "name": "employee_assessment_participants:fit_desc:ties-nulls-no-gaps",
+        "passed": true
+      },
+      {
+        "name": "latest-invitation-per-parent",
+        "passed": true
+      },
+      {
+        "name": "inner-name-search",
+        "passed": true
+      },
+      {
+        "name": "empty-search",
+        "passed": true
+      },
+      {
+        "name": "disabled-membership-denied",
+        "passed": true
+      }
+    ],
+    "metrics": [
+      {
+        "name": "jobs",
+        "firstMs": 457.226800000004,
+        "repetitions": 30,
+        "p50Ms": 294.0316000000021,
+        "p95Ms": 307.9770999999964,
+        "maxJsonBytes": 10958,
+        "samplesMs": [
+          296.1506999999983,
+          309.53830000000016,
+          293.78659999999945,
+          293.82630000000063,
+          295.49839999999676,
+          275.3807000000015,
+          284.0225999999966,
+          305.2832000000053,
+          282.8352999999988,
+          293.7444000000032,
+          295.0433000000048,
+          290.1380000000063,
+          291.39539999999397,
+          307.9770999999964,
+          299.20529999999417,
+          301.1415999999954,
+          296.9262000000017,
+          299.10089999999764,
+          282.4827000000005,
+          294.0316000000021,
+          294.39850000000297,
+          281.3073000000004,
+          276.04209999999875,
+          293.9164000000019,
+          294.89110000000073,
+          293.1333000000013,
+          291.4253000000026,
+          301.61170000000857,
+          299.08430000000226,
+          297.3402999999962
+        ]
+      },
+      {
+        "name": "templates-rpc",
+        "firstMs": 478.9291999999987,
+        "repetitions": 30,
+        "p50Ms": 486.1521999999968,
+        "p95Ms": 532.4177000000054,
+        "maxJsonBytes": 22273,
+        "samplesMs": [
+          495.4792000000016,
+          487.1869000000006,
+          479.63409999999567,
+          471.6664000000019,
+          485.258799999996,
+          493.75620000000345,
+          470.07709999999497,
+          460.17429999999877,
+          494.5746999999974,
+          498.9149000000034,
+          507.0301999999938,
+          481.90780000000086,
+          495.44550000000163,
+          472.40959999999905,
+          497.79379999999946,
+          486.1521999999968,
+          484.9673000000039,
+          481.9850000000006,
+          505.5198999999993,
+          472.2644,
+          484.8393000000069,
+          532.4177000000054,
+          484.6620000000112,
+          483.0966000000044,
+          492.0539999999892,
+          492.90320000000065,
+          483.57369999999355,
+          493.4890999999916,
+          538.3015000000014,
+          501.35609999998996
+        ]
+      },
+      {
+        "name": "packages-rpc",
+        "firstMs": 306.450399999987,
+        "repetitions": 30,
+        "p50Ms": 301.4472999999998,
+        "p95Ms": 344.37399999999616,
+        "maxJsonBytes": 7426,
+        "samplesMs": [
+          299.75160000000324,
+          312.2722999999969,
+          288.0256000000081,
+          295.5040000000008,
+          280.9250000000029,
+          293.6863999999914,
+          303.42059999999765,
+          296.6073000000033,
+          297.0326000000059,
+          297.7494000000006,
+          344.37399999999616,
+          325.66509999999835,
+          330.6823000000004,
+          308.8127999999997,
+          323.8188999999984,
+          304.3487000000023,
+          286.32620000001043,
+          300.58600000001024,
+          300.5392000000138,
+          300.24229999999807,
+          624.7946000000084,
+          308.2948000000033,
+          325.0497999999934,
+          302.93339999999444,
+          303.0063999999984,
+          302.1206000000093,
+          302.1496000000043,
+          296.3156999999919,
+          300.4103000000032,
+          301.4472999999998
+        ]
+      },
+      {
+        "name": "assessments-view",
+        "firstMs": 311.30280000000494,
+        "repetitions": 30,
+        "p50Ms": 301.49610000000393,
+        "p95Ms": 530.4631999999983,
+        "maxJsonBytes": 14686,
+        "samplesMs": [
+          277.50359999999637,
+          295.3370000000141,
+          306.97859999998764,
+          305.6518999999971,
+          305.47669999999925,
+          328.3999999999942,
+          306.9192000000039,
+          307.82859999999346,
+          530.4631999999983,
+          345.9039000000048,
+          284.95269999999437,
+          285.05539999999746,
+          627.7733000000007,
+          310.40729999999166,
+          301.49610000000393,
+          297.3084999999992,
+          290.6200000000099,
+          314.2713000000076,
+          305.875,
+          293.34820000000764,
+          279.60779999999795,
+          294.98429999999644,
+          294.9207000000024,
+          294.0926000000036,
+          274.82709999999497,
+          307.09749999998894,
+          296.0076999999874,
+          439.86380000000645,
+          291.3371999999945,
+          303.71749999999884
+        ]
+      },
+      {
+        "name": "candidates",
+        "firstMs": 379.68979999999283,
+        "repetitions": 30,
+        "p50Ms": 365.07210000000487,
+        "p95Ms": 387.71680000000924,
+        "maxJsonBytes": 10827,
+        "samplesMs": [
+          363.92149999999674,
+          367.3732000000018,
+          354.49009999999544,
+          383.119200000001,
+          377.38120000000345,
+          366.3776000000071,
+          387.71680000000924,
+          364.92529999998806,
+          372.41350000000966,
+          365.4146999999939,
+          361.40290000000095,
+          360.0500000000029,
+          360.65350000000035,
+          365.22849999999744,
+          365.07210000000487,
+          365.10059999999066,
+          361.07820000000356,
+          367.7746999999945,
+          360.67050000000745,
+          690.0246999999945,
+          373.98079999999027,
+          369.7478000000119,
+          368.0109000000084,
+          363.14740000000165,
+          361.05770000000484,
+          363.4841000000015,
+          363.2849000000133,
+          376.7986000000092,
+          361.9088000000047,
+          362.4655999999959
+        ]
+      },
+      {
+        "name": "job-candidates",
+        "firstMs": 329.8003999999928,
+        "repetitions": 30,
+        "p50Ms": 332.11729999999807,
+        "p95Ms": 360.3125,
+        "maxJsonBytes": 9955,
+        "samplesMs": [
+          334.7820999999967,
+          334.8655999999901,
+          325.9423999999999,
+          336.65400000000955,
+          329.86870000000636,
+          348.528999999995,
+          356.13820000000123,
+          359.12309999999707,
+          340.429999999993,
+          327.4348000000027,
+          324.7838999999949,
+          336.74520000000484,
+          332.11729999999807,
+          329.98700000000827,
+          323.0713000000105,
+          339.5311000000074,
+          360.3125,
+          330.7467999999935,
+          320.8090000000084,
+          340.72580000000016,
+          328.97009999999136,
+          347.3130999999994,
+          336.32940000000235,
+          357.3240000000078,
+          655.1251000000047,
+          326.516100000008,
+          317.1149000000005,
+          324.48979999999574,
+          323.90920000000915,
+          325.6625000000058
+        ]
+      },
+      {
+        "name": "participants",
+        "firstMs": 294.983899999992,
+        "repetitions": 30,
+        "p50Ms": 297.127800000002,
+        "p95Ms": 421.21429999999236,
+        "maxJsonBytes": 9903,
+        "samplesMs": [
+          298.0619999999908,
+          295.26920000000973,
+          295.6600999999937,
+          294.30659999999625,
+          291.37850000000617,
+          278.02870000000985,
+          298.5561000000016,
+          297.05850000001374,
+          321.2451000000001,
+          298.9363000000012,
+          302.783500000005,
+          608.0727999999945,
+          301.92979999999807,
+          299.1174000000028,
+          286.4947000000102,
+          278.32450000000244,
+          300.7134000000078,
+          303.7560999999987,
+          297.127800000002,
+          297.73649999999907,
+          303.945000000007,
+          284.28289999999106,
+          310.24280000000726,
+          289.84070000000065,
+          421.21429999999236,
+          303.809500000003,
+          296.66500000000815,
+          295.76170000000275,
+          292.30569999999716,
+          295.19879999998375
+        ]
+      },
+      {
+        "name": "candidate-comparison",
+        "firstMs": 343.4331999999995,
+        "repetitions": 30,
+        "p50Ms": 330.2695999999996,
+        "p95Ms": 374.07379999998375,
+        "maxJsonBytes": 8315,
+        "samplesMs": [
+          325.50380000000587,
+          637.2442999999912,
+          324.9369000000006,
+          324.1667000000016,
+          333.6940000000177,
+          312.13099999999395,
+          374.07379999998375,
+          339.80890000000363,
+          325.559500000003,
+          311.32989999998244,
+          338.19109999999637,
+          329.97239999999874,
+          329.42439999998896,
+          332.1912000000011,
+          315.79199999998673,
+          330.2695999999996,
+          330.83319999999367,
+          332.6681999999855,
+          330.9482999999891,
+          314.31219999998575,
+          339.32949999999255,
+          323.22490000000107,
+          324.22179999999935,
+          339.17149999999674,
+          328.532200000016,
+          333.7787000000244,
+          319.5255000000179,
+          334.6165000000037,
+          334.6281000000017,
+          331.91130000000703
+        ]
+      },
+      {
+        "name": "employee-comparison",
+        "firstMs": 311.23260000001756,
+        "repetitions": 30,
+        "p50Ms": 301.7551000000094,
+        "p95Ms": 326.6396999999997,
+        "maxJsonBytes": 6424,
+        "samplesMs": [
+          301.7551000000094,
+          298.7209000000148,
+          279.2982999999949,
+          300.26050000000396,
+          303.4053000000131,
+          292.695699999982,
+          296.57379999998375,
+          318.2655000000086,
+          299.18580000000657,
+          316.8257000000158,
+          292.4815000000235,
+          305.1989000000176,
+          304.5179000000062,
+          296.7980999999854,
+          326.6396999999997,
+          303.65400000000955,
+          291.9193999999843,
+          616.8557000000146,
+          298.6359999999986,
+          308.4538000000175,
+          314.8508000000147,
+          299.9574000000139,
+          308.4902000000002,
+          292.0368000000017,
+          307.3761999999988,
+          294.83400000000256,
+          315.36350000000675,
+          310.2551000000094,
+          287.10759999998845,
+          303.7167999999947
+        ]
+      }
+    ],
+    "shutdown": [
+      {
+        "user": "A",
+        "operation": "disable-memberships",
+        "passed": true,
+        "code": null
+      },
+      {
+        "user": "A",
+        "operation": "ban-test-user",
+        "passed": true,
+        "code": null
+      },
+      {
+        "user": "A",
+        "operation": "revoke-test-sessions",
+        "passed": true,
+        "code": null
+      },
+      {
+        "user": "B",
+        "operation": "disable-memberships",
+        "passed": true,
+        "code": null
+      },
+      {
+        "user": "B",
+        "operation": "ban-test-user",
+        "passed": true,
+        "code": null
+      },
+      {
+        "user": "B",
+        "operation": "revoke-test-sessions",
+        "passed": true,
+        "code": null
+      },
+      {
+        "user": "dual",
+        "operation": "disable-memberships",
+        "passed": true,
+        "code": null
+      },
+      {
+        "user": "dual",
+        "operation": "ban-test-user",
+        "passed": true,
+        "code": null
+      },
+      {
+        "user": "dual",
+        "operation": "revoke-test-sessions",
+        "passed": true,
+        "code": null
+      }
+    ],
+    "finishedAt": "2026-09-10T09:40:52.566Z"
+  },
+  "grants": {
+    "runId": "342e429f-819f-4f68-9a18-d249fd8b4f7d",
+    "startedAt": "2026-09-10T09:42:49.821Z",
+    "completed": true,
+    "checks": [
+      {
+        "name": "system-templates-initially-hidden",
+        "passed": true
+      },
+      {
+        "name": "system-package-initially-hidden",
+        "passed": true
+      },
+      {
+        "name": "system-templates-granted-A",
+        "passed": true
+      },
+      {
+        "name": "system-package-granted-A",
+        "passed": true
+      },
+      {
+        "name": "dual-membership-does-not-leak-templates-to-B",
+        "passed": true
+      },
+      {
+        "name": "dual-membership-does-not-leak-package-to-B",
+        "passed": true
+      },
+      {
+        "name": "templates-revoked-from-A",
+        "passed": true
+      },
+      {
+        "name": "package-revoked-from-A",
+        "passed": true
+      },
+      {
+        "name": "templates-visible-to-B-after-move",
+        "passed": true
+      },
+      {
+        "name": "package-visible-to-B-after-move",
+        "passed": true
+      },
+      {
+        "name": "templates:date_asc:no-gaps",
+        "passed": true
+      },
+      {
+        "name": "templates:date_desc:no-gaps",
+        "passed": true
+      },
+      {
+        "name": "packages:date_asc:no-gaps",
+        "passed": true
+      },
+      {
+        "name": "packages:date_desc:no-gaps",
+        "passed": true
+      },
+      {
+        "name": "assessments:date_asc:no-gaps",
+        "passed": true
+      },
+      {
+        "name": "assessments:date_desc:no-gaps",
+        "passed": true
+      },
+      {
+        "name": "disabled-membership-hides-system-grant",
+        "passed": true
+      },
+      {
+        "name": "disabled-membership-hides-system-package",
+        "passed": true
+      }
+    ],
+    "shutdown": [
+      {
+        "name": "disable-memberships",
+        "passed": true
+      },
+      {
+        "name": "ban-test-user",
+        "passed": true
+      },
+      {
+        "name": "revoke-sessions",
+        "passed": true
+      }
+    ],
+    "scope": "Synthetic dual user only; existing published system package contents are read by ID, never modified. Grants are created only on the two synthetic companies and moved A to B for revoke coverage.",
+    "grantedTemplateCount": 4,
+    "finishedAt": "2026-09-10T09:43:06.826Z"
+  },
+  "shutdown": {
+    "checkedAt": "2026-09-10T09:45:33.770Z",
+    "runId": "342e429f-819f-4f68-9a18-d249fd8b4f7d",
+    "checks": [
+      {
+        "name": "all-four-test-memberships-disabled",
+        "passed": true
+      },
+      {
+        "name": "A:test-user-ban-verified",
+        "passed": true
+      },
+      {
+        "name": "B:test-user-ban-verified",
+        "passed": true
+      },
+      {
+        "name": "dual:test-user-ban-verified",
+        "passed": true
+      }
+    ]
+  }
+}

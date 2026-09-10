@@ -569,7 +569,12 @@ shapes, 30 warm EXPLAIN до/после, девять индексов и чет
 миграции текущий проект проверен через API: 25/25 smoke checks, REST EXPLAIN возвращает
 406/PGRST107. Получен пользовательский SQL-результат: PostgreSQL 17.6, 32/32 checks,
 34 индекса valid/ready; обнаружены два перекрытия token с UNIQUE-индексами, ничего
-не удалялось. Production-like EXPLAIN и полные autosave/upsert ожидаются. Артефакты и условия
+не удалялось. Production-like EXPLAIN и before/after write gate ожидаются. Результаты
+дополнены [staging list/RLS suite](33_STAGING_LIST_ACCEPTANCE.md): 122/122 assertions
+на синтетических данных текущего проекта с настоящими JWT, девять запросов ×30 warm
+замеров; тестовые доступы отключены. Дополнительно 75/75 candidate/employee RPC checks
+на тесте 100 вопросов/400 вариантов: autosave, section upsert, completion/retry; ссылки
+отключены. SQL EXPLAIN, scoring finalizer и before/after write gate не закрыты. Условия
 выпуска: [PERF-012 benchmark](32_QUERY_INDEX_BENCHMARK.md). PERF-012 целиком не принят.
 
 **Предварительные кандидаты**

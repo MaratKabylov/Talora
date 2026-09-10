@@ -4,8 +4,11 @@
 [CURRENT_STATE](CURRENT_STATE.md). Пользователь сообщил о применении миграции.
 В текущем проекте API подтверждает обе функции и запрет вызова anon/service role:
 [remote smoke](32_QUERY_INDEX_BENCHMARK.md). Получен [SQL-результат пользователя](performance/PERF012_SQL_VERIFICATION_2026-09-10.json):
-PERF-011 13/13, проверяемые свойства функций/grants подтверждены. Authenticated/RLS,
-performance-приёмка, полные тела функций и история миграций ещё не проверены.
+PERF-011 13/13, проверяемые свойства функций/grants подтверждены. Полная performance-
+приёмка, тела функций и история миграций ещё не сверены.
+Позднее выполнен [реальный staging list/RLS suite](33_STAGING_LIST_ACCEPTANCE.md):
+полный cursor-обход, ties/nulls, scope grant/revoke и disabled membership прошли.
+Browser/Next route acceptance и полный performance gate остаются открытыми.
 
 ## Поведение
 

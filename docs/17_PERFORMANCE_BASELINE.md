@@ -703,3 +703,27 @@ invitations; каждый занимает 16 KiB. Ничего не удаля�
 representative dataset и полных autosave/completion замеров. Обновлены только
 документы/JSON: проверены структура, количество/уникальность/успех checks, индексы,
 ссылки и diff. Сборка и тесты приложения в этом продолжении не запускались.
+
+## 29. Авторизованный staging в текущем проекте — 10.09.2026
+
+По разрешению пользователя созданы два synthetic tenants, три Auth users и объёмные
+list fixtures. [Отчёт](33_STAGING_LIST_ACCEPTANCE.md),
+[list/grants JSON](performance/PERF012_STAGING_2026-09-10.json),
+[session JSON](performance/PERF012_SESSIONS_2026-09-10.json).
+
+List/RLS/grants: **122/122**, реальные JWT A/B/dual, cursor ties/nulls, полный обход,
+requested-company grants/revoke, disabled membership. Девять API shapes ×30 warm;
+p95 от 308 до 532 ms, ответы примерно 6–22 KB. Это сеть + PostgREST, не Next route SLA.
+
+Candidate/employee RPC: **75/75**, отдельный published fixture из 100 вопросов/400 вариантов.
+Answer upsert p50/p95: candidate 293/313 ms, employee 291/330 ms; section из 100 ответов —
+389/527 и 391/552 ms, по 30 warm. Один completion в каждой области — 328/306 ms;
+retry сохраняет timestamps/answers. Скоринг не запускался, сессии дошли до ready-for-scoring.
+Нет before/after index gate.
+
+Все **197/197** проверок успешны. Три аккаунта заблокированы, четыре memberships disabled,
+две assessment invitation-ссылки expired; независимая финальная проверка 6/6.
+Тестовые данные оставлены, реальные бизнес-строки не изменялись. Миграции, индексы и flags
+не менялись. SQL EXPLAIN недоступен; полные browser, scoring, builder и performance-приёмка
+остаются открытыми. Локально **500/500 tests**, lint/typecheck/build успешны; build повторён
+вне sandbox после `spawn EPERM`. Подробная матрица и ограничения — в отчёте staging.

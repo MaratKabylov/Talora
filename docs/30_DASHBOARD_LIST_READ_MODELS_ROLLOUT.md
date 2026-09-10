@@ -7,6 +7,9 @@
 PERF-010 19/19, включая security_invoker, grants и base RLS enabled. Полные тела
 определений, полноценная JWT/RLS matrix и performance-приёмка остаются открытыми.
 Полный запрет scoring JSON для employee comparison остаётся открытым до PERF-014.
+После разрешения на тестовые данные пройден [реальный list/RLS staging suite](33_STAGING_LIST_ACCEPTANCE.md):
+122 assertions, grant/revoke и dual membership, девять API baseline queries.
+Это ограниченная backend-приёмка; browser/full scoring paths и полный route payload открыты.
 
 ## Изменения
 
