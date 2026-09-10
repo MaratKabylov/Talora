@@ -618,3 +618,28 @@ Browser E2E ? PostgREST transport ? ???? ???? ?? ???????????.
 ????????? ?? staging ????? PERF-012. ??? ???????????? ?????????? ????/fit cursor
 ?? ???????????? snapshot. ????????? ???????? ?? ?????????; ??????? ??????? ?
 ??????? ? [rollout PERF-011](31_DASHBOARD_CURSOR_PAGINATION_ROLLOUT.md).
+
+## 25. PERF-012: локальный EXPLAIN и стоимость индексов — 10.09.2026
+
+Добавлен `npm run perf:indexes`: две независимые синтетические PGlite БД, 47 SELECT
+shapes, 30 warm повторов до/после, девять дополнительных индексов и четыре write
+proxies. Сохранены полные планы/BUFFERS, времена, размеры, source hashes и проверка
+одинакового результата. [Артефакт](performance/PERF012_LOCAL_2026-09-10.json) и
+[методика/таблица результатов](32_QUERY_INDEX_BENCHMARK.md).
+
+Dataset: 8 компаний, 8 000 jobs, по 32 000 applications и participants, 100 templates
+и draft versions, 10 000 questions / 40 000 options. Это частичный fixture из
+production CREATE TABLE, без полной истории миграций, RLS, triggers и PostgREST.
+PostgreSQL 18.3 / PGlite 0.5.8, Node 24.14.0; это не staging PostgreSQL 15 baseline.
+
+Основные DESC-списки и questions/options используют новые Index Scan. Стоимость
+дополнительных индексов — 14 565 376 bytes в fixture. Application score-update p50:
+1.557 → 2.540 ms; employee score-update: 1.206 → 1.983 ms. Общий набор не принят
+для выпуска; стоимость отдельных индексов и реальных autosave/upsert ещё не доказана.
+Точное локальное ускорение нельзя переносить на production: WASM/JIT, кеши,
+последовательность фаз и rollback bloat влияют на времена.
+
+`supabase/verification/performance_index_inventory.sql` проверен локально:
+19 существующих индексов valid/ready. Регрессия 496/496, lint, typecheck и build
+успешны. Миграции не созданы/не применены; staging, cold I/O, route bytes/p50/p95,
+RLS/embedding/RPC pushdown и критерий autosave/upsert ≤10% остаются открытыми.

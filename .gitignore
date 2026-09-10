@@ -21,6 +21,7 @@ pnpm-debug.log*
 
 # testing
 /coverage
+/artifacts/performance/
 
 # typescript
 *.tsbuildinfo

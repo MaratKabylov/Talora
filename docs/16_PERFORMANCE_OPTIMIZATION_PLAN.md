@@ -562,6 +562,12 @@ Staging/PostgREST/performance-приёмка открыта. Вспомогат�
 
 #### PERF-012 — Индексы под подтвержденные запросы
 
+**Статус на 10.09.2026:** локальный диагностический этап выполнен: 47 SELECT shapes,
+30 warm EXPLAIN до/после, девять экспериментальных индексов и четыре write proxies.
+Score-update proxies ухудшились; миграция набора не создана. Production-like EXPLAIN,
+полные autosave/upsert и отдельный отбор индексов ожидают staging. Артефакты и условия
+выпуска: [PERF-012 benchmark](32_QUERY_INDEX_BENCHMARK.md). PERF-012 целиком не принят.
+
 **Предварительные кандидаты**
 
 ```sql
