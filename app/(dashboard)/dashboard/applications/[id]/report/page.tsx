@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import { EmptyState } from "@/components/empty-state";
@@ -18,6 +19,8 @@ import {
 } from "@/lib/candidates/constants";
 import {
   getCandidateReportData,
+  getCandidateReportDetailsData,
+  type CandidateReportDetailsData,
   type ReportIntegrityEventType,
 } from "@/lib/reports/data";
 import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
@@ -87,13 +90,7 @@ export default async function CandidateReportPage({
   const mayCancel =
     canManageCandidates(context.activeCompany.role) && canCancelCandidateAssessment(report.status);
   const reportPath = `/dashboard/applications/${report.id}/report`;
-  const answerCounts = report.tests.reduce(
-    (counts, test) => ({
-      correct: counts.correct + test.correctAnswersCount,
-      incorrect: counts.incorrect + test.incorrectAnswersCount,
-    }),
-    { correct: 0, incorrect: 0 },
-  );
+  const detailsPromise = getCandidateReportDetailsData(context.activeCompany.id, id);
 
   return (
     <div className="space-y-6">
@@ -218,87 +215,9 @@ export default async function CandidateReportPage({
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle>Контроль прохождения</CardTitle>
-              <CardDescription className="mt-1">
-                События показываются отдельно и не изменяют overall score или fit score.
-              </CardDescription>
-            </div>
-            <span
-              className={
-                report.integrity.status === "critical"
-                  ? "rounded-full bg-destructive/10 px-3 py-1 text-sm font-medium text-destructive"
-                  : report.integrity.status === "attention"
-                    ? "rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary"
-                    : "rounded-full bg-muted px-3 py-1 text-sm font-medium"
-              }
-            >
-              {report.integrity.status === "critical"
-                ? "Существенные события"
-                : report.integrity.status === "attention"
-                  ? "Требует внимания"
-                  : "Событий нет"}
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-5 pt-6">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Потери фокуса</p>
-              <p className="mt-1 text-2xl font-semibold">{report.integrity.focusLossCount}</p>
-              <p className="text-xs text-muted-foreground">
-                Вне страницы: {formatDuration(report.integrity.focusLossDurationSeconds)}
-              </p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Clipboard</p>
-              <p className="mt-1 text-2xl font-semibold">{report.integrity.clipboardAttemptCount}</p>
-              <p className="text-xs text-muted-foreground">copy / cut / paste</p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Параллельные входы</p>
-              <p className="mt-1 text-2xl font-semibold">{report.integrity.concurrentSessionAttemptCount}</p>
-              <p className="text-xs text-muted-foreground">
-                Восстановлений: {report.integrity.recoveredSessionCount}
-              </p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Завершено по таймеру</p>
-              <p className="mt-1 text-2xl font-semibold">{report.integrity.timerExpiredCount}</p>
-              <p className="text-xs text-muted-foreground">По всем тестам пакета</p>
-            </div>
-          </div>
-
-          <details className="rounded-lg border p-4">
-            <summary className="cursor-pointer font-medium">
-              Журнал событий ({report.integrity.events.length})
-            </summary>
-            <div className="mt-4 space-y-3 border-t pt-4">
-              {report.integrity.events.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Контрольные события не зафиксированы.</p>
-              ) : (
-                report.integrity.events.map((event) => (
-                  <div className="rounded-md bg-muted/50 p-3 text-sm" key={event.id}>
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <p className="font-medium">{INTEGRITY_EVENT_LABELS[event.eventType]}</p>
-                      <time className="text-muted-foreground" dateTime={event.occurredAt}>
-                        {formatDateTime(event.occurredAt)}
-                      </time>
-                    </div>
-                    <p className="mt-1 text-muted-foreground">
-                      {event.testTitle}
-                      {event.question ? ` / ${event.question}` : ""}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-          </details>
-        </CardContent>
-      </Card>
+      <Suspense fallback={<ReportDetailsSkeleton title="Контроль прохождения" />}>
+        <CandidateIntegrityDetails detailsPromise={detailsPromise} />
+      </Suspense>
 
       {report.reportText ? (
         <Card>
@@ -371,77 +290,203 @@ export default async function CandidateReportPage({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Ответы кандидата</CardTitle>
-          <CardDescription>
-            История прохождения по конкретным версиям тестов. Верных ответов: {answerCounts.correct},
-            неверных: {answerCounts.incorrect}. Учитываются только ответы с определенной правильностью.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 pt-6">
-          {report.tests.length === 0 ? (
-            <EmptyState
-              className="py-6"
-              description="История ответов появится после начала прохождения оценки."
-              title="Кандидат еще не проходил тесты"
-            />
-          ) : (
-            report.tests.map((test) => (
-              <details className="rounded-lg border p-4" key={test.id}>
-                <summary className="cursor-pointer list-none">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="font-medium">{test.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {TEST_SESSION_STATUS_LABELS[test.status]}
-                      {test.percentage !== null ? ` / ${score(test.percentage)}` : ""}
-                      {` / Верных: ${test.correctAnswersCount} / Неверных: ${test.incorrectAnswersCount}`}
-                      {test.requiresReview ? " / Нужна проверка" : ""}
-                    </p>
-                  </div>
-                  {test.summary ? <p className="mt-2 text-sm text-muted-foreground">{test.summary}</p> : null}
-                  {test.startedAt || test.completedAt ? (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {test.startedAt ? `Начат: ${formatDateTime(test.startedAt)}` : ""}
-                      {test.startedAt && test.completedAt ? " / " : ""}
-                      {test.completedAt ? `Завершен: ${formatDateTime(test.completedAt)}` : ""}
-                    </p>
-                  ) : null}
-                </summary>
-                <div className="mt-4 space-y-4 border-t pt-4">
-                  <ScoringResultDetails details={test.scoringDetails} />
-                  {test.answers.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Ответы отсутствуют.</p>
-                  ) : (
-                    test.answers.map((answer, index) => (
-                      <div className="space-y-2 text-sm" key={`${test.id}-${index}`}>
-                        <div className="flex flex-wrap justify-between gap-3">
-                          <p className="font-medium">
-                            {index + 1}. {answer.question}
-                          </p>
-                          <span className="text-muted-foreground">
-                            {QUESTION_TYPE_LABELS[answer.questionType]}
-                            {answer.competencyLabel ? ` / ${answer.competencyLabel}` : ""}
-                          </span>
-                        </div>
-                        <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3">{answer.answer}</p>
-                        {answer.pointsAwarded !== null || answer.isCorrect !== null ? (
-                          <p className="text-muted-foreground">
-                            {answer.pointsAwarded !== null ? `Баллы: ${answer.pointsAwarded}` : ""}
-                            {answer.isCorrect !== null
-                              ? `${answer.pointsAwarded !== null ? " / " : ""}${answer.isCorrect ? "Верно" : "Неверно"}`
-                              : ""}
-                          </p>
-                        ) : null}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </details>
-            ))
-          )}
-        </CardContent>
-      </Card>
+      <Suspense fallback={<ReportDetailsSkeleton title="Ответы кандидата" />}>
+        <CandidateAnswersDetails detailsPromise={detailsPromise} />
+      </Suspense>
     </div>
+  );
+}
+
+
+type CandidateDetailsPromise = Promise<CandidateReportDetailsData | null>;
+
+function ReportDetailsSkeleton({ title }: { title: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>Загружаем подробные данные отчёта…</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-6">
+        <div className="h-20 animate-pulse rounded-lg bg-muted" />
+      </CardContent>
+    </Card>
+  );
+}
+
+async function CandidateIntegrityDetails({
+  detailsPromise,
+}: {
+  detailsPromise: CandidateDetailsPromise;
+}) {
+  const details = await detailsPromise;
+  if (!details) return null;
+  const { integrity } = details;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle>Контроль прохождения</CardTitle>
+            <CardDescription className="mt-1">
+              События показываются отдельно и не изменяют overall score или fit score.
+            </CardDescription>
+          </div>
+          <span
+            className={
+              integrity.status === "critical"
+                ? "rounded-full bg-destructive/10 px-3 py-1 text-sm font-medium text-destructive"
+                : integrity.status === "attention"
+                  ? "rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary"
+                  : "rounded-full bg-muted px-3 py-1 text-sm font-medium"
+            }
+          >
+            {integrity.status === "critical"
+              ? "Существенные события"
+              : integrity.status === "attention"
+                ? "Требует внимания"
+                : "Событий нет"}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5 pt-6">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Потери фокуса</p>
+            <p className="mt-1 text-2xl font-semibold">{integrity.focusLossCount}</p>
+            <p className="text-xs text-muted-foreground">
+              Вне страницы: {formatDuration(integrity.focusLossDurationSeconds)}
+            </p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Clipboard</p>
+            <p className="mt-1 text-2xl font-semibold">{integrity.clipboardAttemptCount}</p>
+            <p className="text-xs text-muted-foreground">copy / cut / paste</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Параллельные входы</p>
+            <p className="mt-1 text-2xl font-semibold">{integrity.concurrentSessionAttemptCount}</p>
+            <p className="text-xs text-muted-foreground">
+              Восстановлений: {integrity.recoveredSessionCount}
+            </p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Завершено по таймеру</p>
+            <p className="mt-1 text-2xl font-semibold">{integrity.timerExpiredCount}</p>
+            <p className="text-xs text-muted-foreground">По всем тестам пакета</p>
+          </div>
+        </div>
+
+        <details className="rounded-lg border p-4">
+          <summary className="cursor-pointer font-medium">
+            Журнал событий ({integrity.events.length})
+          </summary>
+          <div className="mt-4 space-y-3 border-t pt-4">
+            {integrity.events.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Контрольные события не зафиксированы.</p>
+            ) : (
+              integrity.events.map((event) => (
+                <div className="rounded-md bg-muted/50 p-3 text-sm" key={event.id}>
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <p className="font-medium">{INTEGRITY_EVENT_LABELS[event.eventType]}</p>
+                    <time className="text-muted-foreground" dateTime={event.occurredAt}>
+                      {formatDateTime(event.occurredAt)}
+                    </time>
+                  </div>
+                  <p className="mt-1 text-muted-foreground">
+                    {event.testTitle}
+                    {event.question ? ` / ${event.question}` : ""}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </details>
+      </CardContent>
+    </Card>
+  );
+}
+
+async function CandidateAnswersDetails({
+  detailsPromise,
+}: {
+  detailsPromise: CandidateDetailsPromise;
+}) {
+  const details = await detailsPromise;
+  if (!details) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Ответы кандидата</CardTitle>
+        <CardDescription>
+          История прохождения по конкретным версиям тестов. Верных ответов: {details.answerCounts.correct},
+          неверных: {details.answerCounts.incorrect}. Учитываются только первые 50 ответов details-запроса.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-6">
+        {details.tests.length === 0 ? (
+          <EmptyState
+            className="py-6"
+            description="История ответов появится после начала прохождения оценки."
+            title="Кандидат еще не проходил тесты"
+          />
+        ) : (
+          details.tests.map((test) => (
+            <details className="rounded-lg border p-4" key={test.id}>
+              <summary className="cursor-pointer list-none">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="font-medium">{test.title}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {TEST_SESSION_STATUS_LABELS[test.status]}
+                    {test.percentage !== null ? ` / ${score(test.percentage)}` : ""}
+                    {` / Верных: ${test.correctAnswersCount} / Неверных: ${test.incorrectAnswersCount}`}
+                    {test.requiresReview ? " / Нужна проверка" : ""}
+                  </p>
+                </div>
+                {test.summary ? <p className="mt-2 text-sm text-muted-foreground">{test.summary}</p> : null}
+                {test.startedAt || test.completedAt ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {test.startedAt ? `Начат: ${formatDateTime(test.startedAt)}` : ""}
+                    {test.startedAt && test.completedAt ? " / " : ""}
+                    {test.completedAt ? `Завершен: ${formatDateTime(test.completedAt)}` : ""}
+                  </p>
+                ) : null}
+              </summary>
+              <div className="mt-4 space-y-4 border-t pt-4">
+                <ScoringResultDetails details={test.scoringDetails} />
+                {test.answers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Ответы отсутствуют.</p>
+                ) : (
+                  test.answers.map((answer, index) => (
+                    <div className="space-y-2 text-sm" key={`${test.id}-${index}`}>
+                      <div className="flex flex-wrap justify-between gap-3">
+                        <p className="font-medium">
+                          {index + 1}. {answer.question}
+                        </p>
+                        <span className="text-muted-foreground">
+                          {QUESTION_TYPE_LABELS[answer.questionType]}
+                          {answer.competencyLabel ? ` / ${answer.competencyLabel}` : ""}
+                        </span>
+                      </div>
+                      <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3">{answer.answer}</p>
+                      {answer.pointsAwarded !== null || answer.isCorrect !== null ? (
+                        <p className="text-muted-foreground">
+                          {answer.pointsAwarded !== null ? `Баллы: ${answer.pointsAwarded}` : ""}
+                          {answer.isCorrect !== null
+                            ? `${answer.pointsAwarded !== null ? " / " : ""}${answer.isCorrect ? "Верно" : "Неверно"}`
+                            : ""}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))
+                )}
+              </div>
+            </details>
+          ))
+        )}
+      </CardContent>
+    </Card>
   );
 }

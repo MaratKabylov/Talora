@@ -25,7 +25,7 @@
 
 - Добавлены opt-in scripts `staging:lists`, `staging:grants`, `staging:sessions`, `staging:scoring`, отчёты JSON и [rollout](33_STAGING_LIST_ACCEPTANCE.md); обновлены план, baseline, rollout PERF-010/011/012.
 - Scripts сохраняют fixture manifests и не перезаписывают существующие отчёты; ownership/fingerprint guard проверен до удалённых запросов. При аварийном прерывании до finally проверять shutdown отдельно.
-- **501/501 tests**, lint и typecheck прошли после добавления scoring script. Ранее production build прошёл; build/dev server повторялись вне sandbox после `spawn EPERM`. Browser E2E не выполнялся.
+- **503/503 tests**, lint и typecheck прошли после PERF-013 report split. Targeted `tests/report-test-title.test.ts` проверяет logical title lookup и вынос answers/integrity events из summary loaders. Ранее production build прошёл; build/dev server повторялись вне sandbox после `spawn EPERM`. Browser E2E не выполнялся.
 - Browser fixture servers `test:browser:navigation`, `test:browser:builder-import`, `test:browser:builder-editor` собрались и поднялись, но CUA transport закрыт, а Chrome/Edge headless в окружении не возвращают DOM/stdout; PASS/FAIL не подтверждён.
 - Builder/browser acceptance step: targeted Node regression 164/164; full `npm test` 501/501, lint, typecheck passed. Browser fixtures compiled/served on 4318/4319/4320, but DOM PASS/FAIL still unconfirmed because CUA transport is closed.
 - Ранее подтверждены **25/25 API smoke** и **32/32 SQL checks** (19 PERF-010 + 13 PERF-011). [SQL-свидетельство пользователя](performance/PERF012_SQL_VERIFICATION_2026-09-10.json): 09:19:59 UTC, PostgreSQL 17.6, 34 индекса на 16 таблицах valid/ready.
@@ -53,6 +53,6 @@
 ## Дальше по плану
 
 - Builder/browser acceptance и server actions без изменения схемы; PERF-012 вернётся только на отдельной staging/preview DB или при готовности DDL gate.
-- PERF-013/014: report summary/details и materialized employee dimension scores.
+- PERF-013 начат: candidate/employee report summary loaders получают logical test title через nested `test_versions(... test_templates(title))`, а answers и integrity events вынесены в separate details loaders под Suspense (первая страница 50/100). PERF-014 отложен без schema changes.
 - PERF-015: completion/scoring по результатам измерений; PERF-016/017 — инфраструктура, наблюдаемость, local development.
 - Сохранять чужие изменения. Remote migrations, production-флаги и destructive/downgrade требуют соответствующего разрешения.

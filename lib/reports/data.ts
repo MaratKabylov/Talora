@@ -88,6 +88,10 @@ type RiskRecord = {
   title: string;
 };
 
+type TemplateTitleRecord = {
+  title: string;
+};
+
 type VersionRecord = {
   assessment_domain: string | null;
   id: string;
@@ -95,6 +99,7 @@ type VersionRecord = {
   scoring_config_json: unknown;
   scoring_schema_version: string | null;
   scoring_type: string;
+  test_templates: Relation<TemplateTitleRecord>;
   title: string;
 };
 
@@ -274,7 +279,6 @@ export type CandidateReportData = {
   dimensions: AssessmentDimensionResult[];
   fitScore: number | null;
   id: string;
-  integrity: ReportIntegritySummary;
   groups: AssessmentDimensionGroup[];
   highlights: AssessmentHighlight[];
   interviewQuestions: string[];
@@ -288,6 +292,14 @@ export type CandidateReportData = {
   riskLevel: "low" | "medium" | "high" | null;
   status: ApplicationStatus;
   strengths: ReportCompetency[];
+};
+
+export type CandidateReportDetailsData = {
+  answerCounts: {
+    correct: number;
+    incorrect: number;
+  };
+  integrity: ReportIntegritySummary;
   tests: ReportTest[];
 };
 
@@ -374,6 +386,77 @@ function createInterviewQuestions(
     : ["Обсудите наиболее релевантный опыт кандидата и его вклад в похожей роли."];
 }
 
+function buildCandidateIntegritySummary(
+  integrityRecords: IntegrityEventRecord[],
+  sessions: SessionRecord[],
+  testTitleBySession: ReadonlyMap<string, string>,
+): ReportIntegritySummary {
+  const focusLossCount = integrityRecords.filter((event) => event.event_type === "focus_lost").length;
+  const clipboardAttemptCount = integrityRecords.filter((event) =>
+    ["clipboard_copy", "clipboard_cut", "clipboard_paste"].includes(event.event_type),
+  ).length;
+  const concurrentSessionAttemptCount = integrityRecords.filter(
+    (event) => event.event_type === "concurrent_session_blocked",
+  ).length;
+  const recoveredSessionCount = integrityRecords.filter(
+    (event) => event.event_type === "session_recovered",
+  ).length;
+  const timerExpiredCount = integrityRecords.filter(
+    (event) => event.event_type === "timer_expired",
+  ).length;
+  const focusLostAtBySession = new Map<string, number>();
+  let focusLossDurationMs = 0;
+
+  for (const event of integrityRecords) {
+    const occurredAt = new Date(event.occurred_at).getTime();
+    if (event.event_type === "focus_lost" && !focusLostAtBySession.has(event.session_id)) {
+      focusLostAtBySession.set(event.session_id, occurredAt);
+    }
+    if (event.event_type === "focus_returned") {
+      const lostAt = focusLostAtBySession.get(event.session_id);
+      if (lostAt !== undefined) {
+        focusLossDurationMs += Math.max(occurredAt - lostAt, 0);
+        focusLostAtBySession.delete(event.session_id);
+      }
+    }
+  }
+
+  for (const [sessionId, lostAt] of focusLostAtBySession) {
+    const session = sessions.find((entry) => entry.id === sessionId);
+    const endedAt = session?.completed_at ? new Date(session.completed_at).getTime() : Date.now();
+    focusLossDurationMs += Math.max(endedAt - lostAt, 0);
+  }
+
+  const focusLossDurationSeconds = Math.round(focusLossDurationMs / 1000);
+  const integrityStatus =
+    concurrentSessionAttemptCount > 0
+      ? "critical"
+      : focusLossCount > 0 ||
+          clipboardAttemptCount > 0 ||
+          recoveredSessionCount > 0 ||
+          timerExpiredCount > 0
+        ? "attention"
+        : "clear";
+
+  return {
+    clipboardAttemptCount,
+    concurrentSessionAttemptCount,
+    events: integrityRecords.map((event) => ({
+      clientOccurredAt: event.client_occurred_at,
+      eventType: event.event_type,
+      id: event.id,
+      occurredAt: event.occurred_at,
+      question: related(event.questions)?.text ?? null,
+      testTitle: testTitleBySession.get(event.session_id) ?? "Тест",
+    })),
+    focusLossCount,
+    focusLossDurationSeconds,
+    recoveredSessionCount,
+    status: integrityStatus,
+    timerExpiredCount,
+  };
+}
+
 async function getCandidateReportDataUninstrumented(companyId: string, applicationId: string) {
   const supabase = await createClient();
   const { data: applicationData, error: applicationError } = await supabase
@@ -407,7 +490,6 @@ async function getCandidateReportDataUninstrumented(companyId: string, applicati
     sessionsResult,
     resultsResult,
     generatedReportResult,
-    integrityEventsResult,
     weightsResult,
     competencyScoresResult,
     packageTestsResult,
@@ -425,7 +507,7 @@ async function getCandidateReportDataUninstrumented(companyId: string, applicati
       supabase
         .from("test_sessions")
         .select(
-          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, package_id, package_passing_score, test_versions(id, title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)",
+          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, package_id, package_passing_score, test_versions(id, title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json, test_templates(title))",
         )
         .eq("application_id", applicationId)
         .order("created_at"),
@@ -438,13 +520,6 @@ async function getCandidateReportDataUninstrumented(companyId: string, applicati
         .select("strengths_json, interview_questions_json, report_text")
         .eq("application_id", applicationId)
         .maybeSingle(),
-      supabase
-        .from("assessment_session_events")
-        .select(
-          "id, session_id, event_type, occurred_at, client_occurred_at, questions(text)",
-        )
-        .eq("application_id", applicationId)
-        .order("occurred_at"),
       supabase
         .from("job_competency_weights")
         .select("competency_key, minimum_score")
@@ -467,7 +542,6 @@ async function getCandidateReportDataUninstrumented(companyId: string, applicati
     sessionsResult.error ||
     resultsResult.error ||
     generatedReportResult.error ||
-    integrityEventsResult.error ||
     weightsResult.error ||
     competencyScoresResult.error ||
     packageTestsResult.error
@@ -476,73 +550,8 @@ async function getCandidateReportDataUninstrumented(companyId: string, applicati
   }
 
   const sessions = (sessionsResult.data ?? []) as unknown as SessionRecord[];
-  const versionIds = Array.from(
-    new Set(
-      sessions.flatMap((session) => {
-        const version = related(session.test_versions);
-        return version ? [version.id] : [];
-      }),
-    ),
-  );
-  const versionsResult =
-    versionIds.length === 0
-      ? { data: [] as Array<{ id: string; test_template_id: string }>, error: null }
-      : await supabase.from("test_versions").select("id, test_template_id").in("id", versionIds);
-  const templateIds = Array.from(
-    new Set((versionsResult.data ?? []).map((version) => version.test_template_id)),
-  );
-  const templatesResult =
-    versionsResult.error || templateIds.length === 0
-      ? { data: [] as Array<{ id: string; title: string }>, error: null }
-      : await supabase.from("test_templates").select("id, title").in("id", templateIds);
-  const templateTitlesById = new Map(
-    (templatesResult.data ?? []).map((template) => [template.id, template.title]),
-  );
-  const templateTitlesByVersionId = new Map(
-    (versionsResult.data ?? []).flatMap((version) => {
-      const title = templateTitlesById.get(version.test_template_id);
-      return title ? [[version.id, title] as const] : [];
-    }),
-  );
-  const testTitleBySession = new Map(
-    sessions.map((session) => {
-      const version = related(session.test_versions);
-
-      return [
-        session.id,
-        resolveReportTestTitle(
-          version ? templateTitlesByVersionId.get(version.id) : null,
-          version?.title,
-        ),
-      ];
-    }),
-  );
-  const sessionIds = sessions.map((session) => session.id);
-  const { data: answersData, error: answersError } =
-    sessionIds.length === 0
-      ? { data: [] as unknown[], error: null }
-      : await supabase
-          .from("candidate_answers")
-          .select(
-            "id, session_id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, competency_key, order_index, test_sections(title, order_index), answer_options(id, text, match_text, match_target_id, order_index))",
-          )
-          .in("session_id", sessionIds);
-
-  if (answersError) {
-    throw new Error("Unable to load candidate answers.");
-  }
-
-  for (const answer of (answersData ?? []) as unknown as AnswerRecord[]) {
-    const question = related(answer.questions);
-    if (
-      answer.selected_option_id &&
-      question &&
-      !(question.answer_options ?? []).some((option) => option.id === answer.selected_option_id)
-    ) {
-      throw new Error("Unable to load candidate report answer options.");
-    }
-  }
-
+  const templateTitleByVersion = (version: VersionRecord | null) =>
+    related(version?.test_templates ?? null)?.title ?? null;
   const competencies = ((summaryResult.data ?? []) as unknown as SummaryRecord[])
     .map((summary) => {
       const legacyDimension = getLegacyAssessmentDimension(summary.competency_key);
@@ -599,7 +608,7 @@ async function getCandidateReportDataUninstrumented(companyId: string, applicati
       score: score.score,
       sessionId: result && session ? result.session_id : null,
       testTitle: result && session
-        ? templateTitlesByVersionId.get(result.test_version_id) ?? version?.title ?? null
+        ? templateTitleByVersion(version ?? null) ?? version?.title ?? null
         : null,
       testVersionId: result && session ? result.test_version_id : null,
     };
@@ -626,13 +635,159 @@ async function getCandidateReportDataUninstrumented(companyId: string, applicati
         }),
         scoringResult: resultsBySession.get(session.id)?.scoring_result_json,
         sessionId: session.id,
-        testTitle: version ? templateTitlesByVersionId.get(version.id) ?? version.title : null,
+        testTitle: version ? templateTitleByVersion(version) ?? version.title : null,
         testVersionId: version?.id ?? null,
       };
     }),
   });
   const groups = summarizeAssessmentDimensions(dimensions);
   const highlights = buildAssessmentHighlights(groups);
+  const storedReport = generatedReportResult.data as GeneratedReportRecord | null;
+  const strengths = competencies.filter(
+    (competency) =>
+      competency.percentage !== null &&
+      interpretReportScore(competency.percentage, interpretationPolicy, {
+        competencyKey: competency.key,
+        direction: competency.interpretationDirection,
+      })?.band === "strength",
+  );
+  const storedQuestions = stringArray(storedReport?.interview_questions_json);
+  return {
+    behaviorFit: application.behavior_fit,
+    candidate: {
+      city: candidate.city,
+      email: candidate.email,
+      fullName: candidate.full_name ?? "Без имени",
+      phone: candidate.phone,
+    },
+    completedAt: application.completed_at,
+    compositeResult: normalizeAssessmentCompositeResult(application.composite_result_json),
+    compositeScore: application.composite_score,
+    competencies,
+    dimensions,
+    fitScore: application.fit_score,
+    id: application.id,
+    groups,
+    highlights,
+    interviewQuestions:
+      storedQuestions.length > 0
+        ? storedQuestions
+        : createInterviewQuestions(
+            competencies,
+            application.requires_review,
+            interpretationPolicy,
+          ),
+    job: { id: job.id, title: job.title },
+    motivationFit: application.motivation_fit,
+    overallScore: application.overall_score,
+    recommendation: application.recommendation,
+    reportText: storedReport?.report_text ?? null,
+    requiresReview: application.requires_review,
+    risks,
+    riskLevel: application.risk_level,
+    status: application.status,
+    strengths,
+  } satisfies CandidateReportData;
+}
+
+export function getCandidateReportData(companyId: string, applicationId: string) {
+  return measureServerOperation("reports.candidate", () =>
+    getCandidateReportDataUninstrumented(companyId, applicationId),
+  );
+}
+
+async function getCandidateReportDetailsDataUninstrumented(
+  companyId: string,
+  applicationId: string,
+) {
+  const supabase = await createClient();
+  const { data: applicationData, error: applicationError } = await supabase
+    .from("candidate_applications")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("id", applicationId)
+    .maybeSingle();
+
+  if (applicationError) {
+    throw new Error("Unable to load candidate report application.");
+  }
+
+  if (!applicationData) {
+    return null;
+  }
+
+  const [sessionsResult, resultsResult, integrityEventsResult] = await Promise.all([
+    supabase
+      .from("test_sessions")
+      .select(
+        "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, package_id, package_passing_score, test_versions(id, title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json, test_templates(title))",
+      )
+      .eq("application_id", applicationId)
+      .order("created_at"),
+    supabase
+      .from("test_results")
+      .select("id, session_id, test_version_id, raw_score, max_score, percentage, level, summary, requires_review, scoring_result_json")
+      .eq("application_id", applicationId),
+    supabase
+      .from("assessment_session_events")
+      .select(
+        "id, session_id, event_type, occurred_at, client_occurred_at, questions(text)",
+      )
+      .eq("application_id", applicationId)
+      .order("occurred_at")
+      .range(0, 99),
+  ]);
+
+  if (sessionsResult.error || resultsResult.error || integrityEventsResult.error) {
+    throw new Error("Unable to load candidate report details.");
+  }
+
+  const sessions = (sessionsResult.data ?? []) as unknown as SessionRecord[];
+  const sessionIds = sessions.map((session) => session.id);
+  const { data: answersData, error: answersError } =
+    sessionIds.length === 0
+      ? { data: [] as unknown[], error: null }
+      : await supabase
+          .from("candidate_answers")
+          .select(
+            "id, session_id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, competency_key, order_index, test_sections(title, order_index), answer_options(id, text, match_text, match_target_id, order_index))",
+          )
+          .in("session_id", sessionIds)
+          .limit(50);
+
+  if (answersError) {
+    throw new Error("Unable to load candidate answers.");
+  }
+
+  for (const answer of (answersData ?? []) as unknown as AnswerRecord[]) {
+    const question = related(answer.questions);
+    if (
+      answer.selected_option_id &&
+      question &&
+      !(question.answer_options ?? []).some((option) => option.id === answer.selected_option_id)
+    ) {
+      throw new Error("Unable to load candidate report answer options.");
+    }
+  }
+
+  const templateTitleByVersion = (version: VersionRecord | null) =>
+    related(version?.test_templates ?? null)?.title ?? null;
+  const testTitleBySession = new Map(
+    sessions.map((session) => {
+      const version = related(session.test_versions);
+
+      return [
+        session.id,
+        resolveReportTestTitle(
+          templateTitleByVersion(version ?? null),
+          version?.title,
+        ),
+      ];
+    }),
+  );
+  const resultsBySession = new Map(
+    ((resultsResult.data ?? []) as ResultRecord[]).map((result) => [result.session_id, result]),
+  );
   const answersBySession = new Map<string, AnswerRecord[]>();
 
   for (const answer of (answersData ?? []) as unknown as AnswerRecord[]) {
@@ -696,124 +851,31 @@ async function getCandidateReportDataUninstrumented(companyId: string, applicati
       status: session.status as ReportTest["status"],
       summary: result?.summary ?? null,
       title: resolveReportTestTitle(
-        version ? templateTitlesByVersionId.get(version.id) : null,
+        templateTitleByVersion(version ?? null),
         version?.title,
       ),
     };
   });
-  const storedReport = generatedReportResult.data as GeneratedReportRecord | null;
-  const strengths = competencies.filter(
-    (competency) =>
-      competency.percentage !== null &&
-      interpretReportScore(competency.percentage, interpretationPolicy, {
-        competencyKey: competency.key,
-        direction: competency.interpretationDirection,
-      })?.band === "strength",
-  );
-  const storedQuestions = stringArray(storedReport?.interview_questions_json);
-  const integrityRecords = (integrityEventsResult.data ?? []) as unknown as IntegrityEventRecord[];
-  const focusLossCount = integrityRecords.filter((event) => event.event_type === "focus_lost").length;
-  const clipboardAttemptCount = integrityRecords.filter((event) =>
-    ["clipboard_copy", "clipboard_cut", "clipboard_paste"].includes(event.event_type),
-  ).length;
-  const concurrentSessionAttemptCount = integrityRecords.filter(
-    (event) => event.event_type === "concurrent_session_blocked",
-  ).length;
-  const recoveredSessionCount = integrityRecords.filter(
-    (event) => event.event_type === "session_recovered",
-  ).length;
-  const timerExpiredCount = integrityRecords.filter(
-    (event) => event.event_type === "timer_expired",
-  ).length;
-  const focusLostAtBySession = new Map<string, number>();
-  let focusLossDurationMs = 0;
-  for (const event of integrityRecords) {
-    const occurredAt = new Date(event.occurred_at).getTime();
-    if (event.event_type === "focus_lost" && !focusLostAtBySession.has(event.session_id)) {
-      focusLostAtBySession.set(event.session_id, occurredAt);
-    }
-    if (event.event_type === "focus_returned") {
-      const lostAt = focusLostAtBySession.get(event.session_id);
-      if (lostAt !== undefined) {
-        focusLossDurationMs += Math.max(occurredAt - lostAt, 0);
-        focusLostAtBySession.delete(event.session_id);
-      }
-    }
-  }
-  for (const [sessionId, lostAt] of focusLostAtBySession) {
-    const session = sessions.find((entry) => entry.id === sessionId);
-    const endedAt = session?.completed_at ? new Date(session.completed_at).getTime() : Date.now();
-    focusLossDurationMs += Math.max(endedAt - lostAt, 0);
-  }
-  const focusLossDurationSeconds = Math.round(focusLossDurationMs / 1000);
-  const integrityStatus =
-    concurrentSessionAttemptCount > 0
-      ? "critical"
-      : focusLossCount > 0 ||
-          clipboardAttemptCount > 0 ||
-          recoveredSessionCount > 0 ||
-          timerExpiredCount > 0
-        ? "attention"
-        : "clear";
 
   return {
-    behaviorFit: application.behavior_fit,
-    candidate: {
-      city: candidate.city,
-      email: candidate.email,
-      fullName: candidate.full_name ?? "Без имени",
-      phone: candidate.phone,
-    },
-    completedAt: application.completed_at,
-    compositeResult: normalizeAssessmentCompositeResult(application.composite_result_json),
-    compositeScore: application.composite_score,
-    competencies,
-    dimensions,
-    fitScore: application.fit_score,
-    id: application.id,
-    integrity: {
-      clipboardAttemptCount,
-      concurrentSessionAttemptCount,
-      events: integrityRecords.map((event) => ({
-        clientOccurredAt: event.client_occurred_at,
-        eventType: event.event_type,
-        id: event.id,
-        occurredAt: event.occurred_at,
-        question: related(event.questions)?.text ?? null,
-        testTitle: testTitleBySession.get(event.session_id) ?? "Тест",
-      })),
-      focusLossCount,
-      focusLossDurationSeconds,
-      recoveredSessionCount,
-      status: integrityStatus,
-      timerExpiredCount,
-    },
-    groups,
-    highlights,
-    interviewQuestions:
-      storedQuestions.length > 0
-        ? storedQuestions
-        : createInterviewQuestions(
-            competencies,
-            application.requires_review,
-            interpretationPolicy,
-          ),
-    job: { id: job.id, title: job.title },
-    motivationFit: application.motivation_fit,
-    overallScore: application.overall_score,
-    recommendation: application.recommendation,
-    reportText: storedReport?.report_text ?? null,
-    requiresReview: application.requires_review,
-    risks,
-    riskLevel: application.risk_level,
-    status: application.status,
-    strengths,
+    answerCounts: tests.reduce(
+      (counts, test) => ({
+        correct: counts.correct + test.correctAnswersCount,
+        incorrect: counts.incorrect + test.incorrectAnswersCount,
+      }),
+      { correct: 0, incorrect: 0 },
+    ),
+    integrity: buildCandidateIntegritySummary(
+      (integrityEventsResult.data ?? []) as unknown as IntegrityEventRecord[],
+      sessions,
+      testTitleBySession,
+    ),
     tests,
-  } satisfies CandidateReportData;
+  } satisfies CandidateReportDetailsData;
 }
 
-export function getCandidateReportData(companyId: string, applicationId: string) {
-  return measureServerOperation("reports.candidate", () =>
-    getCandidateReportDataUninstrumented(companyId, applicationId),
+export function getCandidateReportDetailsData(companyId: string, applicationId: string) {
+  return measureServerOperation("reports.candidate_details", () =>
+    getCandidateReportDetailsDataUninstrumented(companyId, applicationId),
   );
 }

@@ -776,3 +776,20 @@ Browser fixtures `test:browser:builder-import`, `test:browser:builder-editor` и
 `test:browser:navigation` собрались и подняли synthetic servers на 4319/4320/4318. DOM статус
 `#result[data-status]` не подтверждён: in-app browser CUA transport в текущем окружении закрыт.
 Артефакт: `docs/performance/PERF012_BUILDER_BROWSER_ACCEPTANCE_2026-09-10.json`.
+
+## 33. PERF-013: logical report test title lookup — 10.09.2026
+
+Первый non-schema шаг PERF-013 убирает последовательный lookup `test_versions -> test_templates`
+из candidate и employee report loaders. Candidate sessions теперь запрашивают
+`test_versions(..., test_templates(title))`; employee report title lookup делает один запрос
+к `test_versions` с nested `test_templates(title)` и больше не делает отдельный `.from("test_templates")`.
+Это сохраняет `resolveReportTestTitle`: logical template title приоритетен, version title остаётся fallback.
+
+Дополнительно candidate/employee report pages разделены на summary и details без изменения схемы:
+primary loader больше не читает answers и integrity event rows; отдельные details loaders под Suspense
+читают первую страницу answers (`limit 50`) и integrity events (`range 0..99`). Добавлены performance
+operation labels `reports.candidate_details` и `reports.employee_details`, чтобы summary/details можно
+было измерять отдельно.
+
+Проверки: `node --experimental-strip-types --test --test-isolation=none tests/report-test-title.test.ts`,
+`npm run typecheck`, `npm run lint`, `npm test` (503/503).

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import { CancelEmployeeAssessmentForm } from "@/components/employee-assessments/cancel-employee-assessment-form";
@@ -17,7 +18,11 @@ import {
   canManageEmployeeAssessments,
   EMPLOYEE_PARTICIPANT_STATUS_LABELS,
 } from "@/lib/employee-assessments/constants";
-import { getEmployeeAssessmentReportData } from "@/lib/employee-assessments/data";
+import {
+  getEmployeeAssessmentReportData,
+  getEmployeeAssessmentReportDetailsData,
+  type EmployeeAssessmentReportDetailsData,
+} from "@/lib/employee-assessments/data";
 import type { ReportIntegrityEventType } from "@/lib/reports/data";
 import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
 
@@ -100,13 +105,7 @@ export default async function EmployeeAssessmentReportPage({
     canManageEmployeeAssessments(context.activeCompany.role) &&
     canCancelEmployeeAssessment(data.participant.status);
   const reportPath = `/dashboard/employee-assessments/participants/${data.participant.id}/report`;
-  const answerCounts = data.sessions.reduce(
-    (counts, session) => ({
-      correct: counts.correct + session.correctAnswersCount,
-      incorrect: counts.incorrect + session.incorrectAnswersCount,
-    }),
-    { correct: 0, incorrect: 0 },
-  );
+  const detailsPromise = getEmployeeAssessmentReportDetailsData(context.activeCompany.id, id);
 
   return (
     <div className="space-y-6">
@@ -210,89 +209,9 @@ export default async function EmployeeAssessmentReportPage({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle>Контроль прохождения</CardTitle>
-              <CardDescription className="mt-1">
-                События показываются отдельно и не изменяют overall score или fit score.
-              </CardDescription>
-            </div>
-            <span
-              className={
-                data.integrity.status === "critical"
-                  ? "rounded-full bg-destructive/10 px-3 py-1 text-sm font-medium text-destructive"
-                  : data.integrity.status === "attention"
-                    ? "rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary"
-                    : "rounded-full bg-muted px-3 py-1 text-sm font-medium"
-              }
-            >
-              {data.integrity.status === "critical"
-                ? "Существенные события"
-                : data.integrity.status === "attention"
-                  ? "Требует внимания"
-                  : "Событий нет"}
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-5 pt-6">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Потери фокуса</p>
-              <p className="mt-1 text-2xl font-semibold">{data.integrity.focusLossCount}</p>
-              <p className="text-xs text-muted-foreground">
-                Вне страницы: {formatDuration(data.integrity.focusLossDurationSeconds)}
-              </p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Clipboard</p>
-              <p className="mt-1 text-2xl font-semibold">{data.integrity.clipboardAttemptCount}</p>
-              <p className="text-xs text-muted-foreground">copy / cut / paste</p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Параллельные входы</p>
-              <p className="mt-1 text-2xl font-semibold">
-                {data.integrity.concurrentSessionAttemptCount}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Восстановлений: {data.integrity.recoveredSessionCount}
-              </p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Завершено по таймеру</p>
-              <p className="mt-1 text-2xl font-semibold">{data.integrity.timerExpiredCount}</p>
-              <p className="text-xs text-muted-foreground">По всем тестам пакета</p>
-            </div>
-          </div>
-
-          <details className="rounded-lg border p-4">
-            <summary className="cursor-pointer font-medium">
-              Журнал событий ({data.integrity.events.length})
-            </summary>
-            <div className="mt-4 space-y-3 border-t pt-4">
-              {data.integrity.events.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Контрольные события не зафиксированы.</p>
-              ) : (
-                data.integrity.events.map((event) => (
-                  <div className="rounded-md bg-muted/50 p-3 text-sm" key={event.id}>
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <p className="font-medium">{INTEGRITY_EVENT_LABELS[event.eventType]}</p>
-                      <time className="text-muted-foreground" dateTime={event.occurredAt}>
-                        {formatDateTime(event.occurredAt)}
-                      </time>
-                    </div>
-                    <p className="mt-1 text-muted-foreground">
-                      {event.testTitle}
-                      {event.question ? ` / ${event.question}` : ""}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-          </details>
-        </CardContent>
-      </Card>
+      <Suspense fallback={<ReportDetailsSkeleton title="Контроль прохождения" />}>
+        <EmployeeIntegrityDetails detailsPromise={detailsPromise} />
+      </Suspense>
 
       <AssessmentDimensionsReport groups={data.groups} highlights={data.highlights} />
 
@@ -350,95 +269,223 @@ export default async function EmployeeAssessmentReportPage({
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Тесты</CardTitle>
-          <CardDescription>
-            История прохождения тестов. Верных ответов: {answerCounts.correct}, неверных:{" "}
-            {answerCounts.incorrect}. Учитываются только ответы с определенной правильностью.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full min-w-[760px] text-sm">
-              <thead className="bg-muted/50 text-left text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Тест</th>
-                  <th className="px-4 py-3 font-medium">Статус</th>
-                  <th className="px-4 py-3 font-medium">Результат</th>
-                  <th className="px-4 py-3 font-medium">Верных</th>
-                  <th className="px-4 py-3 font-medium">Неверных</th>
-                  <th className="px-4 py-3 font-medium">Завершен</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.sessions.map((session) => (
-                  <tr className="border-t" key={session.id}>
-                    <td className="px-4 py-3 font-medium">{session.testTitle}</td>
-                    <td className="px-4 py-3">
-                      {TEST_SESSION_STATUS_LABELS[session.status] ?? session.status}
-                    </td>
-                    <td className="px-4 py-3">{formatScore(session.percentage)}</td>
-                    <td className="px-4 py-3">{session.correctAnswersCount}</td>
-                    <td className="px-4 py-3">{session.incorrectAnswersCount}</td>
-                    <td className="px-4 py-3">
-                      {session.completedAt
-                        ? new Intl.DateTimeFormat("ru-RU").format(new Date(session.completedAt))
-                        : session.startedAt
-                          ? `Начат ${formatDateTime(session.startedAt)}`
-                          : "-"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <Suspense fallback={<ReportDetailsSkeleton title="Тесты" />}>
+        <EmployeeTestDetails detailsPromise={detailsPromise} />
+      </Suspense>
+    </div>
+  );
+}
+
+
+type EmployeeDetailsPromise = Promise<EmployeeAssessmentReportDetailsData | null>;
+
+function ReportDetailsSkeleton({ title }: { title: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>Загружаем подробные данные отчёта…</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-6">
+        <div className="h-20 animate-pulse rounded-lg bg-muted" />
+      </CardContent>
+    </Card>
+  );
+}
+
+async function EmployeeIntegrityDetails({
+  detailsPromise,
+}: {
+  detailsPromise: EmployeeDetailsPromise;
+}) {
+  const details = await detailsPromise;
+  if (!details) return null;
+  const { integrity } = details;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle>Контроль прохождения</CardTitle>
+            <CardDescription className="mt-1">
+              События показываются отдельно и не изменяют overall score или fit score.
+            </CardDescription>
           </div>
-          <div className="mt-6 space-y-3">
-            <h2 className="font-medium">Результаты и ответы сотрудника</h2>
-            {data.sessions.every(
-              (session) => session.answers.length === 0 && !session.scoringDetails,
-            ) ? (
-              <p className="text-sm text-muted-foreground">Результаты пока отсутствуют.</p>
+          <span
+            className={
+              integrity.status === "critical"
+                ? "rounded-full bg-destructive/10 px-3 py-1 text-sm font-medium text-destructive"
+                : integrity.status === "attention"
+                  ? "rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary"
+                  : "rounded-full bg-muted px-3 py-1 text-sm font-medium"
+            }
+          >
+            {integrity.status === "critical"
+              ? "Существенные события"
+              : integrity.status === "attention"
+                ? "Требует внимания"
+                : "Событий нет"}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5 pt-6">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Потери фокуса</p>
+            <p className="mt-1 text-2xl font-semibold">{integrity.focusLossCount}</p>
+            <p className="text-xs text-muted-foreground">
+              Вне страницы: {formatDuration(integrity.focusLossDurationSeconds)}
+            </p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Clipboard</p>
+            <p className="mt-1 text-2xl font-semibold">{integrity.clipboardAttemptCount}</p>
+            <p className="text-xs text-muted-foreground">copy / cut / paste</p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Параллельные входы</p>
+            <p className="mt-1 text-2xl font-semibold">
+              {integrity.concurrentSessionAttemptCount}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Восстановлений: {integrity.recoveredSessionCount}
+            </p>
+          </div>
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground">Завершено по таймеру</p>
+            <p className="mt-1 text-2xl font-semibold">{integrity.timerExpiredCount}</p>
+            <p className="text-xs text-muted-foreground">По всем тестам пакета</p>
+          </div>
+        </div>
+
+        <details className="rounded-lg border p-4">
+          <summary className="cursor-pointer font-medium">
+            Журнал событий ({integrity.events.length})
+          </summary>
+          <div className="mt-4 space-y-3 border-t pt-4">
+            {integrity.events.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Контрольные события не зафиксированы.</p>
             ) : (
-              data.sessions.map((session) =>
-                session.answers.length > 0 || session.scoringDetails ? (
-                  <details className="rounded-lg border p-4" key={session.id}>
-                    <summary className="cursor-pointer font-medium">
-                      {session.testTitle} / Верных: {session.correctAnswersCount} / Неверных:{" "}
-                      {session.incorrectAnswersCount}
-                    </summary>
-                    <div className="mt-4 space-y-4 border-t pt-4">
-                      <ScoringResultDetails details={session.scoringDetails} />
-                      {session.answers.map((answer, index) => (
-                        <div className="space-y-2 text-sm" key={`${session.id}-${index}`}>
-                          <div className="flex flex-wrap justify-between gap-3">
-                            <p className="font-medium">{index + 1}. {answer.question}</p>
-                            <span className="text-muted-foreground">
-                              {QUESTION_TYPE_LABELS[answer.questionType]}
-                            </span>
-                          </div>
-                          <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3">
-                            {answer.answer}
-                          </p>
-                          {answer.questionType !== "forced_choice" &&
-                          (answer.pointsAwarded !== null || answer.isCorrect !== null) ? (
-                            <p className="text-muted-foreground">
-                              {answer.pointsAwarded !== null ? `Баллы: ${answer.pointsAwarded}` : ""}
-                              {answer.isCorrect !== null
-                                ? `${answer.pointsAwarded !== null ? " / " : ""}${answer.isCorrect ? "Верно" : "Неверно"}`
-                                : ""}
-                            </p>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                ) : null,
-              )
+              integrity.events.map((event) => (
+                <div className="rounded-md bg-muted/50 p-3 text-sm" key={event.id}>
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <p className="font-medium">{INTEGRITY_EVENT_LABELS[event.eventType]}</p>
+                    <time className="text-muted-foreground" dateTime={event.occurredAt}>
+                      {formatDateTime(event.occurredAt)}
+                    </time>
+                  </div>
+                  <p className="mt-1 text-muted-foreground">
+                    {event.testTitle}
+                    {event.question ? ` / ${event.question}` : ""}
+                  </p>
+                </div>
+              ))
             )}
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </details>
+      </CardContent>
+    </Card>
+  );
+}
+
+async function EmployeeTestDetails({
+  detailsPromise,
+}: {
+  detailsPromise: EmployeeDetailsPromise;
+}) {
+  const details = await detailsPromise;
+  if (!details) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Тесты</CardTitle>
+        <CardDescription>
+          История прохождения тестов. Верных ответов: {details.answerCounts.correct}, неверных: {" "}
+          {details.answerCounts.incorrect}. Учитываются только первые 50 ответов details-запроса.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-6">
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead className="bg-muted/50 text-left text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 font-medium">Тест</th>
+                <th className="px-4 py-3 font-medium">Статус</th>
+                <th className="px-4 py-3 font-medium">Результат</th>
+                <th className="px-4 py-3 font-medium">Верных</th>
+                <th className="px-4 py-3 font-medium">Неверных</th>
+                <th className="px-4 py-3 font-medium">Завершен</th>
+              </tr>
+            </thead>
+            <tbody>
+              {details.sessions.map((session) => (
+                <tr className="border-t" key={session.id}>
+                  <td className="px-4 py-3 font-medium">{session.testTitle}</td>
+                  <td className="px-4 py-3">
+                    {TEST_SESSION_STATUS_LABELS[session.status] ?? session.status}
+                  </td>
+                  <td className="px-4 py-3">{formatScore(session.percentage)}</td>
+                  <td className="px-4 py-3">{session.correctAnswersCount}</td>
+                  <td className="px-4 py-3">{session.incorrectAnswersCount}</td>
+                  <td className="px-4 py-3">
+                    {session.completedAt
+                      ? new Intl.DateTimeFormat("ru-RU").format(new Date(session.completedAt))
+                      : session.startedAt
+                        ? `Начат ${formatDateTime(session.startedAt)}`
+                        : "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-6 space-y-3">
+          <h2 className="font-medium">Результаты и ответы сотрудника</h2>
+          {details.sessions.every(
+            (session) => session.answers.length === 0 && !session.scoringDetails,
+          ) ? (
+            <p className="text-sm text-muted-foreground">Результаты пока отсутствуют.</p>
+          ) : (
+            details.sessions.map((session) =>
+              session.answers.length > 0 || session.scoringDetails ? (
+                <details className="rounded-lg border p-4" key={session.id}>
+                  <summary className="cursor-pointer font-medium">
+                    {session.testTitle} / Верных: {session.correctAnswersCount} / Неверных: {" "}
+                    {session.incorrectAnswersCount}
+                  </summary>
+                  <div className="mt-4 space-y-4 border-t pt-4">
+                    <ScoringResultDetails details={session.scoringDetails} />
+                    {session.answers.map((answer, index) => (
+                      <div className="space-y-2 text-sm" key={`${session.id}-${index}`}>
+                        <div className="flex flex-wrap justify-between gap-3">
+                          <p className="font-medium">{index + 1}. {answer.question}</p>
+                          <span className="text-muted-foreground">
+                            {QUESTION_TYPE_LABELS[answer.questionType]}
+                          </span>
+                        </div>
+                        <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3">
+                          {answer.answer}
+                        </p>
+                        {answer.questionType !== "forced_choice" &&
+                        (answer.pointsAwarded !== null || answer.isCorrect !== null) ? (
+                          <p className="text-muted-foreground">
+                            {answer.pointsAwarded !== null ? `Баллы: ${answer.pointsAwarded}` : ""}
+                            {answer.isCorrect !== null
+                              ? `${answer.pointsAwarded !== null ? " / " : ""}${answer.isCorrect ? "Верно" : "Неверно"}`
+                              : ""}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              ) : null,
+            )
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
