@@ -1,7 +1,11 @@
 # PERF-010 — лёгкие модели списков
 
-Обновлено: 2026-09-09. Код реализован и локально проверен. Удалённая миграция,
-staging-проверки PostgREST/RLS и performance-приёмка не выполнены.
+Обновлено: 2026-09-10. Код реализован и локально проверен. Пользователь сообщил о
+применении миграции; в текущем проекте подтверждены пять views, контракты столбцов
+и ограничения anon через GET/LIMIT 0. [Remote API smoke](32_QUERY_INDEX_BENCHMARK.md):
+25/25. Получен [SQL-результат пользователя](performance/PERF012_SQL_VERIFICATION_2026-09-10.json):
+PERF-010 19/19, включая security_invoker, grants и base RLS enabled. Полные тела
+определений, полноценная JWT/RLS matrix и performance-приёмка остаются открытыми.
 Полный запрет scoring JSON для employee comparison остаётся открытым до PERF-014.
 
 ## Изменения

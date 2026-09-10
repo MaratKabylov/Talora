@@ -159,11 +159,17 @@ async function inventory(db) {
     join pg_namespace n on n.oid=t.relnamespace where n.nspname='public' order by t.relname,c.relname`)).rows;
 }
 
-export async function runBenchmark({ repetitions = 30, progress = () => {} } = {}) {
+export async function runBenchmark({ repetitions = 30, indexNames = candidates.map(({ name }) => name), progress = () => {} } = {}) {
   assert.ok(Number.isInteger(repetitions) && repetitions > 0 && repetitions <= 1000);
+  assert.ok(Array.isArray(indexNames) && new Set(indexNames).size === indexNames.length, "Index names must be a unique array");
+  const selected = indexNames.map((name) => {
+    const candidate = candidates.find((entry) => entry.name === name);
+    assert.ok(candidate, `Unknown experimental index: ${name}`);
+    return candidate;
+  });
   const output = { generatedAt: new Date().toISOString(), environment: "PGlite in-memory; synthetic; owner role; no RLS/triggers/PostgREST",
-    limitations: "Base-table screening, not full production schema or route latency. First run is not cold I/O. Write proxies are not autosave acceptance. Index groups are tested together, not isolated.",
-    node: process.version, repetitions, candidates, sources: {}, phases: {} };
+    limitations: "Base-table screening, not full production schema or route latency. First run is not cold I/O. Write proxies are not autosave acceptance. Selected indexes are tested together; an empty selection is a no-index control.",
+    node: process.version, repetitions, candidates: selected, sources: {}, phases: {} };
   for (const path of ["scripts/perf-index-benchmark.mjs", "package-lock.json",
     "supabase/migrations/20260525000000_initial_schema.sql",
     "supabase/migrations/20260607100000_employee_assessments.sql",
@@ -184,15 +190,17 @@ export async function runBenchmark({ repetitions = 30, progress = () => {} } = {
         "test_templates", "test_versions", "test_sections", "questions", "answer_options"]) {
         dataset[table] = Number((await db.query(`select count(*) as count from public.${table}`)).rows[0].count);
       }
-      if (phase === "after") for (const candidate of candidates) await db.exec(candidate.sql);
+      if (phase === "after") for (const candidate of selected) await db.exec(candidate.sql);
       await db.exec("analyze");
       const indexes = await inventory(db);
       assert.ok(indexes.every((index) => index.valid));
-      for (const candidate of phase === "after" ? candidates : []) {
+      for (const candidate of phase === "after" ? selected : []) {
         const entry = indexes.find((index) => index.name === candidate.name);
         assert.ok(entry);
         assert.equal(indexes.filter((index) => index.signature === entry.signature).length, 1, `Duplicate: ${entry.name}`);
       }
+      assert.deepEqual(indexes.filter((entry) => entry.name.startsWith("perf012_")).map((entry) => entry.name).sort(),
+        phase === "after" ? [...indexNames].sort() : [], "Fixture must contain exactly the selected experimental indexes");
       const results = [];
       for (const shape of queryShapes()) {
         const first = await explain(db, shape.sql);

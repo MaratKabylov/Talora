@@ -66,6 +66,17 @@ test("list views execute production DDL and SELECT policies with caller RLS", as
     const verificationRows = (await db.query<{ check_name: string; passed: boolean }>(verification)).rows;
     assert.equal(verificationRows.length, 19);
     assert.deepEqual(verificationRows.filter(row => !row.passed), []);
+    const combinedResults = await db.exec(readFileSync(
+      new URL("../supabase/verification/performance_remote_acceptance.sql", import.meta.url), "utf8"));
+    const combined = combinedResults.flatMap(result => result.rows).find(row => row.verification)?.verification as {
+      perf010_checks: { passed: boolean }[]; perf011_checks: { passed: boolean }[];
+      indexes: { is_valid: boolean; is_ready: boolean }[]; server_version: string;
+    } | undefined;
+    assert.ok(combined);
+    assert.equal(combined.perf010_checks.length, 19); assert.equal(combined.perf011_checks.length, 13);
+    assert.ok([...combined.perf010_checks, ...combined.perf011_checks].every(check => check.passed));
+    assert.ok(combined.indexes.length > 0 && combined.indexes.every(index => index.is_valid && index.is_ready));
+    assert.ok(combined.server_version);
     await db.exec(`insert into companies(id,name) values ('${id(1)}','A'),('${id(2)}','B');
       insert into assessment_packages(id,company_id,title,is_system) values
         ('${id(10)}','${id(1)}','Own',false),('${id(11)}','${id(2)}','Other',false),('${id(12)}',null,'System',true);

@@ -643,3 +643,63 @@ PostgreSQL 18.3 / PGlite 0.5.8, Node 24.14.0; это не staging PostgreSQL 15 
 19 существующих индексов valid/ready. Регрессия 496/496, lint, typecheck и build
 успешны. Миграции не созданы/не применены; staging, cold I/O, route bytes/p50/p95,
 RLS/embedding/RPC pushdown и критерий autosave/upsert ≤10% остаются открытыми.
+
+## 26. PERF-012: отдельные индексы и контроли — 10.09.2026
+
+`npm run perf:indexes:isolate` завершил 11 пар: девять отдельных индексов и два
+no-index контроля. В каждой паре две свежие PGlite БД, 47 SELECT / четыре DML proxies,
+по 30 warm повторов. Все результаты SELECT до/после совпали; каталог содержит ровно
+выбранные индексы. [Планы, времена и каталоги в ZIP](performance/PERF012_ISOLATED_2026-09-10.zip),
+[разбор и таблица](32_QUERY_INDEX_BENCHMARK.md).
+
+Questions/options используют Index Scan и показывают большой локальный выигрыш
+чтения. Score-update times растут в нескольких парах, но существенный разброс есть
+и без индексов: application score p50 в конечном контроле 1.363 → 1.907 ms.
+Точные проценты причинного влияния индексов и критерий autosave ≤10% не доказаны.
+Ни один индекс не принят для deployment. Следующая проверка — native staging
+PostgreSQL/RLS/PostgREST и настоящие autosave/completion RPC при стабильной нагрузке.
+
+SQL-подключение и staging-проект не определены; ответ пользователя ожидается.
+Удалённых чтений/изменений не было. Проверки текущего шага: 496/496, lint, typecheck;
+build прошёл при повторе вне sandbox после `spawn EPERM`. Проверен сброс completed
+при неудачном повторе runner; snapshot измерявшегося runner находится в архиве.
+
+## 27. PERF-010/011: API-проверка текущего проекта — 10.09.2026
+
+После сообщения пользователя о применении миграции выполнен `npm run perf:remote:check`
+в текущем проекте из настроек приложения. **25/25 remote checks:** OpenAPI/столбцы
+пяти views, SELECT service role, запрет anon, наличие двух PERF-011 RPC и запрет их
+вызова service role/anon, три embedding-контракта. Все data/RPC запросы — GET/LIMIT 0,
+бизнес-строки не получались. [Артефакт](performance/PERF012_REMOTE_2026-09-10.json).
+
+REST EXPLAIN без ANALYZE вернул **406/PGRST107**; настройки не менялись. Exact DDL,
+SQL grants, index catalog, authenticated/RLS, payload/latency и performance acceptance
+не подтверждены. Пользовательское сообщение и API наличие объектов не являются
+доказательством exact migration history. Текущий проект не классифицирован как staging.
+
+`supabase/verification/performance_remote_acceptance.sql` объединяет существующие
+19+13 checks и index inventory в одну JSON-ячейку, read-only transaction/timeouts.
+Локальный PGlite прогон этого SQL успешен; remote-результат ожидается из SQL Editor.
+Два новых mock HTTP теста проверяют GET/LIMIT 0, отсутствие секретов/raw errors
+в отчёте и обнаружение неожиданно разрешённого anon SELECT.
+Проверки этого продолжения: **498/498 Node tests**, lint, typecheck; production build
+прошёл при повторе вне sandbox после `spawn EPERM`. Remote-каталог пока не прочитан.
+
+## 28. PERF-010/011: получена SQL-верификация — 10.09.2026
+
+Пользователь предоставил результат SQL Editor от **09:19:59 UTC**, PostgreSQL 17.6:
+[JSON](performance/PERF012_SQL_VERIFICATION_2026-09-10.json). PERF-010 **19/19** и
+PERF-011 **13/13**; подтверждены проверяемые свойства views/functions, grants и
+RLS enabled. История миграций, полные тела функций и фактическая JWT/RLS matrix
+не входят в эти условия. Это внешнее свидетельство пользователя, не SQL-вызов агента.
+
+В выборке **34 индекса на 16 таблицах**, все valid/ready. Индексы PERF-012 отсутствуют.
+Два обычных token-индекса перекрываются с UNIQUE-индексами invitations и employee
+invitations; каждый занимает 16 KiB. Ничего не удалялось. `stats_reset=null` не позволяет
+трактовать idx_scan как интенсивность нагрузки; размеры таблиц не заменяют row counts.
+`postgrest_plan_setting=null`; REST EXPLAIN ранее вернул 406/PGRST107.
+
+Каталожная часть проверки завершена. PERF-012 требует реальных query plans,
+representative dataset и полных autosave/completion замеров. Обновлены только
+документы/JSON: проверены структура, количество/уникальность/успех checks, индексы,
+ссылки и diff. Сборка и тесты приложения в этом продолжении не запускались.

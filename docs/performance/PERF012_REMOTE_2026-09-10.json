@@ -1,0 +1,149 @@
+{
+  "checkedAt": "2026-09-10T09:07:51.756Z",
+  "projectFingerprint": "dca5278c627042a7427abd389a8aa6b6611641290de1dc51e3cbfbf3cb6bf9b6",
+  "scope": "Current configured project, not independently classified as staging. GET/LIMIT 0 metadata and permission probes only.",
+  "limitations": "No authenticated user JWT, tenant RLS matrix, live SQL catalog, index inventory, migration history, row behavior, or performance acceptance. API presence is not proof of exact deployed DDL.",
+  "checks": [
+    {
+      "name": "openapi-readable",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "test_template_list:columns",
+      "passed": true
+    },
+    {
+      "name": "test_template_list:service_role:select",
+      "passed": true,
+      "status": 200,
+      "code": null
+    },
+    {
+      "name": "test_template_list:anon:select",
+      "passed": true,
+      "status": 401,
+      "code": "42501"
+    },
+    {
+      "name": "assessment_package_list:columns",
+      "passed": true
+    },
+    {
+      "name": "assessment_package_list:service_role:select",
+      "passed": true,
+      "status": 200,
+      "code": null
+    },
+    {
+      "name": "assessment_package_list:anon:select",
+      "passed": true,
+      "status": 401,
+      "code": "42501"
+    },
+    {
+      "name": "employee_assessment_list:columns",
+      "passed": true
+    },
+    {
+      "name": "employee_assessment_list:service_role:select",
+      "passed": true,
+      "status": 200,
+      "code": null
+    },
+    {
+      "name": "employee_assessment_list:anon:select",
+      "passed": true,
+      "status": 401,
+      "code": "42501"
+    },
+    {
+      "name": "job_comparison_summary:columns",
+      "passed": true
+    },
+    {
+      "name": "job_comparison_summary:service_role:select",
+      "passed": true,
+      "status": 200,
+      "code": null
+    },
+    {
+      "name": "job_comparison_summary:anon:select",
+      "passed": true,
+      "status": 401,
+      "code": "42501"
+    },
+    {
+      "name": "employee_comparison_filters:columns",
+      "passed": true
+    },
+    {
+      "name": "employee_comparison_filters:service_role:select",
+      "passed": true,
+      "status": 200,
+      "code": null
+    },
+    {
+      "name": "employee_comparison_filters:anon:select",
+      "passed": true,
+      "status": 401,
+      "code": "42501"
+    },
+    {
+      "name": "list_company_test_templates:exists",
+      "passed": true
+    },
+    {
+      "name": "list_company_test_templates:service_role:execute-denied",
+      "passed": true,
+      "status": 403,
+      "code": "42501"
+    },
+    {
+      "name": "list_company_test_templates:anon:execute-denied",
+      "passed": true,
+      "status": 401,
+      "code": "42501"
+    },
+    {
+      "name": "list_company_assessment_packages:exists",
+      "passed": true
+    },
+    {
+      "name": "list_company_assessment_packages:service_role:execute-denied",
+      "passed": true,
+      "status": 403,
+      "code": "42501"
+    },
+    {
+      "name": "list_company_assessment_packages:anon:execute-denied",
+      "passed": true,
+      "status": 401,
+      "code": "42501"
+    },
+    {
+      "name": "jobs-package-embedding",
+      "passed": true,
+      "status": 200,
+      "code": null
+    },
+    {
+      "name": "candidate-list-embedding",
+      "passed": true,
+      "status": 200,
+      "code": null
+    },
+    {
+      "name": "candidate-comparison-embedding",
+      "passed": true,
+      "status": 200,
+      "code": null
+    }
+  ],
+  "explain": {
+    "available": false,
+    "status": 406,
+    "code": "PGRST107",
+    "analyze": false
+  }
+}

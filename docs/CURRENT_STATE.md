@@ -1,22 +1,24 @@
 # Текущее состояние Talvia
 
-Обновлено: 2026-09-10. Снимок кода и локальных проверок; remote-состояние не подтверждено.
+Обновлено: 2026-09-10. API smoke и 32 SQL-проверки текущего проекта подтверждены; полная RLS/performance-приёмка открыта.
 
 ## Текущий этап и следующий шаг
 
-- **PERF-012: локальный диагностический этап выполнен, весь этап не принят.**
-- `npm run perf:indexes`: 47 SELECT shapes × 30 warm EXPLAIN до/после, девять экспериментальных индексов, четыре write proxies; две отдельные in-memory PGlite БД.
-- Сохранены планы/BUFFERS, p50/p95, размеры, source hashes и одинаковые результаты: [методика и результаты](32_QUERY_INDEX_BENCHMARK.md), [JSON](performance/PERF012_LOCAL_2026-09-10.json), [baseline §25](17_PERFORMANCE_BASELINE.md).
-- Чтение ускоряется, но score-update proxies ухудшились. Набор не перенесён в миграцию; индексы в Supabase не добавлялись.
-- Следующий шаг PERF-012: на staging сверить каталог, снять реальные RLS/PostgREST plans, проверить каждый индекс отдельно и полный autosave/upsert. Удалённые изменения требуют отдельного разрешения.
+- **PERF-012: локальные замеры выполнены; API smoke 25/25, SQL-каталог 32/32; performance-приёмка открыта.**
+- `npm run perf:indexes:isolate`: 11 пар (девять отдельных индексов и два no-index контроля), в каждой 47 SELECT shapes / четыре write proxies × 30 warm повторов до/после в двух свежих PGlite БД.
+- Сохранены планы/BUFFERS, p50/p95, размеры, source hashes и одинаковые результаты: [разбор](32_QUERY_INDEX_BENCHMARK.md), [поиндексный архив](performance/PERF012_ISOLATED_2026-09-10.zip), [исходный общий JSON](performance/PERF012_LOCAL_2026-09-10.json), [baseline §26](17_PERFORMANCE_BASELINE.md).
+- Questions/options — первые кандидаты на staging по планам чтения. Score-update proxies и no-index контроли показывают шум записи; критерий autosave/upsert ≤10% не доказан. Миграции индексов не созданы.
+- Пользователь сообщил о применении миграции и разрешил текущий проект. API подтвердил пять PERF-010 views/столбцы, две PERF-011 функции, запреты anon/service role и три embedding-контракта: [remote JSON](performance/PERF012_REMOTE_2026-09-10.json), [baseline §27](17_PERFORMANCE_BASELINE.md).
+- Все удалённые data/RPC запросы — GET/LIMIT 0; ключи и бизнес-строки не выводились. REST EXPLAIN без ANALYZE вернул 406/PGRST107. Данные, схема и настройки агентом не менялись.
+- Пользователь предоставил результат SQL Editor от 09:19:59 UTC: PostgreSQL 17.6, PERF-010 19/19 и PERF-011 13/13; 34 индекса на 16 таблицах valid/ready. [SQL-свидетельство](performance/PERF012_SQL_VERIFICATION_2026-09-10.json), [baseline §28](17_PERFORMANCE_BASELINE.md).
+- Следующий шаг: EXPLAIN реальных query shapes, representative dataset и полные autosave/completion/RLS проверки. SQL-подключение и authenticated JWT агенту не доступны; сведения о каталоге получены от пользователя, текущий проект не классифицирован как staging.
 
 ## Изменённые области и проверки этого шага
 
-- `scripts/perf-index-benchmark.mjs`, npm script `perf:indexes`, игнорируемый каталог `artifacts/performance/`, сохранённый JSON и документация PERF-012.
-- `supabase/verification/performance_index_inventory.sql`: read-only каталог без пользовательских строк; выполнен в fixture, 19 существующих индексов valid/ready.
-- Fixture: 8 компаний, 8 000 jobs, по 32 000 applications/participants, 100 templates/draft versions, 10 000 questions / 40 000 options.
-- Локальные проверки сравнивают результаты до/после, tenant/лимит и точные дубликаты кандидатов. Существующие индексы сохранены.
-- **496/496 Node tests, lint, typecheck и production build прошли в этом шаге.** Browser E2E и remote acceptance не выполнялись.
+- Сохранён пользовательский JSON SQL-проверки; обновлены состояние, rollout, план и baseline. Нового кода/миграций в этом продолжении нет.
+- Проверены JSON, 19+13 уникальных успешных checks, valid/ready всех 34 индексов, ссылки и diff. Тесты приложения не перезапускались для документации.
+- Последние проверки кода в предыдущем продолжении: **498/498**, lint, typecheck и production build (после повтора вне sandbox из-за `spawn EPERM`). Browser E2E и authenticated/RLS matrix остаются открытыми.
+- Найдены два перекрытия: обычные индексы token в invitations и employee_assessment_invitations повторяют ключи UNIQUE-индексов (по 16 KiB). Ничего не удалялось; idx_scan при неизвестном stats_reset не доказывает необходимость удаления.
 - PostgreSQL 18.3 / PGlite 0.5.8; частичный fixture без полной истории миграций, RLS, triggers и PostgREST. Write proxies не доказывают критерий autosave/upsert ≤10%; первые выполнения не являются cold I/O.
 
 ## Готовая кодовая база PERF-010/011
@@ -25,7 +27,7 @@
 - Охват: dashboard candidates, job candidates, employee participants, jobs/tests/packages/employee assessments; admin companies/applications/users/audit.
 - Tests/packages используют tenant-scoped invoker RPC вместо полного списка grant IDs. Две функции добавлены в `20260909160000_dashboard_list_pagination.sql`.
 - PERF-010/011 SQL verification и локальные RLS stand-ins покрываются регрессией; реальный Supabase/PostgREST ими не заменяется.
-- Миграция PERF-011 удалённо не применялась в предыдущем шаге; remote-состояние PERF-010 не подтверждено. Нужны PostgreSQL 15+, сначала migrations, затем deploy: [rollout PERF-011](31_DASHBOARD_CURSOR_PAGINATION_ROLLOUT.md).
+- API и пользовательский SQL-результат подтверждают проверяемые свойства PERF-010/011: контракты views, security_invoker, RLS enabled, invoker/STABLE/SETOF, search_path и grants. Полные тела функций/история миграций и фактическая изоляция под JWT не проверены: [rollout PERF-011](31_DASHBOARD_CURSOR_PAGINATION_ROLLOUT.md).
 - Вспомогательные справочники форм, detail/report routes и часть admin catalogs/monitoring/team не охвачены первой очередью пагинации.
 - Cursor не обеспечивает snapshot при изменении даты/fit; route bytes/p50/p95 и RPC/view pushdown ещё не измерены.
 
