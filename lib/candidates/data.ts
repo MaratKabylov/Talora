@@ -1,3 +1,4 @@
+import { listPage, type ListParams, type ListReadQuery } from "@/lib/lists/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerOperation } from "@/lib/observability/server-performance";
 
@@ -123,12 +124,13 @@ function normalizeApplication(record: ApplicationRecord): CandidateApplication {
   };
 }
 
-async function queryApplicationsUninstrumented(companyId: string, jobId?: string) {
+async function queryApplicationsUninstrumented(companyId: string, jobId: string | undefined, params: ListParams) {
   const supabase = await createClient();
+  const page = listPage(["candidates", companyId, jobId ?? ""], "created_at", params);
   let query = supabase
     .from("candidate_applications")
     .select(
-      "id, candidate_id, status, current_stage, overall_score, fit_score, composite_score, recommendation, risk_level, requires_review, created_at, candidates(id, full_name, email, phone, city, source), jobs(id, title), invitations(id, token, status, expires_at, sent_at, opened_at, created_at)",
+      `id, candidate_id, status, current_stage, overall_score, fit_score, composite_score, recommendation, risk_level, requires_review, created_at, ${page.filters.q ? "candidates!inner" : "candidates"}(id, full_name, email, phone, city, source), jobs(id, title), invitations(id, token, status, expires_at, sent_at, opened_at, created_at)`,
     )
     .eq("company_id", companyId)
     .order("created_at", { referencedTable: "invitations", ascending: false })
@@ -139,26 +141,26 @@ async function queryApplicationsUninstrumented(companyId: string, jobId?: string
     query = query.eq("job_id", jobId);
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await page.apply(query as unknown as ListReadQuery, { search: "candidates.full_name", status: "status", review: "requires_review" });
 
   if (error) {
     throw new Error("Unable to load candidate applications.");
   }
 
-  return ((data ?? []) as unknown as ApplicationRecord[]).map(normalizeApplication);
+  return page.finish((data ?? []) as unknown as ApplicationRecord[], normalizeApplication);
 }
 
-function queryApplications(companyId: string, jobId?: string) {
+function queryApplications(companyId: string, jobId: string | undefined, params: ListParams) {
   return measureServerOperation(
     jobId ? "candidates.job_list" : "candidates.list",
-    () => queryApplicationsUninstrumented(companyId, jobId),
+    () => queryApplicationsUninstrumented(companyId, jobId, params),
   );
 }
 
-export function listCandidateApplications(companyId: string) {
-  return queryApplications(companyId);
+export function listCandidateApplications(companyId: string, params: ListParams = {}) {
+  return queryApplications(companyId, undefined, params);
 }
 
-export function listJobCandidateApplications(companyId: string, jobId: string) {
-  return queryApplications(companyId, jobId);
+export function listJobCandidateApplications(companyId: string, jobId: string, params: ListParams = {}) {
+  return queryApplications(companyId, jobId, params);
 }

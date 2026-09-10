@@ -72,6 +72,21 @@ Cursor comparison не даёт доступа: независимо прове�
 ограничение действует отдельно для каждого родителя. Token не логируется.
 Миграция и реальная RLS-приёмка: [rollout PERF-010](30_DASHBOARD_LIST_READ_MODELS_ROLLOUT.md).
 
+## Cursor lists (PERF-011)
+
+`list_company_test_templates(uuid)` и `list_company_assessment_packages(uuid)` —
+STABLE SECURITY INVOKER SQL-функции с пустым search_path и EXECUTE только для
+authenticated. Они читают PERF-010 invoker views, проверяют членство в переданной
+компании и её ownership/system grants. System grant другого tenant не заменяет
+grant выбранной компании. Dashboard передаёт company из серверного контекста;
+прочие списки имеют явные company/parent filters независимо от cursor.
+Admin сохраняет platform role gate перед service client и ограничения PII;
+межкомпанейский обзор разрешён platform-контекстом, выбранный company фильтруется SQL.
+Cursor не является секретом или разрешением: валидируются timestamp/UUID, размер
+и scope route/company/parent/filters/sort/pageSize. Неподходящий cursor сбрасывается.
+Новые функции не предоставляют anon/service_role EXECUTE и не меняют исходные RLS.
+Проверки и выпуск: [rollout PERF-011](31_DASHBOARD_CURSOR_PAGINATION_ROLLOUT.md).
+
 ## Sensitive data
 
 Не использовать для скоринга:

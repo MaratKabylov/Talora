@@ -1,3 +1,6 @@
+import { APPLICATION_STATUS_LABELS } from "@/lib/candidates/constants";
+import { ListControls } from "@/components/lists/list-controls";
+import type { ListParams } from "@/lib/lists/pagination";
 import Link from "next/link";
 
 import { CandidateApplicationsTable } from "@/components/candidates/candidate-applications-table";
@@ -8,7 +11,7 @@ import { requireCompanyContext } from "@/lib/auth/context";
 import { canManageCandidates } from "@/lib/candidates/constants";
 import { listCandidateApplications } from "@/lib/candidates/data";
 
-type CandidatesSearchParams = Promise<{
+type CandidatesSearchParams = Promise<ListParams & {
   error?: string;
   message?: string;
 }>;
@@ -20,7 +23,8 @@ export default async function CandidatesPage({
 }) {
   const context = await requireCompanyContext();
   const params = await searchParams;
-  const applications = await listCandidateApplications(context.activeCompany.id);
+  const page = await listCandidateApplications(context.activeCompany.id, params);
+  const applications = page.items;
   const mayManage = canManageCandidates(context.activeCompany.role);
 
   return (
@@ -38,6 +42,7 @@ export default async function CandidatesPage({
       </div>
 
       <FeedbackMessage error={params.error} message={params.message} />
+      <ListControls path="/dashboard/candidates" params={params} {...page} count={applications.length} search="Имя кандидата" statuses={APPLICATION_STATUS_LABELS} review />
 
       <Card>
         <CardHeader>

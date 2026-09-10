@@ -1,3 +1,5 @@
+import { ListControls } from "@/components/lists/list-controls";
+import type { ListParams } from "@/lib/lists/pagination";
 import type { TestTemplateListItem } from "@/lib/lists/read-models";
 import Link from "next/link";
 
@@ -15,7 +17,7 @@ import {
 import { listTestTemplates } from "@/lib/tests/data";
 import { getCompanyTestPermissions } from "@/lib/tests/permissions";
 
-type TestsSearchParams = Promise<{
+type TestsSearchParams = Promise<ListParams & {
   error?: string;
   message?: string;
 }>;
@@ -92,10 +94,11 @@ export default async function TestsPage({
 }) {
   const context = await requireCompanyContext();
   const params = await searchParams;
-  const [templates, permissions] = await Promise.all([
-    listTestTemplates(context.activeCompany.id),
+  const [page, permissions] = await Promise.all([
+    listTestTemplates(context.activeCompany.id, params),
     getCompanyTestPermissions(context.activeCompany.id),
   ]);
+  const templates = page.items;
   const systemTemplates = templates.filter(
     (template) => template.isSystem && template.status === "active",
   );
@@ -131,6 +134,7 @@ export default async function TestsPage({
       </div>
 
       <FeedbackMessage error={params.error} message={params.message} />
+      <ListControls path="/dashboard/tests" params={params} {...page} count={templates.length} search="Название теста" statuses={TEST_TEMPLATE_STATUS_LABELS} kind />
 
       <Card>
         <CardHeader>

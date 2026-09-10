@@ -1,3 +1,6 @@
+import { ListControls } from "@/components/lists/list-controls";
+import type { ListParams } from "@/lib/lists/pagination";
+import { EMPLOYEE_PARTICIPANT_STATUS_LABELS } from "@/lib/employee-assessments/constants";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -20,7 +23,7 @@ import {
 import { getEmployeeAssessmentPageData } from "@/lib/employee-assessments/data";
 
 type EmployeeAssessmentParams = Promise<{ id: string }>;
-type EmployeeAssessmentSearchParams = Promise<{
+type EmployeeAssessmentSearchParams = Promise<ListParams & {
   error?: string;
   message?: string;
 }>;
@@ -35,7 +38,7 @@ export default async function EmployeeAssessmentPage({
   const context = await requireCompanyContext();
   const { id } = await params;
   const feedback = await searchParams;
-  const data = await getEmployeeAssessmentPageData(context.activeCompany.id, id);
+  const data = await getEmployeeAssessmentPageData(context.activeCompany.id, id, feedback);
 
   if (!data) {
     notFound();
@@ -121,6 +124,7 @@ export default async function EmployeeAssessmentPage({
           ) : null}
           <div className="space-y-3">
             <h2 className="text-sm font-medium">Участники оценки</h2>
+            <ListControls path={`/dashboard/employee-assessments/${id}`} params={feedback} {...data.participantPage} count={data.participants.length} search="Имя сотрудника" statuses={EMPLOYEE_PARTICIPANT_STATUS_LABELS} review />
             <EmployeeAssessmentParticipantsTable
               mayManage={mayManage}
               participants={data.participants}

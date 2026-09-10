@@ -1,3 +1,6 @@
+import { ListControls } from "@/components/lists/list-controls";
+import type { ListParams } from "@/lib/lists/pagination";
+import { APPLICATION_STATUS_LABELS } from "@/lib/candidates/constants";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -13,7 +16,7 @@ import { JOB_STATUS_LABELS } from "@/lib/jobs/constants";
 import { getJobCandidateListContext } from "@/lib/jobs/data";
 
 type JobCandidatesParams = Promise<{ id: string }>;
-type JobCandidatesSearchParams = Promise<{
+type JobCandidatesSearchParams = Promise<ListParams & {
   error?: string;
   message?: string;
 }>;
@@ -28,15 +31,16 @@ export default async function JobCandidatesPage({
   const context = await requireCompanyContext();
   const { id } = await params;
   const feedback = await searchParams;
-  const [data, applications] = await Promise.all([
+  const [data, page] = await Promise.all([
     getJobCandidateListContext(context.activeCompany.id, id),
-    listJobCandidateApplications(context.activeCompany.id, id),
+    listJobCandidateApplications(context.activeCompany.id, id, feedback),
   ]);
 
   if (!data) {
     notFound();
   }
 
+  const applications = page.items;
   const mayManage = canManageCandidates(context.activeCompany.role);
   const mayInvite =
     mayManage &&
@@ -112,10 +116,11 @@ export default async function JobCandidatesPage({
         <CardHeader>
           <CardTitle>Кандидаты</CardTitle>
           <CardDescription>
-            Всего в вакансии: {applications.length}. Здесь доступны приглашения, результаты и отчеты.
+            На странице: {applications.length}. Здесь доступны приглашения, результаты и отчеты.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
+          <ListControls path={candidatesPath} params={feedback} {...page} count={applications.length} search="Имя кандидата" statuses={APPLICATION_STATUS_LABELS} review />
           <CandidateApplicationsTable
             applications={applications}
             mayManage={mayManage}

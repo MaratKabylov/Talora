@@ -1,3 +1,5 @@
+import { ListControls } from "@/components/lists/list-controls";
+import type { ListParams } from "@/lib/lists/pagination";
 import Link from "next/link";
 
 import { FeedbackMessage } from "@/components/feedback-message";
@@ -7,7 +9,7 @@ import { requireCompanyContext } from "@/lib/auth/context";
 import { canManageJobs, JOB_STATUS_LABELS } from "@/lib/jobs/constants";
 import { listJobs } from "@/lib/jobs/data";
 
-type JobsSearchParams = Promise<{
+type JobsSearchParams = Promise<ListParams & {
   error?: string;
   message?: string;
 }>;
@@ -19,7 +21,8 @@ export default async function JobsPage({
 }) {
   const context = await requireCompanyContext();
   const params = await searchParams;
-  const jobs = await listJobs(context.activeCompany.id);
+  const page = await listJobs(context.activeCompany.id, params);
+  const jobs = page.items;
   const mayManage = canManageJobs(context.activeCompany.role);
 
   return (
@@ -37,6 +40,7 @@ export default async function JobsPage({
       </div>
 
       <FeedbackMessage error={params.error} message={params.message} />
+      <ListControls path="/dashboard/jobs" params={params} {...page} count={jobs.length} search="Название вакансии" statuses={JOB_STATUS_LABELS} />
 
       {jobs.length === 0 ? (
         <Card className="border-dashed">

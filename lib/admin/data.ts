@@ -1,5 +1,7 @@
 import "server-only";
 
+import { listPage, type ListParams, type ListReadQuery } from "@/lib/lists/pagination";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import {
@@ -205,23 +207,16 @@ export async function getAdminDashboardData() {
   };
 }
 
-export async function listAdminCompanies(search?: string, status?: CompanyStatus | "") {
+export async function listAdminCompanies(params: ListParams = {}) {
   const { admin } = await platformAccess();
-  let query = admin
+  const page = listPage(["admin-companies"], "created_at", params);
+  const query = admin
     .from("companies")
     .select(
       "id, name, industry, bin_or_iin, status, created_at, system_cities(name), company_users(count), jobs(count), candidate_applications(count)",
-    )
-    .order("created_at", { ascending: false });
+    );
 
-  if (search?.trim()) {
-    query = query.ilike("name", `%${search.trim()}%`);
-  }
-  if (status) {
-    query = query.eq("status", status);
-  }
-
-  const { data, error } = await query;
+  const { data, error } = await page.apply(query as unknown as ListReadQuery, { search: "name", status: "status" });
   if (error) {
     throw new Error("Unable to load platform companies.");
   }
@@ -239,7 +234,7 @@ export async function listAdminCompanies(search?: string, status?: CompanyStatus
     system_cities: Relation<{ name: string }>;
   }>;
 
-  return companies.map(({ system_cities, ...company }) => ({
+  return page.finish(companies, ({ system_cities, ...company }) => ({
     ...company,
     city: related(system_cities)?.name ?? null,
   }));
@@ -394,38 +389,23 @@ export async function listSystemCities() {
   return (data ?? []) as unknown as AdminSystemCity[];
 }
 
-export async function listAdminApplications(filters: {
-  companyId?: string;
-  review?: boolean;
-  status?: string;
-}) {
+export async function listAdminApplications(params: ListParams = {}) {
   const { admin, context } = await platformAccess();
   const includePii = canViewCandidatePii(context.role);
-  let query = admin
+  const page = listPage(["admin-applications", context.role], "created_at", params);
+  const query = admin
     .from("candidate_applications")
     .select(
       includePii
         ? "id, company_id, status, overall_score, fit_score, recommendation, risk_level, requires_review, created_at, completed_at, companies(id, name), candidates(full_name, email), jobs(id, title)"
         : "id, company_id, status, overall_score, fit_score, recommendation, risk_level, requires_review, created_at, completed_at, companies(id, name), jobs(id, title)",
-    )
-    .order("created_at", { ascending: false })
-    .limit(200);
+    );
 
-  if (filters.companyId) {
-    query = query.eq("company_id", filters.companyId);
-  }
-  if (filters.status) {
-    query = query.eq("status", filters.status);
-  }
-  if (filters.review) {
-    query = query.eq("requires_review", true);
-  }
-
-  const { data, error } = await query;
+  const { data, error } = await page.apply(query as unknown as ListReadQuery, { company: "company_id", status: "status", review: "requires_review" });
   if (error) {
     throw new Error("Unable to load platform applications.");
   }
-  return (data ?? []) as unknown as AdminApplicationListItem[];
+  return page.finish((data ?? []) as unknown as AdminApplicationListItem[]);
 }
 
 export async function getAdminApplicationDetail(applicationId: string, reason: AccessReason) {
@@ -507,20 +487,20 @@ export async function getAdminApplicationDetail(applicationId: string, reason: A
   };
 }
 
-export async function listAdminUsers() {
+export async function listAdminUsers(params: ListParams = {}) {
   const { admin, context } = await platformAccess();
+  const page = listPage(["admin-users", context.role], "created_at", params);
   if (!canViewCandidatePii(context.role)) {
-    return [];
+    return page.finish<AdminTenantUser>([]);
   }
-  const { data, error } = await admin
+  const { data, error } = await page.apply(admin
     .from("company_users")
-    .select("id, company_id, role, status, created_at, companies(id, name), profiles(id, full_name, email)")
-    .order("created_at", { ascending: false })
-    .limit(250);
+    .select(`id, company_id, role, status, created_at, companies(id, name), ${page.filters.q ? "profiles!inner" : "profiles"}(id, full_name, email)`) as unknown as ListReadQuery,
+    { search: "profiles.full_name", company: "company_id", status: "status" });
   if (error) {
     throw new Error("Unable to load tenant users.");
   }
-  return (data ?? []) as unknown as AdminTenantUser[];
+  return page.finish((data ?? []) as unknown as AdminTenantUser[]);
 }
 
 export async function listAssessmentMonitoring() {
@@ -553,15 +533,17 @@ export async function listPlatformTeam() {
   return { context, users: data ?? [] };
 }
 
-export async function listPlatformAudit() {
+export async function listPlatformAudit(params: ListParams = {}) {
   const { admin } = await platformAccess();
-  const { data, error } = await admin
+  const page = listPage(["admin-audit"], "created_at", params);
+  const { data, error } = await page.apply(admin
     .from("platform_audit_logs")
-    .select("id, actor_role, action, target_type, target_id, company_id, reason, created_at, profiles(full_name, email), companies(name)")
-    .order("created_at", { ascending: false })
-    .limit(200);
+    .select("id, actor_role, action, target_type, target_id, company_id, reason, created_at, profiles(full_name, email), companies(name)") as unknown as ListReadQuery,
+    { search: "action", company: "company_id" });
   if (error) {
     throw new Error("Unable to load platform audit.");
   }
-  return data ?? [];
+  type AuditRow = { id: string; created_at: string; actor_role: string; action: string; target_type: string;
+    reason: string | null; profiles: Relation<PersonSummary>; companies: Relation<{ name: string }> };
+  return page.finish((data ?? []) as AuditRow[]);
 }

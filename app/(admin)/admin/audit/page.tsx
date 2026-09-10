@@ -1,3 +1,5 @@
+import { ListControls } from "@/components/lists/list-controls";
+import type { ListParams } from "@/lib/lists/pagination";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ACCESS_REASON_LABELS, PLATFORM_ROLE_LABELS, type AccessReason, type PlatformRole } from "@/lib/admin/constants";
 import { listPlatformAudit } from "@/lib/admin/data";
@@ -9,8 +11,10 @@ function one<T>(value: T | T[] | null) {
   return Array.isArray(value) ? value[0] ?? null : value;
 }
 
-export default async function AdminAuditPage() {
-  const events = await listPlatformAudit();
+export default async function AdminAuditPage({ searchParams }: { searchParams: Promise<ListParams> }) {
+  const params = await searchParams;
+  const page = await listPlatformAudit(params);
+  const events = page.items;
 
   return (
     <div className="space-y-6">
@@ -19,10 +23,11 @@ export default async function AdminAuditPage() {
         <h1 className="text-3xl font-semibold tracking-tight">Журнал аудита</h1>
       </div>
 
+      <ListControls path="/admin/audit" params={params} {...page} count={events.length} search="Действие" company />
       <Card>
         <CardHeader>
           <CardTitle>События platform access</CardTitle>
-          <CardDescription>Последние 200 действий внутренней команды.</CardDescription>
+          <CardDescription>Действия внутренней команды на текущей странице.</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           <div className="overflow-hidden rounded-lg border">

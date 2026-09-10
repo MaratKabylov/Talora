@@ -1,14 +1,12 @@
+import { ListControls } from "@/components/lists/list-controls";
+import type { ListParams } from "@/lib/lists/pagination";
 import Link from "next/link";
-import { z } from "zod";
 
 import { EmptyState } from "@/components/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import {
   APPLICATION_STATUS_LABELS,
-  APPLICATION_STATUS_VALUES,
   RECOMMENDATION_LABELS,
   RISK_LEVEL_LABELS,
 } from "@/lib/candidates/constants";
@@ -16,7 +14,7 @@ import { listAdminApplications } from "@/lib/admin/data";
 import { canViewCandidatePii } from "@/lib/admin/constants";
 import { requirePlatformContext } from "@/lib/admin/context";
 
-type SearchParams = Promise<{ company?: string; review?: string; status?: string }>;
+type SearchParams = Promise<ListParams & { company?: string; review?: string; status?: string }>;
 type RecordRelation = { id?: string; name?: string; title?: string; full_name?: string | null } | null;
 
 function relation<T>(value: T | T[] | null) {
@@ -25,14 +23,8 @@ function relation<T>(value: T | T[] | null) {
 
 export default async function AdminApplicationsPage({ searchParams }: { searchParams: SearchParams }) {
   const [params, context] = await Promise.all([searchParams, requirePlatformContext()]);
-  const status = APPLICATION_STATUS_VALUES.includes(params.status as never) ? params.status : "";
-  const parsedCompanyId = z.string().uuid().safeParse(params.company);
-  const companyId = parsedCompanyId.success ? parsedCompanyId.data : undefined;
-  const applications = await listAdminApplications({
-    companyId,
-    review: params.review === "true",
-    status,
-  });
+  const page = await listAdminApplications(params);
+  const applications = page.items;
 
   return (
     <div className="space-y-6">
@@ -41,33 +33,12 @@ export default async function AdminApplicationsPage({ searchParams }: { searchPa
         <h1 className="text-3xl font-semibold tracking-tight">Кандидаты и оценки</h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Фильтры</CardTitle>
-          <CardDescription>Полные ответы доступны из карточки после указания причины доступа.</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <form className="flex flex-wrap gap-3">
-            <Input className="max-w-xs" defaultValue={params.company ?? ""} name="company" placeholder="UUID компании" />
-            <Select className="max-w-56" defaultValue={status} name="status">
-              <option value="">Все статусы</option>
-              {APPLICATION_STATUS_VALUES.map((value) => (
-                <option key={value} value={value}>{APPLICATION_STATUS_LABELS[value]}</option>
-              ))}
-            </Select>
-            <label className="flex items-center gap-2 rounded-md border px-3 text-sm">
-              <input defaultChecked={params.review === "true"} name="review" type="checkbox" value="true" />
-              Нужна проверка
-            </label>
-            <button className={buttonVariants()} type="submit">Применить</button>
-          </form>
-        </CardContent>
-      </Card>
+      <ListControls path="/admin/applications" params={params} {...page} count={applications.length} company statuses={APPLICATION_STATUS_LABELS} review />
 
       <Card>
         <CardHeader>
           <CardTitle>Applications</CardTitle>
-          <CardDescription>Найдено: {applications.length}</CardDescription>
+          <CardDescription>На странице: {applications.length}</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           {applications.length === 0 ? (

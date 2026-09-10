@@ -1,10 +1,10 @@
+import { ListControls } from "@/components/lists/list-controls";
+import type { ListParams } from "@/lib/lists/pagination";
 import Link from "next/link";
 
 import { EmptyState } from "@/components/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import {
   COMPANY_STATUS_LABELS,
   COMPANY_STATUS_VALUES,
@@ -12,7 +12,7 @@ import {
 } from "@/lib/admin/constants";
 import { listAdminCompanies } from "@/lib/admin/data";
 
-type SearchParams = Promise<{ q?: string; status?: string }>;
+type SearchParams = Promise<ListParams & { q?: string; status?: string }>;
 
 function validStatus(value: string | undefined): CompanyStatus | "" {
   return COMPANY_STATUS_VALUES.includes(value as CompanyStatus) ? (value as CompanyStatus) : "";
@@ -25,7 +25,8 @@ function relationCount(value: Array<{ count: number }>) {
 export default async function AdminCompaniesPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const status = validStatus(params.status);
-  const companies = await listAdminCompanies(params.q, status);
+  const page = await listAdminCompanies({ ...params, status });
+  const companies = page.items;
 
   return (
     <div className="space-y-6">
@@ -34,33 +35,12 @@ export default async function AdminCompaniesPage({ searchParams }: { searchParam
         <h1 className="text-3xl font-semibold tracking-tight">Компании</h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Поиск и фильтры</CardTitle>
-          <CardDescription>Найдите компанию для поддержки или проверки доступа.</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <form className="flex flex-wrap gap-3">
-            <Input className="max-w-sm" defaultValue={params.q ?? ""} name="q" placeholder="Название компании" />
-            <Select className="max-w-56" defaultValue={status} name="status">
-              <option value="">Все статусы</option>
-              {COMPANY_STATUS_VALUES.map((value) => (
-                <option key={value} value={value}>
-                  {COMPANY_STATUS_LABELS[value]}
-                </option>
-              ))}
-            </Select>
-            <button className={buttonVariants()} type="submit">
-              Применить
-            </button>
-          </form>
-        </CardContent>
-      </Card>
+      <ListControls path="/admin/companies" params={params} {...page} count={companies.length} search="Название компании" statuses={COMPANY_STATUS_LABELS} />
 
       <Card>
         <CardHeader>
           <CardTitle>Организации</CardTitle>
-          <CardDescription>Найдено: {companies.length}</CardDescription>
+          <CardDescription>На странице: {companies.length}</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           {companies.length === 0 ? (

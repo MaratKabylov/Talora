@@ -1,4 +1,5 @@
-import { TEST_TEMPLATE_LIST_SELECT, normalizeTestTemplateList, type TestTemplateListRecord, type TestTemplateListItem } from "@/lib/lists/read-models";
+import { listPage, type ListParams, type ListReadQuery } from "@/lib/lists/pagination";
+import { TEST_TEMPLATE_LIST_SELECT, normalizeTestTemplateList, type TestTemplateListRecord } from "@/lib/lists/read-models";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerOperation } from "@/lib/observability/server-performance";
 import { sanitizeRichTextValue } from "@/lib/rich-text.server";
@@ -33,10 +34,6 @@ type TemplateRecord = {
   test_versions?: VersionRecord[] | null;
   title: string;
   updated_at: string;
-};
-
-type SystemTestAccessRecord = {
-  test_template_id: string;
 };
 
 export type TestVersion = {
@@ -101,68 +98,21 @@ function normalizeTemplate(record: TemplateRecord): TestTemplate {
   };
 }
 
-function sortTemplates(left: TestTemplateListItem, right: TestTemplateListItem) {
-  if (left.isSystem !== right.isSystem) {
-    return left.isSystem ? -1 : 1;
-  }
-
-  return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
-}
-
-async function listGrantedSystemTemplateIds(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  companyId: string,
-) {
-  const { data, error } = await supabase
-    .from("company_system_test_access")
-    .select("test_template_id")
-    .eq("company_id", companyId);
-
-  if (error) {
-    throw new Error("Unable to load system test access.");
-  }
-
-  return ((data ?? []) as SystemTestAccessRecord[]).map((row) => row.test_template_id);
-}
-
 function testTemplateSelect() {
   return "id, title, description, category, is_system, status, created_at, updated_at, test_versions(id, version_number, title, description, instructions, duration_minutes, scoring_type, settings_json, status, published_at, created_at)";
 }
 
-async function listTestTemplatesUninstrumented(companyId: string) {
+async function listTestTemplatesUninstrumented(companyId: string, params: ListParams) {
   const supabase = await createClient();
-  const systemTemplateIds = await listGrantedSystemTemplateIds(supabase, companyId);
-  const [companyTemplatesResult, systemTemplatesResult] = await Promise.all([
-    supabase
-      .from("test_template_list")
-      .select(TEST_TEMPLATE_LIST_SELECT)
-      .eq("company_id", companyId)
-      .eq("is_system", false),
-    systemTemplateIds.length > 0
-      ? supabase
-          .from("test_template_list")
-          .select(TEST_TEMPLATE_LIST_SELECT)
-          .in("id", systemTemplateIds)
-          .eq("is_system", true)
-          .is("company_id", null)
-          .eq("status", "active")
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-
-  if (companyTemplatesResult.error || systemTemplatesResult.error) {
-    throw new Error("Unable to load test templates.");
-  }
-
-  return [
-    ...((systemTemplatesResult.data ?? []) as unknown as TestTemplateListRecord[]),
-    ...((companyTemplatesResult.data ?? []) as unknown as TestTemplateListRecord[]),
-  ]
-    .map(normalizeTestTemplateList)
-    .sort(sortTemplates);
+  const page = listPage(["list_company_test_templates", companyId], "updated_at", params);
+  const { data, error } = await page.apply((supabase.rpc("list_company_test_templates", { target_company_id: companyId }) as unknown as ListReadQuery)
+    .select(TEST_TEMPLATE_LIST_SELECT), { search: "title", kind: "is_system", status: "status" });
+  if (error) throw new Error("Unable to load test templates.");
+  return page.finish((data ?? []) as unknown as TestTemplateListRecord[], normalizeTestTemplateList);
 }
 
-export function listTestTemplates(companyId: string) {
-  return measureServerOperation("tests.list", () => listTestTemplatesUninstrumented(companyId));
+export function listTestTemplates(companyId: string, params: ListParams = {}) {
+  return measureServerOperation("tests.list", () => listTestTemplatesUninstrumented(companyId, params));
 }
 
 export async function getTestTemplatePageData(companyId: string, templateId: string) {

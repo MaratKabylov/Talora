@@ -1,3 +1,4 @@
+import { listPage, type ListParams, type ListReadQuery } from "@/lib/lists/pagination";
 import { JOB_LIST_SELECT } from "@/lib/lists/read-models";
 import { createClient } from "@/lib/supabase/server";
 import { measureServerOperation } from "@/lib/observability/server-performance";
@@ -98,15 +99,16 @@ function normalizeJob(record: JobRecord): JobDetails {
 
 export type JobListItem = Pick<JobDetails, "id" | "title" | "department" | "location" | "status" | "updatedAt" | "assessmentPackageTitle">;
 
-async function listJobsUninstrumented(companyId: string): Promise<JobListItem[]> {
+async function listJobsUninstrumented(companyId: string, params: ListParams) {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("jobs").select(JOB_LIST_SELECT)
-    .eq("company_id", companyId).order("updated_at", { ascending: false });
+  const page = listPage(["jobs", companyId], "updated_at", params);
+  const { data, error } = await page.apply(supabase.from("jobs").select(JOB_LIST_SELECT)
+    .eq("company_id", companyId) as unknown as ListReadQuery, { search: "title", status: "status" });
   if (error) throw new Error("Unable to load jobs.");
   type Row = Pick<JobRecord, "id" | "title" | "department" | "location" | "status" | "updated_at"> & {
     assessment_packages: { title: string } | { title: string }[] | null;
   };
-  return ((data ?? []) as unknown as Row[]).map((row) => ({
+  return page.finish((data ?? []) as unknown as Row[], (row): JobListItem => ({
     id: row.id, title: row.title, department: row.department, location: row.location,
     status: row.status, updatedAt: row.updated_at,
     assessmentPackageTitle: (Array.isArray(row.assessment_packages)
@@ -114,8 +116,8 @@ async function listJobsUninstrumented(companyId: string): Promise<JobListItem[]>
   }));
 }
 
-export function listJobs(companyId: string) {
-  return measureServerOperation("jobs.list", () => listJobsUninstrumented(companyId));
+export function listJobs(companyId: string, params: ListParams = {}) {
+  return measureServerOperation("jobs.list", () => listJobsUninstrumented(companyId, params));
 }
 
 export async function getJobCandidateListContext(companyId: string, jobId: string) {

@@ -1,3 +1,4 @@
+import { listPage, type ListParams, type ListReadQuery } from "@/lib/lists/pagination";
 import { PACKAGE_LIST_SELECT, normalizeAssessmentPackageList, type AssessmentPackageListRecord } from "@/lib/lists/read-models";
 import { listAccessibleSystemPackageIds } from "@/lib/jobs/package-access";
 import { createClient } from "@/lib/supabase/server";
@@ -163,40 +164,17 @@ async function listGrantedSystemTemplateIds(
   return ((data ?? []) as SystemAccessRecord[]).map((row) => row.test_template_id);
 }
 
-async function listAssessmentPackagesUninstrumented(companyId: string) {
+async function listAssessmentPackagesUninstrumented(companyId: string, params: ListParams) {
   const supabase = await createClient();
-  const systemPackageIds = await listAccessibleSystemPackageIds(supabase, companyId);
-  const [companyPackagesResult, systemPackagesResult] = await Promise.all([
-    supabase
-      .from("assessment_package_list")
-      .select(PACKAGE_LIST_SELECT)
-      .eq("company_id", companyId)
-      .eq("is_system", false)
-      .order("updated_at", { ascending: false }),
-    systemPackageIds.length > 0
-      ? supabase
-          .from("assessment_package_list")
-          .select(PACKAGE_LIST_SELECT)
-          .in("id", systemPackageIds)
-          .eq("is_system", true)
-          .order("title")
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-
-  if (companyPackagesResult.error || systemPackagesResult.error) {
-    throw new Error("Unable to load assessment packages.");
-  }
-
-  return [
-    ...((systemPackagesResult.data ?? []) as unknown as AssessmentPackageListRecord[]),
-    ...((companyPackagesResult.data ?? []) as unknown as AssessmentPackageListRecord[]),
-  ].map(normalizeAssessmentPackageList);
+  const page = listPage(["list_company_assessment_packages", companyId], "updated_at", params);
+  const { data, error } = await page.apply((supabase.rpc("list_company_assessment_packages", { target_company_id: companyId }) as unknown as ListReadQuery)
+    .select(PACKAGE_LIST_SELECT), { search: "title", kind: "is_system" });
+  if (error) throw new Error("Unable to load assessment packages.");
+  return page.finish((data ?? []) as unknown as AssessmentPackageListRecord[], normalizeAssessmentPackageList);
 }
 
-export function listAssessmentPackages(companyId: string) {
-  return measureServerOperation("packages.list", () =>
-    listAssessmentPackagesUninstrumented(companyId),
-  );
+export function listAssessmentPackages(companyId: string, params: ListParams = {}) {
+  return measureServerOperation("packages.list", () => listAssessmentPackagesUninstrumented(companyId, params));
 }
 
 export async function getAssessmentPackagePageData(companyId: string, packageId: string) {

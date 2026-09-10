@@ -1,3 +1,5 @@
+import { ListControls } from "@/components/lists/list-controls";
+import type { ListParams } from "@/lib/lists/pagination";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +8,7 @@ import { canOperateCompanies } from "@/lib/admin/constants";
 import { requirePlatformContext } from "@/lib/admin/context";
 import { listAdminUsers } from "@/lib/admin/data";
 
-type SearchParams = Promise<{ error?: string; message?: string }>;
+type SearchParams = Promise<ListParams & { error?: string; message?: string }>;
 type Company = { id: string; name: string };
 type Profile = { email: string | null; full_name: string | null; id: string };
 
@@ -15,11 +17,12 @@ function one<T>(value: T | T[] | null) {
 }
 
 export default async function AdminUsersPage({ searchParams }: { searchParams: SearchParams }) {
-  const [context, users, feedback] = await Promise.all([
+  const feedback = await searchParams;
+  const [context, page] = await Promise.all([
     requirePlatformContext(),
-    listAdminUsers(),
-    searchParams,
+    listAdminUsers(feedback),
   ]);
+  const users = page.items;
   const mayManage = canOperateCompanies(context.role);
 
   return (
@@ -30,6 +33,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
       </div>
 
       <FeedbackMessage error={feedback.error} message={feedback.message} />
+      <ListControls path="/admin/users" params={feedback} {...page} count={users.length} search="Имя пользователя" company statuses={{ active: "Активен", disabled: "Отключён", invited: "Приглашён" }} />
 
       <Card>
         <CardHeader>

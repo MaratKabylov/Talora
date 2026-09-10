@@ -1,3 +1,4 @@
+import { listPage, type ListParams, type ListReadQuery } from "@/lib/lists/pagination";
 import { comparisonPage, COMPARISON_PAGE_SIZE, DEFAULT_COMPARISON_FILTERS, type ComparisonPageFilters } from "@/lib/comparison/pagination";
 import { EMPLOYEE_ASSESSMENT_LIST_SELECT } from "@/lib/lists/read-models";
 import { createClient } from "@/lib/supabase/server";
@@ -263,6 +264,7 @@ export type EmployeeAssessmentParticipant = {
 };
 
 export type EmployeeAssessmentPageData = {
+  participantPage: { nextCursor: string | null; hasCursor: boolean; pageSize: number };
   assessment: EmployeeAssessmentDetails;
   packages: Awaited<ReturnType<typeof listAccessibleAssessmentPackages>>;
   participants: EmployeeAssessmentParticipant[];
@@ -543,16 +545,16 @@ function jsonArray(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
 
-async function listEmployeeAssessmentsUninstrumented(companyId: string): Promise<EmployeeAssessmentListItem[]> {
+async function listEmployeeAssessmentsUninstrumented(companyId: string, params: ListParams) {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("employee_assessment_list")
-    .select(EMPLOYEE_ASSESSMENT_LIST_SELECT).eq("company_id", companyId)
-    .order("updated_at", { ascending: false });
+  const page = listPage(["employee-assessments", companyId], "updated_at", params);
+  const { data, error } = await page.apply(supabase.from("employee_assessment_list")
+    .select(EMPLOYEE_ASSESSMENT_LIST_SELECT).eq("company_id", companyId) as unknown as ListReadQuery, { search: "title", status: "status" });
   if (error) throw new Error("Unable to load employee assessments.");
   type Row = { id: string; title: string; status: EmployeeAssessmentStatus; updated_at: string;
     assessment_package_title: string | null; participant_count: number; completed_count: number;
     average_fit_score: number | null };
-  return ((data ?? []) as unknown as Row[]).map((row) => ({
+  return page.finish((data ?? []) as unknown as Row[], (row): EmployeeAssessmentListItem => ({
     id: row.id, title: row.title, status: row.status, updatedAt: row.updated_at,
     assessmentPackageTitle: row.assessment_package_title,
     invitedCount: Number(row.participant_count), completedCount: Number(row.completed_count),
@@ -560,9 +562,9 @@ async function listEmployeeAssessmentsUninstrumented(companyId: string): Promise
   }));
 }
 
-export function listEmployeeAssessments(companyId: string) {
+export function listEmployeeAssessments(companyId: string, params: ListParams = {}) {
   return measureServerOperation("employee_assessments.list", () =>
-    listEmployeeAssessmentsUninstrumented(companyId),
+    listEmployeeAssessmentsUninstrumented(companyId, params),
   );
 }
 
@@ -571,8 +573,9 @@ export async function listEmployeeAssessmentPackages(companyId: string) {
   return listAccessibleAssessmentPackages(supabase, companyId);
 }
 
-export async function getEmployeeAssessmentPageData(companyId: string, assessmentId: string) {
+export async function getEmployeeAssessmentPageData(companyId: string, assessmentId: string, params: ListParams = {}) {
   const supabase = await createClient();
+  const page = listPage(["employee-participants", companyId, assessmentId], "created_at", params);
   const [assessmentResult, weightsResult, participantsResult, packages] = await Promise.all([
     supabase
       .from("employee_assessments")
@@ -587,17 +590,16 @@ export async function getEmployeeAssessmentPageData(companyId: string, assessmen
       .select("competency_key, weight, minimum_score, is_required")
       .eq("company_id", companyId)
       .eq("employee_assessment_id", assessmentId),
-    supabase
+    page.apply(supabase
       .from("employee_assessment_participants")
       .select(
-        "id, employee_id, status, current_stage, overall_score, fit_score, recommendation, risk_level, requires_review, completed_at, created_at, employees(id, full_name, email, phone, department, role_title), employee_assessment_invitations(id, token, status, expires_at, sent_at, opened_at, created_at)",
+        "id, employee_id, status, current_stage, overall_score, fit_score, recommendation, risk_level, requires_review, completed_at, created_at, employees!inner(id, full_name, email, phone, department, role_title), employee_assessment_invitations(id, token, status, expires_at, sent_at, opened_at, created_at)",
       )
       .eq("company_id", companyId)
       .eq("employee_assessment_id", assessmentId)
-      .order("created_at", { ascending: false })
       .order("created_at", { referencedTable: "employee_assessment_invitations", ascending: false })
       .order("id", { referencedTable: "employee_assessment_invitations", ascending: false })
-      .limit(1, { referencedTable: "employee_assessment_invitations" }),
+      .limit(1, { referencedTable: "employee_assessment_invitations" }) as unknown as ListReadQuery, { search: "employees.full_name", status: "status", review: "requires_review" }),
     listAccessibleAssessmentPackages(supabase, companyId),
   ]);
 
@@ -609,10 +611,12 @@ export async function getEmployeeAssessmentPageData(companyId: string, assessmen
     return null;
   }
 
+  const { items, ...participantPage } = page.finish((participantsResult.data ?? []) as unknown as ParticipantRecord[]);
   return {
     assessment: normalizeAssessment(assessmentResult.data as unknown as EmployeeAssessmentRecord),
     packages,
-    participants: ((participantsResult.data ?? []) as unknown as ParticipantRecord[])
+    participantPage,
+    participants: items
       .map(normalizeParticipant)
       .filter((participant): participant is EmployeeAssessmentParticipant => participant !== null),
     weights: ((weightsResult.data ?? []) as WeightRecord[]).map((weight) => ({

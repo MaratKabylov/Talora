@@ -1,3 +1,5 @@
+import { ListControls } from "@/components/lists/list-controls";
+import type { ListParams } from "@/lib/lists/pagination";
 import Link from "next/link";
 
 import { FeedbackMessage } from "@/components/feedback-message";
@@ -7,7 +9,7 @@ import { requireCompanyContext } from "@/lib/auth/context";
 import { canManageAssessmentPackages } from "@/lib/packages/constants";
 import { listAssessmentPackages } from "@/lib/packages/data";
 
-type PackagesSearchParams = Promise<{
+type PackagesSearchParams = Promise<ListParams & {
   error?: string;
   message?: string;
 }>;
@@ -23,7 +25,8 @@ export default async function PackagesPage({
 }) {
   const context = await requireCompanyContext();
   const params = await searchParams;
-  const packages = await listAssessmentPackages(context.activeCompany.id);
+  const page = await listAssessmentPackages(context.activeCompany.id, params);
+  const packages = page.items;
   const mayManage = canManageAssessmentPackages(context.activeCompany.role);
 
   return (
@@ -41,6 +44,7 @@ export default async function PackagesPage({
       </div>
 
       <FeedbackMessage error={params.error} message={params.message} />
+      <ListControls path="/dashboard/packages" params={params} {...page} count={packages.length} search="Название пакета" kind />
 
       {packages.length === 0 ? (
         <Card className="border-dashed">

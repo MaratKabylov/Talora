@@ -526,6 +526,15 @@ settings и scoring V2 (включая SJT/Forced Choice и criterion references
 
 #### PERF-011 — Cursor pagination и серверные фильтры
 
+**Статус на 10.09.2026:** код списков первой очереди реализован. Добавлены общий
+date/ID cursor, серверные фильтры и URL-навигация, страницы 50/max 100; comparison
+сохраняет проверенную пагинацию PERF-010 по 50. Tests/packages используют две
+tenant-scoped invoker SQL-функции без загрузки массивов grant IDs в Next.js.
+Миграция `20260909160000_dashboard_list_pagination.sql` удалённо не применялась.
+Staging/PostgREST/performance-приёмка открыта. Вспомогательные справочники форм
+не переведены на страницы; точные границы и проверки —
+[rollout PERF-011](31_DASHBOARD_CURSOR_PAGINATION_ROLLOUT.md).
+
 **Технические требования**
 
 - Размер страницы по умолчанию — 50, допустимый максимум — 100.

@@ -49,6 +49,19 @@ test("list views execute production DDL and SELECT policies with caller RLS", as
     await db.exec(`grant usage on schema public to authenticated, anon, service_role;
       grant select on all tables in schema public to authenticated, service_role;`);
     await db.exec(migration);
+    // Company-scoped access helpers are local stand-ins; the new RPC and views
+    // execute their production DDL and the selected production RLS policies.
+    await db.exec(`create function public.company_can_access_system_test(company uuid, target uuid)
+      returns boolean language sql stable as $$ select public.is_company_member(company)
+        and target::text = current_setting('test.granted_system', true) $$;
+      create function public.company_can_access_system_package(company uuid, target uuid)
+      returns boolean language sql stable as $$ select public.is_company_member(company)
+        and target::text = current_setting('test.granted_package', true) $$;`);
+    await db.exec(read("20260909160000_dashboard_list_pagination"));
+    const paginationChecks = (await db.query<{ check_name: string; passed: boolean }>(readFileSync(
+      new URL("../supabase/verification/dashboard_list_pagination.sql", import.meta.url), "utf8"))).rows;
+    assert.equal(paginationChecks.length, 13);
+    assert.deepEqual(paginationChecks.filter(row => !row.passed), []);
     const verification = readFileSync(new URL("../supabase/verification/dashboard_list_read_models.sql", import.meta.url), "utf8");
     const verificationRows = (await db.query<{ check_name: string; passed: boolean }>(verification)).rows;
     assert.equal(verificationRows.length, 19);
@@ -116,6 +129,24 @@ test("list views execute production DDL and SELECT policies with caller RLS", as
       assert.equal(rows.length, 1); assert.equal(rows[0].id, id(70));
       assert.equal(Number(rows[0].participant_count), 2); assert.equal(Number(rows[0].completed_count), 2);
       assert.equal(Number(rows[0].shortlisted_count), 1); assert.equal(Number(rows[0].average_fit_score), 70);
+    });
+    await t.test("tenant list RPCs enforce the requested company even when RLS exposes a system item via another membership", async () => {
+      await db.exec(`set test.granted_system = '${id(22)}'; set test.granted_package = '${id(12)}';`);
+      for (const [rpc, expected] of [["list_company_test_templates", [id(20), id(22), id(23)]],
+        ["list_company_assessment_packages", [id(10), id(12)]]] as const) {
+        assert.deepEqual((await db.query<{ id: string }>(`select id from ${rpc}('${id(1)}') order by id`)).rows.map(row => row.id), expected);
+        assert.equal((await db.query(`select id from ${rpc}('${id(2)}')`)).rows.length, 0);
+      }
+      // Global RLS visibility remains, but the chosen tenant's grant is revoked.
+      await db.exec("set test.granted_system = ''; set test.granted_package = '';");
+      assert.equal((await db.query(`select id from test_template_list where is_system`)).rows.length, 1);
+      assert.equal((await db.query(`select id from list_company_test_templates('${id(1)}') where is_system`)).rows.length, 0);
+      assert.equal((await db.query(`select id from list_company_assessment_packages('${id(1)}') where is_system`)).rows.length, 0);
+      await db.exec("reset role; set role anon;");
+      for (const rpc of ["list_company_test_templates", "list_company_assessment_packages"]) {
+        await assert.rejects(db.query(`select * from ${rpc}('${id(1)}')`), /permission denied/);
+      }
+      await db.exec("reset role; set role authenticated;");
     });
     await t.test("revoked system access changes counts; no-member and anon cannot obtain list data", async () => {
       await db.exec("set test.system = ''; set test.package = '';");

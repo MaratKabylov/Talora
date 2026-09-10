@@ -1,3 +1,5 @@
+import { ListControls } from "@/components/lists/list-controls";
+import type { ListParams } from "@/lib/lists/pagination";
 import Link from "next/link";
 
 import { FeedbackMessage } from "@/components/feedback-message";
@@ -10,7 +12,7 @@ import {
 } from "@/lib/employee-assessments/constants";
 import { listEmployeeAssessments } from "@/lib/employee-assessments/data";
 
-type EmployeeAssessmentsSearchParams = Promise<{
+type EmployeeAssessmentsSearchParams = Promise<ListParams & {
   error?: string;
   message?: string;
 }>;
@@ -26,7 +28,8 @@ export default async function EmployeeAssessmentsPage({
 }) {
   const context = await requireCompanyContext();
   const params = await searchParams;
-  const assessments = await listEmployeeAssessments(context.activeCompany.id);
+  const page = await listEmployeeAssessments(context.activeCompany.id, params);
+  const assessments = page.items;
   const mayManage = canManageEmployeeAssessments(context.activeCompany.role);
 
   return (
@@ -44,6 +47,7 @@ export default async function EmployeeAssessmentsPage({
       </div>
 
       <FeedbackMessage error={params.error} message={params.message} />
+      <ListControls path="/dashboard/employee-assessments" params={params} {...page} count={assessments.length} search="Название оценки" statuses={EMPLOYEE_ASSESSMENT_STATUS_LABELS} />
 
       {assessments.length === 0 ? (
         <Card className="border-dashed">
