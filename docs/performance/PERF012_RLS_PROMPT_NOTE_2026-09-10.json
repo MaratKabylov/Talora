@@ -1,0 +1,7 @@
+﻿{
+    "capturedAt":  "2026-09-10",
+    "source":  "user message",
+    "type":  "perf012_rls_prompt_note",
+    "note":  "User reported SQL/UI asked for RLS and they clicked enable RLS after builder write-gate query.",
+    "verification":  "pending read-only catalog check"
+}

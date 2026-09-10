@@ -1,0 +1,11 @@
+﻿{
+    "capturedAt":  "2026-09-10",
+    "source":  "user SQL Editor paste",
+    "type":  "perf012_draft_builder_target_discovery_failed",
+    "case":  "draft_builder_target_discovery_with_min_uuid",
+    "error":  {
+                  "sqlstate":  "42883",
+                  "message":  "function min(uuid) does not exist",
+                  "implication":  "Use ordered scalar subqueries or cast UUID to text for sample IDs."
+              }
+}

@@ -1,0 +1,1803 @@
+{
+  "source": "user SQL Editor EXPLAIN result sets",
+  "checkedAt": "2026-09-10T10:59:32.758695+00:00",
+  "plans": [
+    {
+      "name": "jobs:list updated_at desc first page",
+      "result": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 10.89,
+                "Total Cost": 11.01,
+                "Plan Rows": 51,
+                "Plan Width": 110,
+                "Plans": [
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 10.89,
+                    "Total Cost": 11.19,
+                    "Plan Rows": 121,
+                    "Plan Width": 110,
+                    "Sort Key": [
+                      "job.updated_at DESC",
+                      "job.id"
+                    ],
+                    "Plans": [
+                      {
+                        "Node Type": "Hash Join",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Join Type": "Left",
+                        "Startup Cost": 1.95,
+                        "Total Cost": 6.85,
+                        "Plan Rows": 121,
+                        "Plan Width": 110,
+                        "Inner Unique": true,
+                        "Hash Cond": "(job.assessment_package_id = package.id)",
+                        "Plans": [
+                          {
+                            "Node Type": "Seq Scan",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Relation Name": "jobs",
+                            "Alias": "job",
+                            "Startup Cost": 0,
+                            "Total Cost": 4.59,
+                            "Plan Rows": 121,
+                            "Plan Width": 93,
+                            "Filter": "(company_id = '4042019d-0b25-43b8-a0c1-c44c55897a9d'::uuid)"
+                          },
+                          {
+                            "Node Type": "Hash",
+                            "Parent Relationship": "Inner",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Startup Cost": 1.42,
+                            "Total Cost": 1.42,
+                            "Plan Rows": 42,
+                            "Plan Width": 49,
+                            "Plans": [
+                              {
+                                "Node Type": "Seq Scan",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Relation Name": "assessment_packages",
+                                "Alias": "package",
+                                "Startup Cost": 0,
+                                "Total Cost": 1.42,
+                                "Plan Rows": 42,
+                                "Plan Width": 49
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "candidate_applications:list latest invitation first page",
+      "result": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 1329.87,
+                "Total Cost": 1329.99,
+                "Plan Rows": 51,
+                "Plan Width": 366,
+                "Plans": [
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 1329.87,
+                    "Total Cost": 1332.63,
+                    "Plan Rows": 1107,
+                    "Plan Width": 366,
+                    "Sort Key": [
+                      "application.created_at DESC",
+                      "application.id"
+                    ],
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Join Type": "Left",
+                        "Startup Cost": 57.57,
+                        "Total Cost": 1292.94,
+                        "Plan Rows": 1107,
+                        "Plan Width": 366,
+                        "Inner Unique": false,
+                        "Plans": [
+                          {
+                            "Node Type": "Hash Join",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Join Type": "Left",
+                            "Startup Cost": 56.51,
+                            "Total Cost": 102.91,
+                            "Plan Rows": 1107,
+                            "Plan Width": 310,
+                            "Inner Unique": true,
+                            "Hash Cond": "(application.job_id = job.id)",
+                            "Plans": [
+                              {
+                                "Node Type": "Hash Join",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Join Type": "Inner",
+                                "Startup Cost": 50.66,
+                                "Total Cost": 94.05,
+                                "Plan Rows": 1107,
+                                "Plan Width": 281,
+                                "Inner Unique": true,
+                                "Hash Cond": "(application.candidate_id = candidate.id)",
+                                "Plans": [
+                                  {
+                                    "Node Type": "Seq Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Relation Name": "candidate_applications",
+                                    "Alias": "application",
+                                    "Startup Cost": 0,
+                                    "Total Cost": 40.48,
+                                    "Plan Rows": 1107,
+                                    "Plan Width": 142,
+                                    "Filter": "(company_id = '4042019d-0b25-43b8-a0c1-c44c55897a9d'::uuid)"
+                                  },
+                                  {
+                                    "Node Type": "Hash",
+                                    "Parent Relationship": "Inner",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Startup Cost": 34.18,
+                                    "Total Cost": 34.18,
+                                    "Plan Rows": 1318,
+                                    "Plan Width": 139,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Seq Scan",
+                                        "Parent Relationship": "Outer",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Relation Name": "candidates",
+                                        "Alias": "candidate",
+                                        "Startup Cost": 0,
+                                        "Total Cost": 34.18,
+                                        "Plan Rows": 1318,
+                                        "Plan Width": 139
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Hash",
+                                "Parent Relationship": "Inner",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Startup Cost": 4.27,
+                                "Total Cost": 4.27,
+                                "Plan Rows": 127,
+                                "Plan Width": 45,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Seq Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Relation Name": "jobs",
+                                    "Alias": "job",
+                                    "Startup Cost": 0,
+                                    "Total Cost": 4.27,
+                                    "Plan Rows": 127,
+                                    "Plan Width": 45
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Limit",
+                            "Parent Relationship": "Inner",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Startup Cost": 1.06,
+                            "Total Cost": 1.06,
+                            "Plan Rows": 1,
+                            "Plan Width": 56,
+                            "Plans": [
+                              {
+                                "Node Type": "Sort",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Startup Cost": 1.06,
+                                "Total Cost": 1.06,
+                                "Plan Rows": 1,
+                                "Plan Width": 56,
+                                "Sort Key": [
+                                  "invitation.created_at DESC",
+                                  "invitation.id DESC"
+                                ],
+                                "Plans": [
+                                  {
+                                    "Node Type": "Seq Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Relation Name": "invitations",
+                                    "Alias": "invitation",
+                                    "Startup Cost": 0,
+                                    "Total Cost": 1.05,
+                                    "Plan Rows": 1,
+                                    "Plan Width": 56,
+                                    "Filter": "(application_id = application.id)"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "candidate_applications:job list first page",
+      "result": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 65.05,
+                "Total Cost": 65.18,
+                "Plan Rows": 51,
+                "Plan Width": 86,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Subplan Name": "CTE fixture",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0,
+                    "Total Cost": 0.01,
+                    "Plan Rows": 1,
+                    "Plan Width": 16
+                  },
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 65.04,
+                    "Total Cost": 65.26,
+                    "Plan Rows": 88,
+                    "Plan Width": 86,
+                    "Sort Key": [
+                      "application.created_at DESC",
+                      "application.id"
+                    ],
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Join Type": "Inner",
+                        "Startup Cost": 7.28,
+                        "Total Cost": 62.2,
+                        "Plan Rows": 88,
+                        "Plan Width": 86,
+                        "Inner Unique": true,
+                        "Plans": [
+                          {
+                            "Node Type": "Nested Loop",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Join Type": "Inner",
+                            "Startup Cost": 7,
+                            "Total Cost": 34.11,
+                            "Plan Rows": 88,
+                            "Plan Width": 53,
+                            "Inner Unique": false,
+                            "Plans": [
+                              {
+                                "Node Type": "Limit",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Startup Cost": 4.72,
+                                "Total Cost": 4.72,
+                                "Plan Rows": 1,
+                                "Plan Width": 24,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Sort",
+                                    "Parent Relationship": "Outer",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Startup Cost": 4.72,
+                                    "Total Cost": 4.82,
+                                    "Plan Rows": 42,
+                                    "Plan Width": 24,
+                                    "Sort Key": [
+                                      "jobs.created_at",
+                                      "jobs.id"
+                                    ],
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Nested Loop",
+                                        "Parent Relationship": "Outer",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Join Type": "Inner",
+                                        "Startup Cost": 0.14,
+                                        "Total Cost": 4.51,
+                                        "Plan Rows": 42,
+                                        "Plan Width": 24,
+                                        "Inner Unique": false,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "CTE Scan",
+                                            "Parent Relationship": "Outer",
+                                            "Parallel Aware": false,
+                                            "Async Capable": false,
+                                            "CTE Name": "fixture",
+                                            "Alias": "fixture_1",
+                                            "Startup Cost": 0,
+                                            "Total Cost": 0.02,
+                                            "Plan Rows": 1,
+                                            "Plan Width": 16
+                                          },
+                                          {
+                                            "Node Type": "Index Scan",
+                                            "Parent Relationship": "Inner",
+                                            "Parallel Aware": false,
+                                            "Async Capable": false,
+                                            "Scan Direction": "Forward",
+                                            "Index Name": "idx_jobs_company_id",
+                                            "Relation Name": "jobs",
+                                            "Alias": "jobs",
+                                            "Startup Cost": 0.14,
+                                            "Total Cost": 4.07,
+                                            "Plan Rows": 42,
+                                            "Plan Width": 40,
+                                            "Index Cond": "(company_id = fixture_1.company_id)",
+                                            "Filter": "(title ~~ 'PERF-STAGING-342e429f%'::text)"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Nested Loop",
+                                "Parent Relationship": "Inner",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Join Type": "Inner",
+                                "Startup Cost": 2.28,
+                                "Total Cost": 28.5,
+                                "Plan Rows": 88,
+                                "Plan Width": 69,
+                                "Inner Unique": false,
+                                "Plans": [
+                                  {
+                                    "Node Type": "CTE Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "CTE Name": "fixture",
+                                    "Alias": "fixture",
+                                    "Startup Cost": 0,
+                                    "Total Cost": 0.02,
+                                    "Plan Rows": 1,
+                                    "Plan Width": 16
+                                  },
+                                  {
+                                    "Node Type": "Bitmap Heap Scan",
+                                    "Parent Relationship": "Inner",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Relation Name": "candidate_applications",
+                                    "Alias": "application",
+                                    "Startup Cost": 2.28,
+                                    "Total Cost": 27.6,
+                                    "Plan Rows": 88,
+                                    "Plan Width": 85,
+                                    "Recheck Cond": "((company_id = fixture.company_id) AND (job_id = jobs.id))",
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Bitmap Index Scan",
+                                        "Parent Relationship": "Outer",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Index Name": "idx_applications_company_job",
+                                        "Startup Cost": 0,
+                                        "Total Cost": 2.26,
+                                        "Plan Rows": 88,
+                                        "Plan Width": 0,
+                                        "Index Cond": "((company_id = fixture.company_id) AND (job_id = jobs.id))"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Index Scan",
+                            "Parent Relationship": "Inner",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Scan Direction": "Forward",
+                            "Index Name": "candidates_pkey",
+                            "Relation Name": "candidates",
+                            "Alias": "candidate",
+                            "Startup Cost": 0.28,
+                            "Total Cost": 0.32,
+                            "Plan Rows": 1,
+                            "Plan Width": 49,
+                            "Index Cond": "(id = application.candidate_id)"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "candidate_applications:job comparison fit desc first page",
+      "result": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 66.8,
+                "Total Cost": 66.93,
+                "Plan Rows": 51,
+                "Plan Width": 215,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Subplan Name": "CTE fixture",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0,
+                    "Total Cost": 0.01,
+                    "Plan Rows": 1,
+                    "Plan Width": 16
+                  },
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 66.79,
+                    "Total Cost": 67.01,
+                    "Plan Rows": 88,
+                    "Plan Width": 215,
+                    "Sort Key": [
+                      "application.fit_score DESC NULLS LAST",
+                      "application.id"
+                    ],
+                    "Plans": [
+                      {
+                        "Node Type": "Hash Join",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Join Type": "Left",
+                        "Startup Cost": 8.68,
+                        "Total Cost": 63.95,
+                        "Plan Rows": 88,
+                        "Plan Width": 215,
+                        "Inner Unique": false,
+                        "Hash Cond": "(application.id = summary.application_id)",
+                        "Plans": [
+                          {
+                            "Node Type": "Nested Loop",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Join Type": "Inner",
+                            "Startup Cost": 7.28,
+                            "Total Cost": 62.2,
+                            "Plan Rows": 88,
+                            "Plan Width": 171,
+                            "Inner Unique": true,
+                            "Plans": [
+                              {
+                                "Node Type": "Nested Loop",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Join Type": "Inner",
+                                "Startup Cost": 7,
+                                "Total Cost": 34.11,
+                                "Plan Rows": 88,
+                                "Plan Width": 138,
+                                "Inner Unique": false,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Limit",
+                                    "Parent Relationship": "Outer",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Startup Cost": 4.72,
+                                    "Total Cost": 4.72,
+                                    "Plan Rows": 1,
+                                    "Plan Width": 24,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Sort",
+                                        "Parent Relationship": "Outer",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Startup Cost": 4.72,
+                                        "Total Cost": 4.82,
+                                        "Plan Rows": 42,
+                                        "Plan Width": 24,
+                                        "Sort Key": [
+                                          "jobs.created_at",
+                                          "jobs.id"
+                                        ],
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Nested Loop",
+                                            "Parent Relationship": "Outer",
+                                            "Parallel Aware": false,
+                                            "Async Capable": false,
+                                            "Join Type": "Inner",
+                                            "Startup Cost": 0.14,
+                                            "Total Cost": 4.51,
+                                            "Plan Rows": 42,
+                                            "Plan Width": 24,
+                                            "Inner Unique": false,
+                                            "Plans": [
+                                              {
+                                                "Node Type": "CTE Scan",
+                                                "Parent Relationship": "Outer",
+                                                "Parallel Aware": false,
+                                                "Async Capable": false,
+                                                "CTE Name": "fixture",
+                                                "Alias": "fixture_1",
+                                                "Startup Cost": 0,
+                                                "Total Cost": 0.02,
+                                                "Plan Rows": 1,
+                                                "Plan Width": 16
+                                              },
+                                              {
+                                                "Node Type": "Index Scan",
+                                                "Parent Relationship": "Inner",
+                                                "Parallel Aware": false,
+                                                "Async Capable": false,
+                                                "Scan Direction": "Forward",
+                                                "Index Name": "idx_jobs_company_id",
+                                                "Relation Name": "jobs",
+                                                "Alias": "jobs",
+                                                "Startup Cost": 0.14,
+                                                "Total Cost": 4.07,
+                                                "Plan Rows": 42,
+                                                "Plan Width": 40,
+                                                "Index Cond": "(company_id = fixture_1.company_id)",
+                                                "Filter": "(title ~~ 'PERF-STAGING-342e429f%'::text)"
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "Node Type": "Nested Loop",
+                                    "Parent Relationship": "Inner",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Join Type": "Inner",
+                                    "Startup Cost": 2.28,
+                                    "Total Cost": 28.5,
+                                    "Plan Rows": 88,
+                                    "Plan Width": 154,
+                                    "Inner Unique": false,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "CTE Scan",
+                                        "Parent Relationship": "Outer",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "CTE Name": "fixture",
+                                        "Alias": "fixture",
+                                        "Startup Cost": 0,
+                                        "Total Cost": 0.02,
+                                        "Plan Rows": 1,
+                                        "Plan Width": 16
+                                      },
+                                      {
+                                        "Node Type": "Bitmap Heap Scan",
+                                        "Parent Relationship": "Inner",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Relation Name": "candidate_applications",
+                                        "Alias": "application",
+                                        "Startup Cost": 2.28,
+                                        "Total Cost": 27.6,
+                                        "Plan Rows": 88,
+                                        "Plan Width": 170,
+                                        "Recheck Cond": "((company_id = fixture.company_id) AND (job_id = jobs.id))",
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Bitmap Index Scan",
+                                            "Parent Relationship": "Outer",
+                                            "Parallel Aware": false,
+                                            "Async Capable": false,
+                                            "Index Name": "idx_applications_company_job",
+                                            "Startup Cost": 0,
+                                            "Total Cost": 2.26,
+                                            "Plan Rows": 88,
+                                            "Plan Width": 0,
+                                            "Index Cond": "((company_id = fixture.company_id) AND (job_id = jobs.id))"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Index Scan",
+                                "Parent Relationship": "Inner",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Scan Direction": "Forward",
+                                "Index Name": "candidates_pkey",
+                                "Relation Name": "candidates",
+                                "Alias": "candidate",
+                                "Startup Cost": 0.28,
+                                "Total Cost": 0.32,
+                                "Plan Rows": 1,
+                                "Plan Width": 49,
+                                "Index Cond": "(id = application.candidate_id)"
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Hash",
+                            "Parent Relationship": "Inner",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Startup Cost": 1.18,
+                            "Total Cost": 1.18,
+                            "Plan Rows": 18,
+                            "Plan Width": 60,
+                            "Plans": [
+                              {
+                                "Node Type": "Seq Scan",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Relation Name": "application_competency_summary",
+                                "Alias": "summary",
+                                "Startup Cost": 0,
+                                "Total Cost": 1.18,
+                                "Plan Rows": 18,
+                                "Plan Width": 60
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "employee_assessment_participants:list first page",
+      "result": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 59.08,
+                "Total Cost": 59.17,
+                "Plan Rows": 35,
+                "Plan Width": 314,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Subplan Name": "CTE fixture",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0,
+                    "Total Cost": 0.01,
+                    "Plan Rows": 1,
+                    "Plan Width": 16
+                  },
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 59.07,
+                    "Total Cost": 59.16,
+                    "Plan Rows": 35,
+                    "Plan Width": 314,
+                    "Sort Key": [
+                      "participant.created_at DESC",
+                      "participant.id"
+                    ],
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Join Type": "Left",
+                        "Startup Cost": 7.98,
+                        "Total Cost": 58.17,
+                        "Plan Rows": 35,
+                        "Plan Width": 314,
+                        "Inner Unique": false,
+                        "Plans": [
+                          {
+                            "Node Type": "Nested Loop",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Join Type": "Inner",
+                            "Startup Cost": 6.93,
+                            "Total Cost": 20.63,
+                            "Plan Rows": 35,
+                            "Plan Width": 266,
+                            "Inner Unique": true,
+                            "Plans": [
+                              {
+                                "Node Type": "Hash Join",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Join Type": "Inner",
+                                "Startup Cost": 6.78,
+                                "Total Cost": 13.03,
+                                "Plan Rows": 35,
+                                "Plan Width": 121,
+                                "Inner Unique": false,
+                                "Hash Cond": "(participant.employee_assessment_id = target.assessment_id)",
+                                "Plans": [
+                                  {
+                                    "Node Type": "Hash Join",
+                                    "Parent Relationship": "Outer",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Join Type": "Inner",
+                                    "Startup Cost": 0.03,
+                                    "Total Cost": 5.67,
+                                    "Plan Rows": 70,
+                                    "Plan Width": 137,
+                                    "Inner Unique": false,
+                                    "Hash Cond": "(participant.company_id = fixture.company_id)",
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Seq Scan",
+                                        "Parent Relationship": "Outer",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Relation Name": "employee_assessment_participants",
+                                        "Alias": "participant",
+                                        "Startup Cost": 0,
+                                        "Total Cost": 4.41,
+                                        "Plan Rows": 141,
+                                        "Plan Width": 153
+                                      },
+                                      {
+                                        "Node Type": "Hash",
+                                        "Parent Relationship": "Inner",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Startup Cost": 0.02,
+                                        "Total Cost": 0.02,
+                                        "Plan Rows": 1,
+                                        "Plan Width": 16,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "CTE Scan",
+                                            "Parent Relationship": "Outer",
+                                            "Parallel Aware": false,
+                                            "Async Capable": false,
+                                            "CTE Name": "fixture",
+                                            "Alias": "fixture",
+                                            "Startup Cost": 0,
+                                            "Total Cost": 0.02,
+                                            "Plan Rows": 1,
+                                            "Plan Width": 16
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "Node Type": "Hash",
+                                    "Parent Relationship": "Inner",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Startup Cost": 6.74,
+                                    "Total Cost": 6.74,
+                                    "Plan Rows": 1,
+                                    "Plan Width": 16,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Subquery Scan",
+                                        "Parent Relationship": "Outer",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Alias": "target",
+                                        "Startup Cost": 6.73,
+                                        "Total Cost": 6.74,
+                                        "Plan Rows": 1,
+                                        "Plan Width": 16,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Limit",
+                                            "Parent Relationship": "Subquery",
+                                            "Parallel Aware": false,
+                                            "Async Capable": false,
+                                            "Startup Cost": 6.73,
+                                            "Total Cost": 6.73,
+                                            "Plan Rows": 1,
+                                            "Plan Width": 24,
+                                            "Plans": [
+                                              {
+                                                "Node Type": "Sort",
+                                                "Parent Relationship": "Outer",
+                                                "Parallel Aware": false,
+                                                "Async Capable": false,
+                                                "Startup Cost": 6.73,
+                                                "Total Cost": 6.93,
+                                                "Plan Rows": 81,
+                                                "Plan Width": 24,
+                                                "Sort Key": [
+                                                  "employee_assessments.created_at",
+                                                  "employee_assessments.id"
+                                                ],
+                                                "Plans": [
+                                                  {
+                                                    "Node Type": "Nested Loop",
+                                                    "Parent Relationship": "Outer",
+                                                    "Parallel Aware": false,
+                                                    "Async Capable": false,
+                                                    "Join Type": "Inner",
+                                                    "Startup Cost": 0.14,
+                                                    "Total Cost": 6.32,
+                                                    "Plan Rows": 81,
+                                                    "Plan Width": 24,
+                                                    "Inner Unique": false,
+                                                    "Plans": [
+                                                      {
+                                                        "Node Type": "CTE Scan",
+                                                        "Parent Relationship": "Outer",
+                                                        "Parallel Aware": false,
+                                                        "Async Capable": false,
+                                                        "CTE Name": "fixture",
+                                                        "Alias": "fixture_1",
+                                                        "Startup Cost": 0,
+                                                        "Total Cost": 0.02,
+                                                        "Plan Rows": 1,
+                                                        "Plan Width": 16
+                                                      },
+                                                      {
+                                                        "Node Type": "Index Scan",
+                                                        "Parent Relationship": "Inner",
+                                                        "Parallel Aware": false,
+                                                        "Async Capable": false,
+                                                        "Scan Direction": "Forward",
+                                                        "Index Name": "idx_employee_assessments_company_updated_at",
+                                                        "Relation Name": "employee_assessments",
+                                                        "Alias": "employee_assessments",
+                                                        "Startup Cost": 0.14,
+                                                        "Total Cost": 5.49,
+                                                        "Plan Rows": 81,
+                                                        "Plan Width": 40,
+                                                        "Index Cond": "(company_id = fixture_1.company_id)",
+                                                        "Filter": "(title ~~ 'PERF-STAGING-342e429f%'::text)"
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Index Scan",
+                                "Parent Relationship": "Inner",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Scan Direction": "Forward",
+                                "Index Name": "employees_pkey",
+                                "Relation Name": "employees",
+                                "Alias": "employee",
+                                "Startup Cost": 0.14,
+                                "Total Cost": 0.22,
+                                "Plan Rows": 1,
+                                "Plan Width": 161,
+                                "Index Cond": "(id = participant.employee_id)"
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Limit",
+                            "Parent Relationship": "Inner",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Startup Cost": 1.05,
+                            "Total Cost": 1.05,
+                            "Plan Rows": 1,
+                            "Plan Width": 56,
+                            "Plans": [
+                              {
+                                "Node Type": "Sort",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Startup Cost": 1.05,
+                                "Total Cost": 1.05,
+                                "Plan Rows": 1,
+                                "Plan Width": 56,
+                                "Sort Key": [
+                                  "invitation.created_at DESC",
+                                  "invitation.id DESC"
+                                ],
+                                "Plans": [
+                                  {
+                                    "Node Type": "Seq Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Relation Name": "employee_assessment_invitations",
+                                    "Alias": "invitation",
+                                    "Startup Cost": 0,
+                                    "Total Cost": 1.04,
+                                    "Plan Rows": 1,
+                                    "Plan Width": 56,
+                                    "Filter": "(participant_id = participant.id)"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "employee_assessment_participants:comparison fit desc first page",
+      "result": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 23.09,
+                "Total Cost": 23.18,
+                "Plan Rows": 35,
+                "Plan Width": 183,
+                "Plans": [
+                  {
+                    "Node Type": "Result",
+                    "Parent Relationship": "InitPlan",
+                    "Subplan Name": "CTE fixture",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 0,
+                    "Total Cost": 0.01,
+                    "Plan Rows": 1,
+                    "Plan Width": 16
+                  },
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 23.08,
+                    "Total Cost": 23.17,
+                    "Plan Rows": 35,
+                    "Plan Width": 183,
+                    "Sort Key": [
+                      "participant.fit_score DESC NULLS LAST",
+                      "participant.id"
+                    ],
+                    "Plans": [
+                      {
+                        "Node Type": "Hash Join",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Join Type": "Left",
+                        "Startup Cost": 8.31,
+                        "Total Cost": 22.19,
+                        "Plan Rows": 35,
+                        "Plan Width": 183,
+                        "Inner Unique": false,
+                        "Hash Cond": "(participant.id = summary.participant_id)",
+                        "Plans": [
+                          {
+                            "Node Type": "Nested Loop",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Join Type": "Inner",
+                            "Startup Cost": 6.93,
+                            "Total Cost": 20.63,
+                            "Plan Rows": 35,
+                            "Plan Width": 139,
+                            "Inner Unique": true,
+                            "Plans": [
+                              {
+                                "Node Type": "Hash Join",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Join Type": "Inner",
+                                "Startup Cost": 6.78,
+                                "Total Cost": 13.03,
+                                "Plan Rows": 35,
+                                "Plan Width": 106,
+                                "Inner Unique": false,
+                                "Hash Cond": "(participant.employee_assessment_id = target.assessment_id)",
+                                "Plans": [
+                                  {
+                                    "Node Type": "Hash Join",
+                                    "Parent Relationship": "Outer",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Join Type": "Inner",
+                                    "Startup Cost": 0.03,
+                                    "Total Cost": 5.67,
+                                    "Plan Rows": 70,
+                                    "Plan Width": 122,
+                                    "Inner Unique": false,
+                                    "Hash Cond": "(participant.company_id = fixture.company_id)",
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Seq Scan",
+                                        "Parent Relationship": "Outer",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Relation Name": "employee_assessment_participants",
+                                        "Alias": "participant",
+                                        "Startup Cost": 0,
+                                        "Total Cost": 4.41,
+                                        "Plan Rows": 141,
+                                        "Plan Width": 138
+                                      },
+                                      {
+                                        "Node Type": "Hash",
+                                        "Parent Relationship": "Inner",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Startup Cost": 0.02,
+                                        "Total Cost": 0.02,
+                                        "Plan Rows": 1,
+                                        "Plan Width": 16,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "CTE Scan",
+                                            "Parent Relationship": "Outer",
+                                            "Parallel Aware": false,
+                                            "Async Capable": false,
+                                            "CTE Name": "fixture",
+                                            "Alias": "fixture",
+                                            "Startup Cost": 0,
+                                            "Total Cost": 0.02,
+                                            "Plan Rows": 1,
+                                            "Plan Width": 16
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "Node Type": "Hash",
+                                    "Parent Relationship": "Inner",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Startup Cost": 6.74,
+                                    "Total Cost": 6.74,
+                                    "Plan Rows": 1,
+                                    "Plan Width": 16,
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Subquery Scan",
+                                        "Parent Relationship": "Outer",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Alias": "target",
+                                        "Startup Cost": 6.73,
+                                        "Total Cost": 6.74,
+                                        "Plan Rows": 1,
+                                        "Plan Width": 16,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Limit",
+                                            "Parent Relationship": "Subquery",
+                                            "Parallel Aware": false,
+                                            "Async Capable": false,
+                                            "Startup Cost": 6.73,
+                                            "Total Cost": 6.73,
+                                            "Plan Rows": 1,
+                                            "Plan Width": 24,
+                                            "Plans": [
+                                              {
+                                                "Node Type": "Sort",
+                                                "Parent Relationship": "Outer",
+                                                "Parallel Aware": false,
+                                                "Async Capable": false,
+                                                "Startup Cost": 6.73,
+                                                "Total Cost": 6.93,
+                                                "Plan Rows": 81,
+                                                "Plan Width": 24,
+                                                "Sort Key": [
+                                                  "employee_assessments.created_at",
+                                                  "employee_assessments.id"
+                                                ],
+                                                "Plans": [
+                                                  {
+                                                    "Node Type": "Nested Loop",
+                                                    "Parent Relationship": "Outer",
+                                                    "Parallel Aware": false,
+                                                    "Async Capable": false,
+                                                    "Join Type": "Inner",
+                                                    "Startup Cost": 0.14,
+                                                    "Total Cost": 6.32,
+                                                    "Plan Rows": 81,
+                                                    "Plan Width": 24,
+                                                    "Inner Unique": false,
+                                                    "Plans": [
+                                                      {
+                                                        "Node Type": "CTE Scan",
+                                                        "Parent Relationship": "Outer",
+                                                        "Parallel Aware": false,
+                                                        "Async Capable": false,
+                                                        "CTE Name": "fixture",
+                                                        "Alias": "fixture_1",
+                                                        "Startup Cost": 0,
+                                                        "Total Cost": 0.02,
+                                                        "Plan Rows": 1,
+                                                        "Plan Width": 16
+                                                      },
+                                                      {
+                                                        "Node Type": "Index Scan",
+                                                        "Parent Relationship": "Inner",
+                                                        "Parallel Aware": false,
+                                                        "Async Capable": false,
+                                                        "Scan Direction": "Forward",
+                                                        "Index Name": "idx_employee_assessments_company_updated_at",
+                                                        "Relation Name": "employee_assessments",
+                                                        "Alias": "employee_assessments",
+                                                        "Startup Cost": 0.14,
+                                                        "Total Cost": 5.49,
+                                                        "Plan Rows": 81,
+                                                        "Plan Width": 40,
+                                                        "Index Cond": "(company_id = fixture_1.company_id)",
+                                                        "Filter": "(title ~~ 'PERF-STAGING-342e429f%'::text)"
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "Node Type": "Index Scan",
+                                "Parent Relationship": "Inner",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Scan Direction": "Forward",
+                                "Index Name": "employees_pkey",
+                                "Relation Name": "employees",
+                                "Alias": "employee",
+                                "Startup Cost": 0.14,
+                                "Total Cost": 0.22,
+                                "Plan Rows": 1,
+                                "Plan Width": 49,
+                                "Index Cond": "(id = participant.employee_id)"
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Hash",
+                            "Parent Relationship": "Inner",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Startup Cost": 1.17,
+                            "Total Cost": 1.17,
+                            "Plan Rows": 17,
+                            "Plan Width": 60,
+                            "Plans": [
+                              {
+                                "Node Type": "Seq Scan",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Relation Name": "employee_assessment_competency_summary",
+                                "Alias": "summary",
+                                "Startup Cost": 0,
+                                "Total Cost": 1.17,
+                                "Plan Rows": 17,
+                                "Plan Width": 60
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "test_template_list RPC/function first page",
+      "result": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 43.61,
+                "Total Cost": 43.74,
+                "Plan Rows": 51,
+                "Plan Width": 250,
+                "Plans": [
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 43.61,
+                    "Total Cost": 46.11,
+                    "Plan Rows": 1000,
+                    "Plan Width": 250,
+                    "Sort Key": [
+                      "updated_at DESC",
+                      "id"
+                    ],
+                    "Plans": [
+                      {
+                        "Node Type": "Function Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Function Name": "list_company_test_templates",
+                        "Alias": "list_company_test_templates",
+                        "Startup Cost": 0.25,
+                        "Total Cost": 10.25,
+                        "Plan Rows": 1000,
+                        "Plan Width": 250
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "assessment_package_list RPC/function first page",
+      "result": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 43.61,
+                "Total Cost": 43.74,
+                "Plan Rows": 51,
+                "Plan Width": 97,
+                "Plans": [
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 43.61,
+                    "Total Cost": 46.11,
+                    "Plan Rows": 1000,
+                    "Plan Width": 97,
+                    "Sort Key": [
+                      "updated_at DESC",
+                      "id"
+                    ],
+                    "Plans": [
+                      {
+                        "Node Type": "Function Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Function Name": "list_company_assessment_packages",
+                        "Alias": "list_company_assessment_packages",
+                        "Startup Cost": 0.25,
+                        "Total Cost": 10.25,
+                        "Plan Rows": 1000,
+                        "Plan Width": 97
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "employee_assessment_list view first page",
+      "result": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Limit",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 30.39,
+                "Total Cost": 306.06,
+                "Plan Rows": 51,
+                "Plan Width": 162,
+                "Plans": [
+                  {
+                    "Node Type": "Incremental Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 30.39,
+                    "Total Cost": 895.24,
+                    "Plan Rows": 160,
+                    "Plan Width": 162,
+                    "Sort Key": [
+                      "a.updated_at DESC",
+                      "a.id"
+                    ],
+                    "Presorted Key": [
+                      "a.updated_at"
+                    ],
+                    "Plans": [
+                      {
+                        "Node Type": "Nested Loop",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Join Type": "Left",
+                        "Startup Cost": 5.76,
+                        "Total Cost": 890.8,
+                        "Plan Rows": 160,
+                        "Plan Width": 162,
+                        "Inner Unique": false,
+                        "Plans": [
+                          {
+                            "Node Type": "Nested Loop",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Join Type": "Left",
+                            "Startup Cost": 0.3,
+                            "Total Cost": 12.8,
+                            "Plan Rows": 160,
+                            "Plan Width": 114,
+                            "Inner Unique": true,
+                            "Plans": [
+                              {
+                                "Node Type": "Index Scan",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Scan Direction": "Forward",
+                                "Index Name": "idx_employee_assessments_company_updated_at",
+                                "Relation Name": "employee_assessments",
+                                "Alias": "a",
+                                "Startup Cost": 0.14,
+                                "Total Cost": 8.33,
+                                "Plan Rows": 160,
+                                "Plan Width": 97,
+                                "Index Cond": "(company_id = '4042019d-0b25-43b8-a0c1-c44c55897a9d'::uuid)"
+                              },
+                              {
+                                "Node Type": "Memoize",
+                                "Parent Relationship": "Inner",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Startup Cost": 0.15,
+                                "Total Cost": 0.19,
+                                "Plan Rows": 1,
+                                "Plan Width": 49,
+                                "Cache Key": "a.assessment_package_id",
+                                "Cache Mode": "logical",
+                                "Plans": [
+                                  {
+                                    "Node Type": "Index Scan",
+                                    "Parent Relationship": "Outer",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Scan Direction": "Forward",
+                                    "Index Name": "assessment_packages_pkey",
+                                    "Relation Name": "assessment_packages",
+                                    "Alias": "p",
+                                    "Startup Cost": 0.14,
+                                    "Total Cost": 0.18,
+                                    "Plan Rows": 1,
+                                    "Plan Width": 49,
+                                    "Index Cond": "(id = a.assessment_package_id)"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "Node Type": "Aggregate",
+                            "Strategy": "Plain",
+                            "Partial Mode": "Simple",
+                            "Parent Relationship": "Inner",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Startup Cost": 5.47,
+                            "Total Cost": 5.48,
+                            "Plan Rows": 1,
+                            "Plan Width": 48,
+                            "Plans": [
+                              {
+                                "Node Type": "Seq Scan",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Relation Name": "employee_assessment_participants",
+                                "Alias": "employee_assessment_participants",
+                                "Startup Cost": 0,
+                                "Total Cost": 5.12,
+                                "Plan Rows": 35,
+                                "Plan Width": 14,
+                                "Filter": "((employee_assessment_id = a.id) AND (company_id = a.company_id))"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "test builder content: sections/questions/options for latest synthetic version",
+      "result": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Sort",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 133.95,
+                "Total Cost": 134.12,
+                "Plan Rows": 69,
+                "Plan Width": 60,
+                "Sort Key": [
+                  "section.order_index",
+                  "section.id",
+                  "question.order_index",
+                  "question.id",
+                  "option.order_index",
+                  "option.id"
+                ],
+                "Plans": [
+                  {
+                    "Node Type": "Hash Join",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Join Type": "Right",
+                    "Startup Cost": 84.01,
+                    "Total Cost": 131.84,
+                    "Plan Rows": 69,
+                    "Plan Width": 60,
+                    "Inner Unique": false,
+                    "Hash Cond": "(option.question_id = question.id)",
+                    "Plans": [
+                      {
+                        "Node Type": "Seq Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Relation Name": "answer_options",
+                        "Alias": "option",
+                        "Startup Cost": 0,
+                        "Total Cost": 42.19,
+                        "Plan Rows": 1319,
+                        "Plan Width": 36
+                      },
+                      {
+                        "Node Type": "Hash",
+                        "Parent Relationship": "Inner",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Startup Cost": 83.78,
+                        "Total Cost": 83.78,
+                        "Plan Rows": 19,
+                        "Plan Width": 40,
+                        "Plans": [
+                          {
+                            "Node Type": "Hash Join",
+                            "Parent Relationship": "Outer",
+                            "Parallel Aware": false,
+                            "Async Capable": false,
+                            "Join Type": "Right",
+                            "Startup Cost": 65.59,
+                            "Total Cost": 83.78,
+                            "Plan Rows": 19,
+                            "Plan Width": 40,
+                            "Inner Unique": false,
+                            "Hash Cond": "(question.section_id = section.id)",
+                            "Plans": [
+                              {
+                                "Node Type": "Seq Scan",
+                                "Parent Relationship": "Outer",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Relation Name": "questions",
+                                "Alias": "question",
+                                "Startup Cost": 0,
+                                "Total Cost": 16.63,
+                                "Plan Rows": 363,
+                                "Plan Width": 36
+                              },
+                              {
+                                "Node Type": "Hash",
+                                "Parent Relationship": "Inner",
+                                "Parallel Aware": false,
+                                "Async Capable": false,
+                                "Startup Cost": 65.57,
+                                "Total Cost": 65.57,
+                                "Plan Rows": 2,
+                                "Plan Width": 20,
+                                "Plans": [
+                                  {
+                                    "Node Type": "Nested Loop",
+                                    "Parent Relationship": "Outer",
+                                    "Parallel Aware": false,
+                                    "Async Capable": false,
+                                    "Join Type": "Inner",
+                                    "Startup Cost": 32.28,
+                                    "Total Cost": 65.57,
+                                    "Plan Rows": 2,
+                                    "Plan Width": 20,
+                                    "Inner Unique": false,
+                                    "Join Filter": "(target.test_version_id = section.test_version_id)",
+                                    "Plans": [
+                                      {
+                                        "Node Type": "Index Scan",
+                                        "Parent Relationship": "Outer",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Scan Direction": "Forward",
+                                        "Index Name": "test_sections_pkey",
+                                        "Relation Name": "test_sections",
+                                        "Alias": "section",
+                                        "Startup Cost": 0.14,
+                                        "Total Cost": 32.83,
+                                        "Plan Rows": 39,
+                                        "Plan Width": 36
+                                      },
+                                      {
+                                        "Node Type": "Materialize",
+                                        "Parent Relationship": "Inner",
+                                        "Parallel Aware": false,
+                                        "Async Capable": false,
+                                        "Startup Cost": 32.14,
+                                        "Total Cost": 32.16,
+                                        "Plan Rows": 1,
+                                        "Plan Width": 16,
+                                        "Plans": [
+                                          {
+                                            "Node Type": "Subquery Scan",
+                                            "Parent Relationship": "Outer",
+                                            "Parallel Aware": false,
+                                            "Async Capable": false,
+                                            "Alias": "target",
+                                            "Startup Cost": 32.14,
+                                            "Total Cost": 32.15,
+                                            "Plan Rows": 1,
+                                            "Plan Width": 16,
+                                            "Plans": [
+                                              {
+                                                "Node Type": "Limit",
+                                                "Parent Relationship": "Subquery",
+                                                "Parallel Aware": false,
+                                                "Async Capable": false,
+                                                "Startup Cost": 32.14,
+                                                "Total Cost": 32.14,
+                                                "Plan Rows": 1,
+                                                "Plan Width": 24,
+                                                "Plans": [
+                                                  {
+                                                    "Node Type": "Sort",
+                                                    "Parent Relationship": "Outer",
+                                                    "Parallel Aware": false,
+                                                    "Async Capable": false,
+                                                    "Startup Cost": 32.14,
+                                                    "Total Cost": 32.3,
+                                                    "Plan Rows": 66,
+                                                    "Plan Width": 24,
+                                                    "Sort Key": [
+                                                      "version.created_at DESC",
+                                                      "version.id"
+                                                    ],
+                                                    "Plans": [
+                                                      {
+                                                        "Node Type": "Hash Join",
+                                                        "Parent Relationship": "Outer",
+                                                        "Parallel Aware": false,
+                                                        "Async Capable": false,
+                                                        "Join Type": "Inner",
+                                                        "Startup Cost": 3.75,
+                                                        "Total Cost": 31.81,
+                                                        "Plan Rows": 66,
+                                                        "Plan Width": 24,
+                                                        "Inner Unique": true,
+                                                        "Hash Cond": "(version.test_template_id = template.id)",
+                                                        "Plans": [
+                                                          {
+                                                            "Node Type": "Seq Scan",
+                                                            "Parent Relationship": "Outer",
+                                                            "Parallel Aware": false,
+                                                            "Async Capable": false,
+                                                            "Relation Name": "test_versions",
+                                                            "Alias": "version",
+                                                            "Startup Cost": 0,
+                                                            "Total Cost": 27.83,
+                                                            "Plan Rows": 83,
+                                                            "Plan Width": 40
+                                                          },
+                                                          {
+                                                            "Node Type": "Hash",
+                                                            "Parent Relationship": "Inner",
+                                                            "Parallel Aware": false,
+                                                            "Async Capable": false,
+                                                            "Startup Cost": 3.05,
+                                                            "Total Cost": 3.05,
+                                                            "Plan Rows": 56,
+                                                            "Plan Width": 16,
+                                                            "Plans": [
+                                                              {
+                                                                "Node Type": "Seq Scan",
+                                                                "Parent Relationship": "Outer",
+                                                                "Parallel Aware": false,
+                                                                "Async Capable": false,
+                                                                "Relation Name": "test_templates",
+                                                                "Alias": "template",
+                                                                "Startup Cost": 0,
+                                                                "Total Cost": 3.05,
+                                                                "Plan Rows": 56,
+                                                                "Plan Width": 16,
+                                                                "Filter": "((title ~~ 'PERF-STAGING-342e429f%'::text) AND (company_id = '4042019d-0b25-43b8-a0c1-c44c55897a9d'::uuid))"
+                                                              }
+                                                            ]
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

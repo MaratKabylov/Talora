@@ -249,8 +249,91 @@ idempotent retry. Все тестовые аккаунты/членства от
 [scoring JSON](performance/PERF012_SCORING_2026-09-10.json).
 
 Это закрывает перечисленные list/RLS/RPC/scoring-route сценарии, которые раньше ожидали
-JWT/dataset; не закрывает полный browser UI, builder flows и SQL EXPLAIN. Индексы не добавлены.
+JWT/dataset; не закрывает полный browser UI и builder flows. SQL EXPLAIN ниже снят
+без ANALYZE/JWT/RLS latency и не заменяет before/after write gate. Индексы не добавлены.
 
+Использованный read-only SQL Editor пакет:
+[`supabase/verification/perf012_staging_query_plans.sql`](../supabase/verification/perf012_staging_query_plans.sql).
+Он фиксирует context synthetic run, выполняет `EXPLAIN (FORMAT JSON, ANALYZE false)`
+для jobs/candidates/participants/comparison/templates/packages/assessments/builder-content
+shapes и повторяет index inventory. Это планы SQL Editor роли без JWT/RLS latency и без
+write gate; полученные result sets сохранены отдельными артефактами ниже.
+
+Локальные browser fixture servers для navigation/builder-import/builder-editor собрались
+и поднялись на 4318/4319/4320, но native verification не засчитана: CUA browser transport
+закрыт, а Chrome/Edge headless в этом окружении завершаются без DOM/stdout. PASS/FAIL
+из `#result[data-status]` не был получен.
+
+Пользователь передал результат index inventory после staging-данных:
+[PERF012_INDEX_INVENTORY_2026-09-10_AFTER_STAGING.json](performance/PERF012_INDEX_INVENTORY_2026-09-10_AFTER_STAGING.json).
+В нём 28 индексов на 13 таблицах, все `valid/ready`, суммарно 802 816 bytes.
+Предварительные PERF-012 composite candidates отсутствуют: нет
+`jobs(company_id, updated_at, id)`, `candidate_applications(company_id, created_at, id)`,
+`candidate_applications(company_id, job_id, fit_score, ...)`,
+`employee_assessment_participants(... fit_score ...)`,
+`test_sections(test_version_id, order_index)`, `questions(section_id, order_index)` и
+`answer_options(question_id, order_index)`. Существующие близкие индексы: `idx_jobs_company_id`,
+`idx_applications_company_job`, `idx_employee_assessment_participants_assessment`
+(`employee_assessment_id, created_at desc`) и unique/package constraints.
+
+Две пары перекрывающих token indexes подтверждены снова:
+`idx_invitations_token` / `invitations_token_key` и
+`idx_employee_assessment_invitations_token` / `employee_assessment_invitations_token_key`.
+Обычные индексы по 16 KiB, unique constraint indexes тоже по 16 KiB. `idx_scan` у unique
+token indexes равен 0, у обычных 105/473, но `stats_reset=null`, поэтому это не основание
+для автоматического удаления.
+
+Пользователь выгрузил 10 result sets `EXPLAIN (FORMAT JSON, ANALYZE false)`:
+[полные планы](performance/PERF012_QUERY_PLANS_2026-09-10.json) и
+[сводка узлов](performance/PERF012_QUERY_PLAN_SUMMARY_2026-09-10.json). Контекст:
+PostgreSQL 17.6, prefix `PERF-STAGING-342e429f`, SQL Editor role, без JWT/RLS latency,
+без `ANALYZE` и без фактических timings/buffers. Планы подтверждают такой рабочий
+черновой набор для следующего write-gate шага:
+
+- `candidate_applications(company_id, created_at desc, id)`: общий список applications
+  делает seq scan по 1107 строкам tenant и sort by `created_at desc, id`.
+- `candidate_applications(company_id, job_id, created_at desc, id)`: job list уже использует
+  `idx_applications_company_job`, но затем сортирует найденные строки по `created_at desc, id`.
+- `candidate_applications(company_id, job_id, fit_score desc nulls last, id)`: comparison
+  также использует `idx_applications_company_job`, затем сортирует по `fit_score desc nulls last, id`.
+- `employee_assessment_participants(company_id, employee_assessment_id, created_at desc, id)`:
+  participants list делает seq scan по небольшой таблице и sort; существующий
+  `employee_assessment_id, created_at desc` не покрывает tenant filter/order в этом плане.
+- `employee_assessment_participants(company_id, employee_assessment_id, fit_score desc nulls last, id)`:
+  employee comparison делает seq scan и sort по `fit_score desc nulls last, id`.
+- `test_sections(test_version_id, order_index, id)`, `questions(section_id, order_index, id)`,
+  `answer_options(question_id, order_index, id)`: builder content plan сортирует sections/questions/options
+  и читает questions/options seq scan; это совпадает с локальными parent/order кандидатами.
+
+`jobs(company_id, updated_at desc, id)` остаётся низким приоритетом: staging plan стоит дёшево
+и сканирует 121 строку. `list_company_test_templates` и `list_company_assessment_packages`
+видны снаружи только как Function Scan + Sort, поэтому по ним нельзя обосновать DDL без
+внутреннего плана/дополнительного измерения. `employee_assessment_list` уже использует
+`idx_employee_assessments_company_updated_at`; его nested aggregate по participants дополнительно
+поддерживает participants-кандидаты, но не требует отдельного assessment-list индекса.
+
+
+### Write-gate baseline до индексов
+
+Rollback-wrapped `EXPLAIN (ANALYZE, BUFFERS, WAL, SETTINGS, FORMAT JSON)` снят для трёх DML
+proxies до добавления индексов. Изменения откатывались через `ROLLBACK`; builder использовал
+временный draft fixture, потому что существующие draft versions не содержали контента, а published
+version была корректно заблокирована guard-ом.
+
+| Proxy | Total time | WAL bytes | Dirtied blocks | Notes |
+| --- | ---: | ---: | ---: | --- |
+| candidate applications update 100 | 43.121 ms | 159 734 | 39 | target selection сортирует после current job/company access |
+| employee participants update 100 | 8.579 ms | 69 121 | 12 | target selection использует `idx_employee_assessment_participants_assessment` |
+| builder answer options reorder 100 | 50.020 ms | 74 772 | 4 | temporary draft fixture; target selection сортирует sections/questions/options |
+
+После пользовательского RLS prompt выполнена read-only сверка каталога:
+[PERF012_RLS_CATALOG_CHECK_2026-09-10.json](performance/PERF012_RLS_CATALOG_CHECK_2026-09-10.json).
+У всех 7 проверенных таблиц RLS enabled, force RLS=false и есть policies; таблиц без policies не найдено.
+
+
+Пользователь отказался менять схему текущего проекта, поэтому `CREATE INDEX`/after-DDL gate не выполняются.
+PERF-012 на этом витке остаётся в статусе read-only EXPLAIN + before write baseline; кандидаты не приняты
+к deployment и не превращены в миграции.
 ## Staging: измерения и условия выпуска
 
 1. После определения staging-проекта и SQL-подключения сверить фактическую историю

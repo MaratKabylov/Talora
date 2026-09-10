@@ -1,0 +1,17 @@
+﻿{
+    "capturedAt":  "2026-09-10",
+    "source":  "user SQL Editor paste",
+    "type":  "perf012_write_gate_builder_failed",
+    "case":  "answer_options:reorder_100_before_indexes",
+    "context":  {
+                    "attempted_test_version_id":  "5f399cc6-07f4-4cd2-aa30-7539687086cf",
+                    "rolled_back":  true,
+                    "operation":  "EXPLAIN ANALYZE UPDATE answer_options order_index through selected builder version"
+                },
+    "error":  {
+                  "sqlstate":  "55000",
+                  "message":  "Only draft test content can be edited",
+                  "function":  "public.touch_builder_content_revision(uuid)",
+                  "implication":  "Selected builder version is not editable draft content; need draft test_version_id for builder write gate."
+              }
+}

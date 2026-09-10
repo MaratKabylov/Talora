@@ -1,0 +1,475 @@
+{
+  "source": "docs/performance/PERF012_QUERY_PLANS_2026-09-10.json",
+  "plans": [
+    {
+      "name": "jobs:list updated_at desc first page",
+      "root": {
+        "type": "Limit",
+        "startup": 10.89,
+        "total": 11.01,
+        "rows": 51
+      },
+      "seqScans": [
+        {
+          "relation": "jobs",
+          "rows": 121,
+          "total": 4.59,
+          "filter": "(company_id = '4042019d-0b25-43b8-a0c1-c44c55897a9d'::uuid)"
+        },
+        {
+          "relation": "assessment_packages",
+          "rows": 42,
+          "total": 1.42,
+          "filter": null
+        }
+      ],
+      "indexScans": [],
+      "sorts": [
+        {
+          "type": "Sort",
+          "rows": 121,
+          "sortKey": [
+            "job.updated_at DESC",
+            "job.id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "candidate_applications:list latest invitation first page",
+      "root": {
+        "type": "Limit",
+        "startup": 1329.87,
+        "total": 1329.99,
+        "rows": 51
+      },
+      "seqScans": [
+        {
+          "relation": "candidate_applications",
+          "rows": 1107,
+          "total": 40.48,
+          "filter": "(company_id = '4042019d-0b25-43b8-a0c1-c44c55897a9d'::uuid)"
+        },
+        {
+          "relation": "candidates",
+          "rows": 1318,
+          "total": 34.18,
+          "filter": null
+        },
+        {
+          "relation": "jobs",
+          "rows": 127,
+          "total": 4.27,
+          "filter": null
+        },
+        {
+          "relation": "invitations",
+          "rows": 1,
+          "total": 1.05,
+          "filter": "(application_id = application.id)"
+        }
+      ],
+      "indexScans": [],
+      "sorts": [
+        {
+          "type": "Sort",
+          "rows": 1107,
+          "sortKey": [
+            "application.created_at DESC",
+            "application.id"
+          ]
+        },
+        {
+          "type": "Sort",
+          "rows": 1,
+          "sortKey": [
+            "invitation.created_at DESC",
+            "invitation.id DESC"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "candidate_applications:job list first page",
+      "root": {
+        "type": "Limit",
+        "startup": 65.05,
+        "total": 65.18,
+        "rows": 51
+      },
+      "seqScans": [],
+      "indexScans": [
+        {
+          "type": "Index Scan",
+          "relation": "jobs",
+          "index": "idx_jobs_company_id",
+          "rows": 42,
+          "cond": "(company_id = fixture_1.company_id)"
+        },
+        {
+          "type": "Bitmap Index Scan",
+          "relation": null,
+          "index": "idx_applications_company_job",
+          "rows": 88,
+          "cond": "((company_id = fixture.company_id) AND (job_id = jobs.id))"
+        },
+        {
+          "type": "Index Scan",
+          "relation": "candidates",
+          "index": "candidates_pkey",
+          "rows": 1,
+          "cond": "(id = application.candidate_id)"
+        }
+      ],
+      "sorts": [
+        {
+          "type": "Sort",
+          "rows": 88,
+          "sortKey": [
+            "application.created_at DESC",
+            "application.id"
+          ]
+        },
+        {
+          "type": "Sort",
+          "rows": 42,
+          "sortKey": [
+            "jobs.created_at",
+            "jobs.id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "candidate_applications:job comparison fit desc first page",
+      "root": {
+        "type": "Limit",
+        "startup": 66.8,
+        "total": 66.93,
+        "rows": 51
+      },
+      "seqScans": [
+        {
+          "relation": "application_competency_summary",
+          "rows": 18,
+          "total": 1.18,
+          "filter": null
+        }
+      ],
+      "indexScans": [
+        {
+          "type": "Index Scan",
+          "relation": "jobs",
+          "index": "idx_jobs_company_id",
+          "rows": 42,
+          "cond": "(company_id = fixture_1.company_id)"
+        },
+        {
+          "type": "Bitmap Index Scan",
+          "relation": null,
+          "index": "idx_applications_company_job",
+          "rows": 88,
+          "cond": "((company_id = fixture.company_id) AND (job_id = jobs.id))"
+        },
+        {
+          "type": "Index Scan",
+          "relation": "candidates",
+          "index": "candidates_pkey",
+          "rows": 1,
+          "cond": "(id = application.candidate_id)"
+        }
+      ],
+      "sorts": [
+        {
+          "type": "Sort",
+          "rows": 88,
+          "sortKey": [
+            "application.fit_score DESC NULLS LAST",
+            "application.id"
+          ]
+        },
+        {
+          "type": "Sort",
+          "rows": 42,
+          "sortKey": [
+            "jobs.created_at",
+            "jobs.id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "employee_assessment_participants:list first page",
+      "root": {
+        "type": "Limit",
+        "startup": 59.08,
+        "total": 59.17,
+        "rows": 35
+      },
+      "seqScans": [
+        {
+          "relation": "employee_assessment_participants",
+          "rows": 141,
+          "total": 4.41,
+          "filter": null
+        },
+        {
+          "relation": "employee_assessment_invitations",
+          "rows": 1,
+          "total": 1.04,
+          "filter": "(participant_id = participant.id)"
+        }
+      ],
+      "indexScans": [
+        {
+          "type": "Index Scan",
+          "relation": "employee_assessments",
+          "index": "idx_employee_assessments_company_updated_at",
+          "rows": 81,
+          "cond": "(company_id = fixture_1.company_id)"
+        },
+        {
+          "type": "Index Scan",
+          "relation": "employees",
+          "index": "employees_pkey",
+          "rows": 1,
+          "cond": "(id = participant.employee_id)"
+        }
+      ],
+      "sorts": [
+        {
+          "type": "Sort",
+          "rows": 35,
+          "sortKey": [
+            "participant.created_at DESC",
+            "participant.id"
+          ]
+        },
+        {
+          "type": "Sort",
+          "rows": 81,
+          "sortKey": [
+            "employee_assessments.created_at",
+            "employee_assessments.id"
+          ]
+        },
+        {
+          "type": "Sort",
+          "rows": 1,
+          "sortKey": [
+            "invitation.created_at DESC",
+            "invitation.id DESC"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "employee_assessment_participants:comparison fit desc first page",
+      "root": {
+        "type": "Limit",
+        "startup": 23.09,
+        "total": 23.18,
+        "rows": 35
+      },
+      "seqScans": [
+        {
+          "relation": "employee_assessment_participants",
+          "rows": 141,
+          "total": 4.41,
+          "filter": null
+        },
+        {
+          "relation": "employee_assessment_competency_summary",
+          "rows": 17,
+          "total": 1.17,
+          "filter": null
+        }
+      ],
+      "indexScans": [
+        {
+          "type": "Index Scan",
+          "relation": "employee_assessments",
+          "index": "idx_employee_assessments_company_updated_at",
+          "rows": 81,
+          "cond": "(company_id = fixture_1.company_id)"
+        },
+        {
+          "type": "Index Scan",
+          "relation": "employees",
+          "index": "employees_pkey",
+          "rows": 1,
+          "cond": "(id = participant.employee_id)"
+        }
+      ],
+      "sorts": [
+        {
+          "type": "Sort",
+          "rows": 35,
+          "sortKey": [
+            "participant.fit_score DESC NULLS LAST",
+            "participant.id"
+          ]
+        },
+        {
+          "type": "Sort",
+          "rows": 81,
+          "sortKey": [
+            "employee_assessments.created_at",
+            "employee_assessments.id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "test_template_list RPC/function first page",
+      "root": {
+        "type": "Limit",
+        "startup": 43.61,
+        "total": 43.74,
+        "rows": 51
+      },
+      "seqScans": [],
+      "indexScans": [],
+      "sorts": [
+        {
+          "type": "Sort",
+          "rows": 1000,
+          "sortKey": [
+            "updated_at DESC",
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "assessment_package_list RPC/function first page",
+      "root": {
+        "type": "Limit",
+        "startup": 43.61,
+        "total": 43.74,
+        "rows": 51
+      },
+      "seqScans": [],
+      "indexScans": [],
+      "sorts": [
+        {
+          "type": "Sort",
+          "rows": 1000,
+          "sortKey": [
+            "updated_at DESC",
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "employee_assessment_list view first page",
+      "root": {
+        "type": "Limit",
+        "startup": 30.39,
+        "total": 306.06,
+        "rows": 51
+      },
+      "seqScans": [
+        {
+          "relation": "employee_assessment_participants",
+          "rows": 35,
+          "total": 5.12,
+          "filter": "((employee_assessment_id = a.id) AND (company_id = a.company_id))"
+        }
+      ],
+      "indexScans": [
+        {
+          "type": "Index Scan",
+          "relation": "employee_assessments",
+          "index": "idx_employee_assessments_company_updated_at",
+          "rows": 160,
+          "cond": "(company_id = '4042019d-0b25-43b8-a0c1-c44c55897a9d'::uuid)"
+        },
+        {
+          "type": "Index Scan",
+          "relation": "assessment_packages",
+          "index": "assessment_packages_pkey",
+          "rows": 1,
+          "cond": "(id = a.assessment_package_id)"
+        }
+      ],
+      "sorts": [
+        {
+          "type": "Incremental Sort",
+          "rows": 160,
+          "sortKey": [
+            "a.updated_at DESC",
+            "a.id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "test builder content: sections/questions/options for latest synthetic version",
+      "root": {
+        "type": "Sort",
+        "startup": 133.95,
+        "total": 134.12,
+        "rows": 69
+      },
+      "seqScans": [
+        {
+          "relation": "answer_options",
+          "rows": 1319,
+          "total": 42.19,
+          "filter": null
+        },
+        {
+          "relation": "questions",
+          "rows": 363,
+          "total": 16.63,
+          "filter": null
+        },
+        {
+          "relation": "test_versions",
+          "rows": 83,
+          "total": 27.83,
+          "filter": null
+        },
+        {
+          "relation": "test_templates",
+          "rows": 56,
+          "total": 3.05,
+          "filter": "((title ~~ 'PERF-STAGING-342e429f%'::text) AND (company_id = '4042019d-0b25-43b8-a0c1-c44c55897a9d'::uuid))"
+        }
+      ],
+      "indexScans": [
+        {
+          "type": "Index Scan",
+          "relation": "test_sections",
+          "index": "test_sections_pkey",
+          "rows": 39,
+          "cond": null
+        }
+      ],
+      "sorts": [
+        {
+          "type": "Sort",
+          "rows": 69,
+          "sortKey": [
+            "section.order_index",
+            "section.id",
+            "question.order_index",
+            "question.id",
+            "option.order_index",
+            "option.id"
+          ]
+        },
+        {
+          "type": "Sort",
+          "rows": 66,
+          "sortKey": [
+            "version.created_at DESC",
+            "version.id"
+          ]
+        }
+      ]
+    }
+  ]
+}

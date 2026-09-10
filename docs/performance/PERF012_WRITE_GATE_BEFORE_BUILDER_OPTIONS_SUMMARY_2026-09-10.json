@@ -1,0 +1,83 @@
+﻿{
+    "case":  "answer_options:update_100_order_index_temp_draft_fixture",
+    "operation":  "Update",
+    "actual_total_ms":  50.02,
+    "actual_rows":  0,
+    "shared_hit_blocks":  11908,
+    "shared_dirtied_blocks":  4,
+    "shared_written_blocks":  4,
+    "wal_records":  708,
+    "wal_fpi":  0,
+    "wal_bytes":  74772,
+    "sort_nodes":  [
+                       {
+                           "sort_key":  [
+                                            "s.order_index",
+                                            "s.id",
+                                            "q.order_index",
+                                            "q.id",
+                                            "o_1.order_index",
+                                            "o_1.id"
+                                        ],
+                           "actual_total_ms":  2.342,
+                           "actual_rows":  100,
+                           "method":  "top-N heapsort",
+                           "space_kb":  45
+                       }
+                   ],
+    "index_scans":  [
+                        {
+                            "relation":  "test_sections",
+                            "index":  "test_sections_pkey",
+                            "actual_total_ms":  0.011,
+                            "actual_rows":  1,
+                            "index_cond":  "(id = q.section_id)",
+                            "filter":  null
+                        },
+                        {
+                            "relation":  "test_versions",
+                            "index":  "idx_test_versions_one_draft_per_template",
+                            "actual_total_ms":  0.039,
+                            "actual_rows":  1,
+                            "index_cond":  "(test_template_id = tt.id)",
+                            "filter":  null
+                        },
+                        {
+                            "relation":  "answer_options",
+                            "index":  "answer_options_pkey",
+                            "actual_total_ms":  0.004,
+                            "actual_rows":  1,
+                            "index_cond":  "(id = target.id)",
+                            "filter":  null
+                        }
+                    ],
+    "bitmap_index_scans":  [
+
+                           ],
+    "seq_scans":  [
+                      {
+                          "relation":  "answer_options",
+                          "alias":  "o_1",
+                          "actual_total_ms":  0.559,
+                          "actual_rows":  1879,
+                          "filter":  null,
+                          "rows_removed_by_filter":  null
+                      },
+                      {
+                          "relation":  "questions",
+                          "alias":  "q",
+                          "actual_total_ms":  0.213,
+                          "actual_rows":  475,
+                          "filter":  null,
+                          "rows_removed_by_filter":  null
+                      },
+                      {
+                          "relation":  "test_templates",
+                          "alias":  "tt",
+                          "actual_total_ms":  0.018,
+                          "actual_rows":  1,
+                          "filter":  "((company_id = \u00274042019d-0b25-43b8-a0c1-c44c55897a9d\u0027::uuid) AND (title = \u0027PERF-STAGING-342e429f rollback builder write gate\u0027::text))",
+                          "rows_removed_by_filter":  73
+                      }
+                  ]
+}

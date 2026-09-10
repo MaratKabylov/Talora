@@ -569,15 +569,13 @@ shapes, 30 warm EXPLAIN до/после, девять индексов и чет
 миграции текущий проект проверен через API: 25/25 smoke checks, REST EXPLAIN возвращает
 406/PGRST107. Получен пользовательский SQL-результат: PostgreSQL 17.6, 32/32 checks,
 34 индекса valid/ready; обнаружены два перекрытия token с UNIQUE-индексами, ничего
-не удалялось. Production-like EXPLAIN и before/after write gate ожидаются. Результаты
-дополнены [staging list/RLS suite](33_STAGING_LIST_ACCEPTANCE.md): 122/122 assertions
+не удалялось. Production-like EXPLAIN без ANALYZE получен позже через SQL Editor; before/after write gate ожидается. Результаты дополнены [staging list/RLS suite](33_STAGING_LIST_ACCEPTANCE.md): 122/122 assertions
 на синтетических данных текущего проекта с настоящими JWT, девять запросов ×30 warm
 замеров; тестовые доступы отключены. Дополнительно 75/75 candidate/employee RPC checks
 на тесте 100 вопросов/400 вариантов: autosave, section upsert, completion/retry; ссылки
 отключены. Scoring route/finalizer проверен отдельно: 29/29 checks через локальный
 Next `/api/assessment/complete` в текущий Supabase, persisted scores/results/reports
-и idempotent retry. SQL EXPLAIN и before/after write gate не закрыты. Условия
-выпуска: [PERF-012 benchmark](32_QUERY_INDEX_BENCHMARK.md). PERF-012 целиком не принят.
+и idempotent retry. Получены 10 SQL Editor EXPLAIN result sets без ANALYZE/JWT/RLS latency; черновой minimal set — applications date/job-date/job-fit, participants date/fit и builder parent/order. Before write-gate baseline снят для applications/participants/builder; пользователь отказался менять схему и согласился остановить PERF-012 на evidence stage, поэтому after gate после DDL не выполняется. Условия выпуска: [PERF-012 benchmark](32_QUERY_INDEX_BENCHMARK.md). PERF-012 deployment индексов не принят; задача остановлена на evidence stage. Before write-gate baseline: applications 43.121 ms / WAL 159734; participants 8.579 ms / WAL 69121; builder options 50.020 ms / WAL 74772. RLS catalog после prompt: 7/7 checked tables enabled, policies present.
 
 **Предварительные кандидаты**
 

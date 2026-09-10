@@ -1,0 +1,46 @@
+﻿{
+    "capturedAt":  "2026-09-10T16:08:09.882138+00:00",
+    "source":  "user SQL Editor paste",
+    "type":  "perf012_index_preflight_applications_job_date",
+    "context":  {
+                    "note":  "Read-only preflight before optional CREATE INDEX CONCURRENTLY.",
+                    "checked_at":  "2026-09-10T16:08:09.882138+00:00",
+                    "name_exists":  false,
+                    "target_counts":  {
+                                          "job_rows":  554,
+                                          "company_rows":  1109
+                                      },
+                    "server_version":  "17.6",
+                    "proposed_definition":  "CREATE INDEX CONCURRENTLY perf012_candidate_applications_company_job_created_at_id ON public.candidate_applications (company_id, job_id, created_at DESC, id ASC)",
+                    "proposed_index_name":  "perf012_candidate_applications_company_job_created_at_id",
+                    "existing_candidate_applications_indexes":  [
+                                                                    {
+                                                                        "bytes":  106496,
+                                                                        "index_name":  "candidate_applications_job_id_candidate_id_key",
+                                                                        "indisready":  true,
+                                                                        "indisvalid":  true,
+                                                                        "index_definition":  "CREATE UNIQUE INDEX candidate_applications_job_id_candidate_id_key ON public.candidate_applications USING btree (job_id, candidate_id)"
+                                                                    },
+                                                                    {
+                                                                        "bytes":  81920,
+                                                                        "index_name":  "candidate_applications_pkey",
+                                                                        "indisready":  true,
+                                                                        "indisvalid":  true,
+                                                                        "index_definition":  "CREATE UNIQUE INDEX candidate_applications_pkey ON public.candidate_applications USING btree (id)"
+                                                                    },
+                                                                    {
+                                                                        "bytes":  32768,
+                                                                        "index_name":  "idx_applications_company_job",
+                                                                        "indisready":  true,
+                                                                        "indisvalid":  true,
+                                                                        "index_definition":  "CREATE INDEX idx_applications_company_job ON public.candidate_applications USING btree (company_id, job_id)"
+                                                                    }
+                                                                ]
+                },
+    "interpretation":  {
+                           "can_create_named_index":  true,
+                           "equivalent_index_seen":  false,
+                           "selected_target_rows":  554,
+                           "next_step":  "If user approves remote staging schema change, run CREATE INDEX CONCURRENTLY then validate indisvalid/indisready and rerun read/write EXPLAIN."
+                       }
+}

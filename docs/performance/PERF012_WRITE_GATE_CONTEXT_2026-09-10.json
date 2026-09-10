@@ -1,0 +1,35 @@
+﻿{
+    "capturedAt":  "2026-09-10T15:52:50.098765+00:00",
+    "source":  "user SQL Editor paste",
+    "type":  "perf012_write_gate_context",
+    "context":  {
+                    "note":  "Read-only target discovery before write-gate DML/DDL.",
+                    "counts":  {
+                                   "builder_options":  80,
+                                   "builder_sections":  1,
+                                   "builder_questions":  20,
+                                   "candidate_applications_for_job":  0,
+                                   "candidate_applications_for_company":  1109,
+                                   "employee_participants_for_assessment":  0
+                               },
+                    "job_id":  "06d79fdb-38ca-45ab-9670-dac9d5ca6488",
+                    "targets":  {
+                                    "option_id":  "f1e3cce1-adaf-4f98-9c70-f54a4a507226",
+                                    "section_id":  "ae9dce2a-87d5-4ac5-8f39-40ec6c50c33b",
+                                    "question_id":  "f6a54396-963a-4d5d-bc3f-ce28e69f363c",
+                                    "application_id":  null,
+                                    "participant_id":  null
+                                },
+                    "checked_at":  "2026-09-10T15:52:50.098765+00:00",
+                    "company_id":  "4042019d-0b25-43b8-a0c1-c44c55897a9d",
+                    "server_version":  "17.6",
+                    "test_version_id":  "0fa17a33-80da-4af6-94c9-4a8ce8076c3d",
+                    "employee_assessment_id":  "0001cb13-ccf7-424f-8398-b33ddf8b42d4"
+                },
+    "interpretation":  {
+                           "builderTargetsUsable":  true,
+                           "applicationParentUsable":  false,
+                           "employeeAssessmentParentUsable":  false,
+                           "nextStep":  "Discover current job_id and employee_assessment_id with non-zero child rows before write-gate DML/DDL."
+                       }
+}

@@ -732,7 +732,36 @@ candidate 6 058 ms, employee 3 092 ms; retry 693/344 ms. Это локальны
 Все **226/226** staging-проверок успешны. Три аккаунта заблокированы, четыре memberships
 disabled, две session invitation-ссылки expired; две completed scoring-ссылки получили
 `expires_at=1970-01-01`. Тестовые данные оставлены, реальные бизнес-строки не изменялись.
-Миграции, индексы и flags не менялись. SQL EXPLAIN недоступен; полные browser, builder
-и performance-приёмка остаются открытыми. Локально **501/501 tests**, lint и typecheck
+Миграции, индексы и flags не менялись. Позже получены 10 SQL Editor EXPLAIN result sets без ANALYZE/JWT/RLS latency; полные browser, builder и performance-приёмка остаются открытыми. Локально **501/501 tests**, lint и typecheck
 успешны после добавления scoring; ранее production build успешен. Build/dev server
 повторялись вне sandbox после `spawn EPERM`. Подробная матрица и ограничения — в отчёте staging.
+## 30. PERF-012: SQL Editor EXPLAIN result sets — 10.09.2026
+
+Пользователь выгрузил 10 `EXPLAIN (FORMAT JSON, ANALYZE false)` result sets из подготовленного
+SQL Editor пакета: [plans](performance/PERF012_QUERY_PLANS_2026-09-10.json),
+[summary](performance/PERF012_QUERY_PLAN_SUMMARY_2026-09-10.json), свежий
+[index inventory](performance/PERF012_INDEX_INVENTORY_2026-09-10_AFTER_STAGING.json).
+Контекст: PostgreSQL 17.6, prefix `PERF-STAGING-342e429f`, SQL Editor role, без JWT/RLS
+latency, timings и buffers.
+
+Планы сузили черновой набор для write gate: applications date/job-date/job-fit,
+participants date/fit и builder parent/order для sections/questions/options. Jobs date низкий
+приоритет из-за малого staging cost/rows. RPC list templates/packages видны только как
+Function Scan + Sort; DDL по ним без внутреннего плана не обоснован. Индексы не добавлены;
+before/after write gate ≤10% остаётся обязательным перед deployment SQL.
+## 31. PERF-012: before write-gate baseline и RLS check — 10.09.2026
+
+Rollback-wrapped `EXPLAIN (ANALYZE, BUFFERS, WAL, SETTINGS, FORMAT JSON)` снят до добавления
+индексов. `candidate_applications` update 100: 43.121 ms, WAL 159734 bytes, 39 dirtied blocks.
+`employee_assessment_participants` update 100: 8.579 ms, WAL 69121 bytes, 12 dirtied blocks;
+planner использует существующий `idx_employee_assessment_participants_assessment` для target selection.
+Builder options reorder 100: 50.020 ms, WAL 74772 bytes, 4 dirtied blocks; использован temporary
+draft fixture в транзакции с rollback, потому что published version была корректно заблокирована guard-ом,
+а существующие draft versions не имели контента.
+
+После пользовательского RLS prompt проверены `test_templates`, `test_versions`, `test_sections`,
+`questions`, `answer_options`, `candidate_applications`, `employee_assessment_participants`:
+7/7 имеют RLS enabled, force RLS=false, policies>=2. Нулевых policy tables не найдено.
+Артефакты сохранены в `docs/performance/PERF012_WRITE_GATE_BEFORE_*` и
+`PERF012_RLS_CATALOG_CHECK_2026-09-10.json`. Индексы всё ещё не добавлены; следующий шаг —
+по одному DDL-кандидату с after EXPLAIN/read+write gate.

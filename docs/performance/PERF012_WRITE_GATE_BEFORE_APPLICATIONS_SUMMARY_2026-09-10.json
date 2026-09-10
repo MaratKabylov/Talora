@@ -1,0 +1,36 @@
+﻿{
+    "case":  "candidate_applications:update_100_fit_score_noop",
+    "operation":  "Update",
+    "actual_total_ms":  43.121,
+    "actual_rows":  0,
+    "shared_hit_blocks":  1485,
+    "shared_dirtied_blocks":  39,
+    "shared_written_blocks":  2,
+    "wal_records":  603,
+    "wal_fpi":  36,
+    "wal_bytes":  159734,
+    "sort_nodes":  [
+                       {
+                           "sort_key":  [
+                                            "a_1.created_at DESC",
+                                            "a_1.id"
+                                        ],
+                           "actual_total_ms":  0.82,
+                           "actual_rows":  100,
+                           "method":  "top-N heapsort",
+                           "space_kb":  37
+                       }
+                   ],
+    "bitmap_index_scans":  [
+
+                           ],
+    "seq_scans":  [
+                      {
+                          "relation":  "candidate_applications",
+                          "alias":  "a",
+                          "actual_total_ms":  3.999,
+                          "actual_rows":  1320,
+                          "filter":  null
+                      }
+                  ]
+}

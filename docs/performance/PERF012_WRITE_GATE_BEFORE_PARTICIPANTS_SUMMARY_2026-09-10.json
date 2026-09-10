@@ -1,0 +1,37 @@
+﻿{
+    "case":  "employee_assessment_participants:update_100_fit_score_noop",
+    "operation":  "Update",
+    "actual_total_ms":  8.579,
+    "actual_rows":  0,
+    "shared_hit_blocks":  1139,
+    "shared_dirtied_blocks":  12,
+    "shared_written_blocks":  4,
+    "wal_records":  584,
+    "wal_fpi":  7,
+    "wal_bytes":  69121,
+    "sort_nodes":  [
+
+                   ],
+    "index_scans":  [
+                        {
+                            "index":  "idx_employee_assessment_participants_assessment",
+                            "actual_total_ms":  0.095,
+                            "actual_rows":  102,
+                            "index_cond":  "(employee_assessment_id = \u0027c56bea98-c3c0-4b78-8faa-d99784560c5e\u0027::uuid)",
+                            "filter":  "(company_id = \u00274042019d-0b25-43b8-a0c1-c44c55897a9d\u0027::uuid)"
+                        }
+                    ],
+    "bitmap_index_scans":  [
+
+                           ],
+    "seq_scans":  [
+                      {
+                          "relation":  "employee_assessment_participants",
+                          "alias":  "p",
+                          "actual_total_ms":  0.042,
+                          "actual_rows":  160,
+                          "filter":  null,
+                          "rows_removed_by_filter":  null
+                      }
+                  ]
+}

@@ -1,0 +1,219 @@
+﻿{
+    "capturedAt":  "2026-09-10T16:01:49.592442+00:00",
+    "source":  "user SQL Editor paste",
+    "type":  "perf012_draft_builder_target_discovery",
+    "context":  {
+                    "checked_at":  "2026-09-10T16:01:49.592442+00:00",
+                    "company_id":  "4042019d-0b25-43b8-a0c1-c44c55897a9d",
+                    "draft_versions":  [
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 3",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 3",
+                                               "test_version_id":  "0088837b-2f6c-4843-9fb7-a8cdf6abbbe6",
+                                               "test_template_id":  "74efdd47-ce05-428a-9f08-ebd4720a4e19"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 51",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 51",
+                                               "test_version_id":  "01cbc830-e69f-41a0-a593-c37b018925f5",
+                                               "test_template_id":  "c872bbad-fec9-485b-8ba0-5fe55a0e1eb7"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 29",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 29",
+                                               "test_version_id":  "04b96870-eb18-4e3b-9c11-e24b74ba7406",
+                                               "test_template_id":  "58b8171f-4662-4e55-9841-0d92bc2efa1d"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 46",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 46",
+                                               "test_version_id":  "06bd749a-2c9f-4d78-b616-b9cc18633d5e",
+                                               "test_template_id":  "adbb97d8-bb50-46cc-b126-809c91b40d30"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 9",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 9",
+                                               "test_version_id":  "0833ed70-c683-45ae-b854-9cf440c5312c",
+                                               "test_template_id":  "422c5b45-db25-45ce-911a-f8a3d98d58ed"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 2",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 2",
+                                               "test_version_id":  "086fa1da-082d-4664-906c-48af22456ad9",
+                                               "test_template_id":  "f4dc7748-f743-46a5-a489-396ff06c545d"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 38",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 38",
+                                               "test_version_id":  "16ea9669-210f-4d07-b9cc-a2b902a4ab06",
+                                               "test_template_id":  "2a656086-343d-4c37-928a-0c5c473a5112"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 15",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 15",
+                                               "test_version_id":  "277a0ea9-b474-4a64-84c9-210176b237c5",
+                                               "test_template_id":  "92144b96-73d2-4cd1-8548-a989dcf2087a"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 25",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 25",
+                                               "test_version_id":  "2ba5f343-3e75-498e-9b58-c6e5958c2a7d",
+                                               "test_template_id":  "88741f6b-a34a-4319-a054-7026f274178f"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 1",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 1",
+                                               "test_version_id":  "306a4ca3-f5e5-4e61-8d3b-4819cd536806",
+                                               "test_template_id":  "d9d62791-dbab-41ee-9da0-503559980928"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 23",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 23",
+                                               "test_version_id":  "3589e065-bc25-4349-8b93-635d8829f05a",
+                                               "test_template_id":  "0333c8ac-d8b6-47d8-b3bc-e92d52b94fea"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 44",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 44",
+                                               "test_version_id":  "35b5c5d4-4468-41f6-9b68-2b222a2d5ed7",
+                                               "test_template_id":  "3148a97c-d515-4212-99d9-ebd2d63b68df"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 54",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 54",
+                                               "test_version_id":  "3e2e2d41-d22b-410b-b515-512bf5b322fe",
+                                               "test_template_id":  "9a374e3e-6126-479f-bac9-dc97825c1cd9"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 7",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 7",
+                                               "test_version_id":  "444e5e66-7176-4da7-8bb4-8b84521f6500",
+                                               "test_template_id":  "64560e34-1eb5-4a37-9739-310c70329286"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 55",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 55",
+                                               "test_version_id":  "44985de5-43c5-4ef1-92ce-179a36814e22",
+                                               "test_template_id":  "89a67d99-bc87-4c03-9742-d1fb622cf713"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 10",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 10",
+                                               "test_version_id":  "45f91b53-7a35-4e61-8cc5-570ecdecdb73",
+                                               "test_template_id":  "1da21bd3-914d-45f4-92c7-4dc9dc19acb7"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 22",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 22",
+                                               "test_version_id":  "468bf0ef-9f7e-418a-b61d-850d1b37fdeb",
+                                               "test_template_id":  "0cf35320-3b67-41b0-bfdd-67be3d54071f"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 56",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 56",
+                                               "test_version_id":  "4fb002ae-a96d-49fd-87b3-fe1d99f1efbf",
+                                               "test_template_id":  "99004c57-b9d1-432e-80b2-d3d1e526f259"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 52",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 52",
+                                               "test_version_id":  "5161e1f9-0413-423d-812f-e1362073057b",
+                                               "test_template_id":  "78406cd2-dda6-401c-aad9-eb78b4281e0e"
+                                           },
+                                           {
+                                               "title":  "PERF-STAGING-342e429f Template 8",
+                                               "status":  "draft",
+                                               "option_count":  0,
+                                               "section_count":  0,
+                                               "question_count":  0,
+                                               "template_title":  "PERF-STAGING-342e429f Template 8",
+                                               "test_version_id":  "538e886b-27f2-4b5e-a9f5-225f912e11c5",
+                                               "test_template_id":  "aa672b11-03f8-4dbe-bfbd-fb511b5593c7"
+                                           }
+                                       ],
+                    "server_version":  "17.6"
+                },
+    "interpretation":  {
+                           "draft_versions_returned":  20,
+                           "max_option_count":  0,
+                           "max_question_count":  0,
+                           "existing_draft_content_usable":  false,
+                           "next_step":  "Use rollback-wrapped temporary draft fixture for builder write gate baseline."
+                       }
+}

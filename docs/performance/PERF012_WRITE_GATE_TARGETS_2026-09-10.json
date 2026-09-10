@@ -1,0 +1,81 @@
+﻿{
+    "capturedAt":  "2026-09-10T15:54:17.011761+00:00",
+    "source":  "user SQL Editor paste",
+    "type":  "perf012_write_gate_target_discovery",
+    "context":  {
+                    "note":  "Read-only discovery of current high-cardinality parents before write-gate DML/DDL.",
+                    "selected":  {
+                                     "job_id":  "1e857ef3-fb49-4f1b-b315-2f2e3c22030e",
+                                     "test_version_id":  "5f399cc6-07f4-4cd2-aa30-7539687086cf",
+                                     "employee_assessment_id":  "c56bea98-c3c0-4b78-8faa-d99784560c5e"
+                                 },
+                    "checked_at":  "2026-09-10T15:54:17.011761+00:00",
+                    "company_id":  "4042019d-0b25-43b8-a0c1-c44c55897a9d",
+                    "server_version":  "17.6",
+                    "job_candidates":  [
+                                           {
+                                               "job_id":  "1e857ef3-fb49-4f1b-b315-2f2e3c22030e",
+                                               "application_count":  554,
+                                               "latest_application_at":  "2026-09-10T00:00:00.000022+00:00"
+                                           },
+                                           {
+                                               "job_id":  "d1ef58ec-5141-408e-a3bc-af5ac8df2fd8",
+                                               "application_count":  553,
+                                               "latest_application_at":  "2026-09-10T00:00:00.000022+00:00"
+                                           },
+                                           {
+                                               "job_id":  "4953b9e7-336a-48cd-8c29-7aaecea6e2ff",
+                                               "application_count":  1,
+                                               "latest_application_at":  "2026-09-10T10:40:13.129385+00:00"
+                                           },
+                                           {
+                                               "job_id":  "5620119b-4fbf-4b87-87e6-0c6f092e3a91",
+                                               "application_count":  1,
+                                               "latest_application_at":  "2026-09-10T10:03:32.232556+00:00"
+                                           }
+                                       ],
+                    "assessment_candidates":  [
+                                                  {
+                                                      "employee_assessment_id":  "c56bea98-c3c0-4b78-8faa-d99784560c5e",
+                                                      "participant_count":  137,
+                                                      "latest_participant_at":  "2026-09-10T00:00:00.000022+00:00"
+                                                  },
+                                                  {
+                                                      "employee_assessment_id":  "57e820b4-dcb6-462e-b1c8-6ddcb30d18b2",
+                                                      "participant_count":  1,
+                                                      "latest_participant_at":  "2026-09-10T10:40:24.123009+00:00"
+                                                  },
+                                                  {
+                                                      "employee_assessment_id":  "9f1ba728-f88c-4796-b3d4-68ba8ae32fda",
+                                                      "participant_count":  1,
+                                                      "latest_participant_at":  "2026-09-10T10:04:18.863072+00:00"
+                                                  }
+                                              ],
+                    "builder_version_candidates":  [
+                                                       {
+                                                           "test_version_id":  "5f399cc6-07f4-4cd2-aa30-7539687086cf",
+                                                           "section_count":  1,
+                                                           "question_count":  100,
+                                                           "option_count":  400
+                                                       },
+                                                       {
+                                                           "test_version_id":  "0fa17a33-80da-4af6-94c9-4a8ce8076c3d",
+                                                           "section_count":  1,
+                                                           "question_count":  20,
+                                                           "option_count":  80
+                                                       },
+                                                       {
+                                                           "test_version_id":  "e7bb7cd9-04e4-4424-8c1a-bada67c767a1",
+                                                           "section_count":  1,
+                                                           "question_count":  20,
+                                                           "option_count":  80
+                                                       }
+                                                   ]
+                },
+    "interpretation":  {
+                           "selectedApplicationParentUsable":  true,
+                           "selectedEmployeeAssessmentParentUsable":  true,
+                           "selectedBuilderVersionUsable":  true,
+                           "nextStep":  "Run before-index write gate baseline with rollback-wrapped EXPLAIN ANALYZE DML on selected synthetic targets."
+                       }
+}

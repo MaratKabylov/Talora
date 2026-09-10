@@ -1,0 +1,288 @@
+﻿{
+    "capturedAt":  "2026-09-10T16:05:18.609904+00:00",
+    "source":  "user SQL Editor paste",
+    "type":  "perf012_rls_catalog_check",
+    "context":  {
+                    "note":  "Read-only check after user reported clicking enable RLS prompt.",
+                    "tables":  [
+                                   {
+                                       "policies":  [
+                                                        {
+                                                            "cmd":  "SELECT",
+                                                            "qual":  "(EXISTS ( SELECT 1\n   FROM (((questions question\n     JOIN test_sections section ON ((section.id = question.section_id)))\n     JOIN test_versions version ON ((version.id = section.test_version_id)))\n     JOIN test_templates template ON ((template.id = version.test_template_id)))\n  WHERE ((question.id = answer_options.question_id) AND (((template.is_system = true) AND (version.published_at IS NOT NULL) AND (version.status = ANY (ARRAY[\u0027published\u0027::text, \u0027archived\u0027::text])) AND current_user_can_access_system_test(template.id)) OR ((template.is_system = false) AND (template.company_id IS NOT NULL) AND is_company_member(template.company_id))))))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "members can read accessible answer options",
+                                                            "with_check":  null
+                                                        },
+                                                        {
+                                                            "cmd":  "SELECT",
+                                                            "qual":  "((EXISTS ( SELECT 1\n   FROM ((candidate_answers answer\n     JOIN test_sessions session ON ((session.id = answer.session_id)))\n     JOIN candidate_applications application ON ((application.id = session.application_id)))\n  WHERE ((answer.question_id = answer_options.question_id) AND is_company_member(application.company_id)))) OR (EXISTS ( SELECT 1\n   FROM ((employee_assessment_answers answer\n     JOIN employee_assessment_sessions session ON ((session.id = answer.session_id)))\n     JOIN employee_assessment_participants participant ON ((participant.id = session.participant_id)))\n  WHERE ((answer.question_id = answer_options.question_id) AND is_company_member(participant.company_id)))))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "members can read historical assessment answer options",
+                                                            "with_check":  null
+                                                        },
+                                                        {
+                                                            "cmd":  "ALL",
+                                                            "qual":  "(EXISTS ( SELECT 1\n   FROM (((questions question\n     JOIN test_sections section ON ((section.id = question.section_id)))\n     JOIN test_versions version ON ((version.id = section.test_version_id)))\n     JOIN test_templates template ON ((template.id = version.test_template_id)))\n  WHERE ((question.id = answer_options.question_id) AND (version.status = \u0027draft\u0027::text) AND (template.status = \u0027active\u0027::text) AND (template.is_system = false) AND (template.company_id IS NOT NULL) AND can_manage_company_resources(template.company_id))))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "recruiters can manage draft answer options",
+                                                            "with_check":  "(EXISTS ( SELECT 1\n   FROM (((questions question\n     JOIN test_sections section ON ((section.id = question.section_id)))\n     JOIN test_versions version ON ((version.id = section.test_version_id)))\n     JOIN test_templates template ON ((template.id = version.test_template_id)))\n  WHERE ((question.id = answer_options.question_id) AND (version.status = \u0027draft\u0027::text) AND (template.status = \u0027active\u0027::text) AND (template.is_system = false) AND (template.company_id IS NOT NULL) AND can_manage_company_resources(template.company_id))))"
+                                                        }
+                                                    ],
+                                       "rls_forced":  false,
+                                       "table_name":  "answer_options",
+                                       "rls_enabled":  true,
+                                       "total_bytes":  458752,
+                                       "policy_count":  3
+                                   },
+                                   {
+                                       "policies":  [
+                                                        {
+                                                            "cmd":  "SELECT",
+                                                            "qual":  "is_company_member(company_id)",
+                                                            "roles":  [
+                                                                          "public"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "members can read applications",
+                                                            "with_check":  null
+                                                        },
+                                                        {
+                                                            "cmd":  "ALL",
+                                                            "qual":  "can_manage_company_resources(company_id)",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "recruiters can manage applications",
+                                                            "with_check":  "can_manage_company_resources(company_id)"
+                                                        }
+                                                    ],
+                                       "rls_forced":  false,
+                                       "table_name":  "candidate_applications",
+                                       "rls_enabled":  true,
+                                       "total_bytes":  475136,
+                                       "policy_count":  2
+                                   },
+                                   {
+                                       "policies":  [
+                                                        {
+                                                            "cmd":  "SELECT",
+                                                            "qual":  "is_company_member(company_id)",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "members can read employee assessment participants",
+                                                            "with_check":  null
+                                                        },
+                                                        {
+                                                            "cmd":  "ALL",
+                                                            "qual":  "can_manage_company_resources(company_id)",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "recruiters can manage employee assessment participants",
+                                                            "with_check":  "can_manage_company_resources(company_id)"
+                                                        }
+                                                    ],
+                                       "rls_forced":  false,
+                                       "table_name":  "employee_assessment_participants",
+                                       "rls_enabled":  true,
+                                       "total_bytes":  131072,
+                                       "policy_count":  2
+                                   },
+                                   {
+                                       "policies":  [
+                                                        {
+                                                            "cmd":  "SELECT",
+                                                            "qual":  "(EXISTS ( SELECT 1\n   FROM ((test_sections section\n     JOIN test_versions version ON ((version.id = section.test_version_id)))\n     JOIN test_templates template ON ((template.id = version.test_template_id)))\n  WHERE ((section.id = questions.section_id) AND (((template.is_system = true) AND (version.published_at IS NOT NULL) AND (version.status = ANY (ARRAY[\u0027published\u0027::text, \u0027archived\u0027::text])) AND current_user_can_access_system_test(template.id)) OR ((template.is_system = false) AND (template.company_id IS NOT NULL) AND is_company_member(template.company_id))))))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "members can read accessible questions",
+                                                            "with_check":  null
+                                                        },
+                                                        {
+                                                            "cmd":  "SELECT",
+                                                            "qual":  "((EXISTS ( SELECT 1\n   FROM ((candidate_answers answer\n     JOIN test_sessions session ON ((session.id = answer.session_id)))\n     JOIN candidate_applications application ON ((application.id = session.application_id)))\n  WHERE ((answer.question_id = questions.id) AND is_company_member(application.company_id)))) OR (EXISTS ( SELECT 1\n   FROM ((employee_assessment_answers answer\n     JOIN employee_assessment_sessions session ON ((session.id = answer.session_id)))\n     JOIN employee_assessment_participants participant ON ((participant.id = session.participant_id)))\n  WHERE ((answer.question_id = questions.id) AND is_company_member(participant.company_id)))))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "members can read historical assessment questions",
+                                                            "with_check":  null
+                                                        },
+                                                        {
+                                                            "cmd":  "ALL",
+                                                            "qual":  "(EXISTS ( SELECT 1\n   FROM ((test_sections section\n     JOIN test_versions version ON ((version.id = section.test_version_id)))\n     JOIN test_templates template ON ((template.id = version.test_template_id)))\n  WHERE ((section.id = questions.section_id) AND (version.status = \u0027draft\u0027::text) AND (template.status = \u0027active\u0027::text) AND (template.is_system = false) AND (template.company_id IS NOT NULL) AND can_manage_company_resources(template.company_id))))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "recruiters can manage draft questions",
+                                                            "with_check":  "(EXISTS ( SELECT 1\n   FROM ((test_sections section\n     JOIN test_versions version ON ((version.id = section.test_version_id)))\n     JOIN test_templates template ON ((template.id = version.test_template_id)))\n  WHERE ((section.id = questions.section_id) AND (version.status = \u0027draft\u0027::text) AND (template.status = \u0027active\u0027::text) AND (template.is_system = false) AND (template.company_id IS NOT NULL) AND can_manage_company_resources(template.company_id))))"
+                                                        }
+                                                    ],
+                                       "rls_forced":  false,
+                                       "table_name":  "questions",
+                                       "rls_enabled":  true,
+                                       "total_bytes":  196608,
+                                       "policy_count":  3
+                                   },
+                                   {
+                                       "policies":  [
+                                                        {
+                                                            "cmd":  "SELECT",
+                                                            "qual":  "(EXISTS ( SELECT 1\n   FROM (test_versions version\n     JOIN test_templates template ON ((template.id = version.test_template_id)))\n  WHERE ((version.id = test_sections.test_version_id) AND (((template.is_system = true) AND (version.published_at IS NOT NULL) AND (version.status = ANY (ARRAY[\u0027published\u0027::text, \u0027archived\u0027::text])) AND current_user_can_access_system_test(template.id)) OR ((template.is_system = false) AND (template.company_id IS NOT NULL) AND is_company_member(template.company_id))))))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "members can read accessible test sections",
+                                                            "with_check":  null
+                                                        },
+                                                        {
+                                                            "cmd":  "ALL",
+                                                            "qual":  "(EXISTS ( SELECT 1\n   FROM (test_versions version\n     JOIN test_templates template ON ((template.id = version.test_template_id)))\n  WHERE ((version.id = test_sections.test_version_id) AND (version.status = \u0027draft\u0027::text) AND (template.status = \u0027active\u0027::text) AND (template.is_system = false) AND (template.company_id IS NOT NULL) AND can_manage_company_resources(template.company_id))))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "recruiters can manage draft test sections",
+                                                            "with_check":  "(EXISTS ( SELECT 1\n   FROM (test_versions version\n     JOIN test_templates template ON ((template.id = version.test_template_id)))\n  WHERE ((version.id = test_sections.test_version_id) AND (version.status = \u0027draft\u0027::text) AND (template.status = \u0027active\u0027::text) AND (template.is_system = false) AND (template.company_id IS NOT NULL) AND can_manage_company_resources(template.company_id))))"
+                                                        }
+                                                    ],
+                                       "rls_forced":  false,
+                                       "table_name":  "test_sections",
+                                       "rls_enabled":  true,
+                                       "total_bytes":  344064,
+                                       "policy_count":  2
+                                   },
+                                   {
+                                       "policies":  [
+                                                        {
+                                                            "cmd":  "SELECT",
+                                                            "qual":  "(((is_system = true) AND (status = \u0027active\u0027::text) AND current_user_can_access_system_test(id)) OR ((is_system = false) AND (company_id IS NOT NULL) AND is_company_member(company_id)))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "members can read accessible test templates",
+                                                            "with_check":  null
+                                                        },
+                                                        {
+                                                            "cmd":  "SELECT",
+                                                            "qual":  "current_user_has_historical_test_template_access(id)",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "members can read historical assessment test templates",
+                                                            "with_check":  null
+                                                        },
+                                                        {
+                                                            "cmd":  "DELETE",
+                                                            "qual":  "((is_system = false) AND (company_id IS NOT NULL) AND can_manage_company_resources(company_id))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "recruiters can delete own test templates",
+                                                            "with_check":  null
+                                                        },
+                                                        {
+                                                            "cmd":  "INSERT",
+                                                            "qual":  null,
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "recruiters can insert own test templates",
+                                                            "with_check":  "((is_system = false) AND (company_id IS NOT NULL) AND can_manage_company_resources(company_id) AND company_can_create_custom_tests(company_id))"
+                                                        },
+                                                        {
+                                                            "cmd":  "UPDATE",
+                                                            "qual":  "((is_system = false) AND (company_id IS NOT NULL) AND can_manage_company_resources(company_id))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "recruiters can update own test templates",
+                                                            "with_check":  "((is_system = false) AND (company_id IS NOT NULL) AND can_manage_company_resources(company_id))"
+                                                        }
+                                                    ],
+                                       "rls_forced":  false,
+                                       "table_name":  "test_templates",
+                                       "rls_enabled":  true,
+                                       "total_bytes":  73728,
+                                       "policy_count":  5
+                                   },
+                                   {
+                                       "policies":  [
+                                                        {
+                                                            "cmd":  "SELECT",
+                                                            "qual":  "(EXISTS ( SELECT 1\n   FROM test_templates template\n  WHERE ((template.id = test_versions.test_template_id) AND (((template.is_system = true) AND (test_versions.published_at IS NOT NULL) AND (test_versions.status = ANY (ARRAY[\u0027published\u0027::text, \u0027archived\u0027::text])) AND current_user_can_access_system_test(template.id)) OR ((template.is_system = false) AND (template.company_id IS NOT NULL) AND is_company_member(template.company_id))))))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "members can read accessible test versions",
+                                                            "with_check":  null
+                                                        },
+                                                        {
+                                                            "cmd":  "SELECT",
+                                                            "qual":  "current_user_has_historical_test_version_access(id)",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "members can read historical assessment test versions",
+                                                            "with_check":  null
+                                                        },
+                                                        {
+                                                            "cmd":  "ALL",
+                                                            "qual":  "(EXISTS ( SELECT 1\n   FROM test_templates template\n  WHERE ((template.id = test_versions.test_template_id) AND (template.is_system = false) AND (template.company_id IS NOT NULL) AND can_manage_company_resources(template.company_id))))",
+                                                            "roles":  [
+                                                                          "authenticated"
+                                                                      ],
+                                                            "permissive":  "PERMISSIVE",
+                                                            "policyname":  "recruiters can manage own test versions",
+                                                            "with_check":  "(EXISTS ( SELECT 1\n   FROM test_templates template\n  WHERE ((template.id = test_versions.test_template_id) AND (template.is_system = false) AND (template.company_id IS NOT NULL) AND can_manage_company_resources(template.company_id))))"
+                                                        }
+                                                    ],
+                                       "rls_forced":  false,
+                                       "table_name":  "test_versions",
+                                       "rls_enabled":  true,
+                                       "total_bytes":  311296,
+                                       "policy_count":  3
+                                   }
+                               ],
+                    "checked_at":  "2026-09-10T16:05:18.609904+00:00",
+                    "server_version":  "17.6"
+                },
+    "interpretation":  {
+                           "checked_table_count":  7,
+                           "tables_with_rls_disabled":  [
+
+                                                        ],
+                           "tables_with_force_rls":  [
+
+                                                     ],
+                           "tables_with_zero_policies":  [
+
+                                                         ],
+                           "summary":  "All checked PERF-012 tables have RLS enabled, force RLS disabled, and at least two policies."
+                       }
+}
