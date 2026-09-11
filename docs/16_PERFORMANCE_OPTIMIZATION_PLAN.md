@@ -613,7 +613,7 @@ create index ... on employee_assessment_participants(employee_assessment_id, fit
 
 Показывать основную оценку без ожидания всех answers и integrity events.
 
-**Статус:** код PERF-013 готов локально без изменения схемы: logical test title подтягивается через nested `test_versions(... test_templates(title))` без отдельного version→template round-trip; candidate/employee report pages вынесли answers и integrity events в отдельные details loaders под Suspense. Независимые URL-параметры `answersPage`/`eventsPage` листают по 50/100 строк со стабильной сортировкой и признаком следующей страницы. Staging timing и проверка RSC/HTML payload ещё не выполнены.
+**Статус:** код PERF-013 готов без изменения схемы: logical test title подтягивается через nested `test_versions(... test_templates(title))` без отдельного version→template round-trip; candidate/employee report pages вынесли answers и integrity events в отдельные details loaders под Suspense. Независимые URL-параметры `answersPage`/`eventsPage` листают по 50/100 строк со стабильной сортировкой и признаком следующей страницы. Локальная production-сборка против текущего Supabase прошла staging acceptance 75/75: candidate/employee first/second page, HTTP 200 и multi-chunk streaming. Удалённый deployment приложения не выполнялся; fixture содержит меньше полного page size, поэтому переход через заполненную границу 50/100 на staging ещё не проверен.
 
 **Технические требования**
 

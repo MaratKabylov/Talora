@@ -1,0 +1,570 @@
+{
+  "runId": "d63799a8-d4f2-4ff4-81e3-50c26c360af5",
+  "startedAt": "2026-09-11T04:32:22.253Z",
+  "completed": true,
+  "projectFingerprint": "dca5278c627042a7427abd389a8aa6b6611641290de1dc51e3cbfbf3cb6bf9b6",
+  "scope": "Authorized current project; existing PERF-012 synthetic report rows are read only. One temporary Auth user and membership are disabled at shutdown. No schema, flag, business-row update or delete.",
+  "sourceReport": "docs/performance/PERF012_SCORING_2026-09-10.json",
+  "checks": [
+    {
+      "name": "synthetic-company",
+      "passed": true
+    },
+    {
+      "name": "candidate-target-owned-by-synthetic-company",
+      "passed": true
+    },
+    {
+      "name": "employee-target-owned-by-synthetic-company",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:status-0",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:markers-0",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:streamed-0",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:status-1",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:markers-1",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:streamed-1",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:status-2",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:markers-2",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:streamed-2",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:status-3",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:markers-3",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:streamed-3",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:status-4",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:markers-4",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:streamed-4",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:status-5",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:markers-5",
+      "passed": true
+    },
+    {
+      "name": "candidate-first-page:streamed-5",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:status-0",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:markers-0",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:streamed-0",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:status-1",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:markers-1",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:streamed-1",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:status-2",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:markers-2",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:streamed-2",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:status-3",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:markers-3",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:streamed-3",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:status-4",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:markers-4",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:streamed-4",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:status-5",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:markers-5",
+      "passed": true
+    },
+    {
+      "name": "candidate-second-page:streamed-5",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:status-0",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:markers-0",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:streamed-0",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:status-1",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:markers-1",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:streamed-1",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:status-2",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:markers-2",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:streamed-2",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:status-3",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:markers-3",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:streamed-3",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:status-4",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:markers-4",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:streamed-4",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:status-5",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:markers-5",
+      "passed": true
+    },
+    {
+      "name": "employee-first-page:streamed-5",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:status-0",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:markers-0",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:streamed-0",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:status-1",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:markers-1",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:streamed-1",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:status-2",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:markers-2",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:streamed-2",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:status-3",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:markers-3",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:streamed-3",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:status-4",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:markers-4",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:streamed-4",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:status-5",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:markers-5",
+      "passed": true
+    },
+    {
+      "name": "employee-second-page:streamed-5",
+      "passed": true
+    }
+  ],
+  "metrics": [
+    {
+      "name": "candidate-first-page",
+      "first": {
+        "bytes": 77373,
+        "chunks": 13,
+        "firstByteMs": 714.3305,
+        "firstChunkBytes": 7182,
+        "status": 200,
+        "totalMs": 3068.3307
+      },
+      "repetitions": 5,
+      "p50FirstByteMs": 306.9796000000006,
+      "p95FirstByteMs": 332.8645999999999,
+      "p50TotalMs": 2485.4029999999984,
+      "p95TotalMs": 2520.5367000000006,
+      "maxBytes": 77373,
+      "maxFirstChunkBytes": 7182,
+      "samples": [
+        {
+          "bytes": 77373,
+          "chunks": 13,
+          "firstByteMs": 315.46450000000004,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2499.3883000000005
+        },
+        {
+          "bytes": 77373,
+          "chunks": 13,
+          "firstByteMs": 332.8645999999999,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2243.7349999999997
+        },
+        {
+          "bytes": 77373,
+          "chunks": 13,
+          "firstByteMs": 302.59790000000066,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2520.5367000000006
+        },
+        {
+          "bytes": 77373,
+          "chunks": 13,
+          "firstByteMs": 302.7584999999999,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2485.4029999999984
+        },
+        {
+          "bytes": 77373,
+          "chunks": 13,
+          "firstByteMs": 306.9796000000006,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2245.3109000000004
+        }
+      ]
+    },
+    {
+      "name": "candidate-second-page",
+      "first": {
+        "bytes": 58022,
+        "chunks": 11,
+        "firstByteMs": 300.4239000000016,
+        "firstChunkBytes": 7182,
+        "status": 200,
+        "totalMs": 2158.7685999999994
+      },
+      "repetitions": 5,
+      "p50FirstByteMs": 312.9086000000025,
+      "p95FirstByteMs": 326.5027000000009,
+      "p50TotalMs": 2181.987000000001,
+      "p95TotalMs": 2234.897000000001,
+      "maxBytes": 58022,
+      "maxFirstChunkBytes": 7182,
+      "samples": [
+        {
+          "bytes": 58022,
+          "chunks": 11,
+          "firstByteMs": 312.9086000000025,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2184.9360000000015
+        },
+        {
+          "bytes": 58022,
+          "chunks": 11,
+          "firstByteMs": 326.5027000000009,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2234.897000000001
+        },
+        {
+          "bytes": 58022,
+          "chunks": 11,
+          "firstByteMs": 293.5597999999991,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2174.174900000002
+        },
+        {
+          "bytes": 58022,
+          "chunks": 11,
+          "firstByteMs": 322.3194000000003,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2181.987000000001
+        },
+        {
+          "bytes": 58022,
+          "chunks": 11,
+          "firstByteMs": 308.22360000000117,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2147.642
+        }
+      ]
+    },
+    {
+      "name": "employee-first-page",
+      "first": {
+        "bytes": 76426,
+        "chunks": 13,
+        "firstByteMs": 324.47899999999936,
+        "firstChunkBytes": 7182,
+        "status": 200,
+        "totalMs": 3013.2514999999985
+      },
+      "repetitions": 5,
+      "p50FirstByteMs": 315.0541000000012,
+      "p95FirstByteMs": 325.7315000000017,
+      "p50TotalMs": 2946.8772000000026,
+      "p95TotalMs": 3302.8323999999993,
+      "maxBytes": 76426,
+      "maxFirstChunkBytes": 7182,
+      "samples": [
+        {
+          "bytes": 76426,
+          "chunks": 13,
+          "firstByteMs": 308.19059999999445,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2973.728799999997
+        },
+        {
+          "bytes": 76426,
+          "chunks": 13,
+          "firstByteMs": 315.0541000000012,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2946.8772000000026
+        },
+        {
+          "bytes": 76426,
+          "chunks": 13,
+          "firstByteMs": 325.7315000000017,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2908.311800000003
+        },
+        {
+          "bytes": 76426,
+          "chunks": 13,
+          "firstByteMs": 324.72320000000036,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 3302.8323999999993
+        },
+        {
+          "bytes": 76426,
+          "chunks": 13,
+          "firstByteMs": 310.887999999999,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2942.520899999996
+        }
+      ]
+    },
+    {
+      "name": "employee-second-page",
+      "first": {
+        "bytes": 57857,
+        "chunks": 11,
+        "firstByteMs": 334.3486000000048,
+        "firstChunkBytes": 7182,
+        "status": 200,
+        "totalMs": 2396.6515
+      },
+      "repetitions": 5,
+      "p50FirstByteMs": 323.2016000000003,
+      "p95FirstByteMs": 341.50680000000284,
+      "p50TotalMs": 2386.6203000000023,
+      "p95TotalMs": 2653.0478999999978,
+      "maxBytes": 57857,
+      "maxFirstChunkBytes": 7182,
+      "samples": [
+        {
+          "bytes": 57857,
+          "chunks": 11,
+          "firstByteMs": 324.97609999999986,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2391.2103999999963
+        },
+        {
+          "bytes": 57857,
+          "chunks": 11,
+          "firstByteMs": 341.50680000000284,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2386.6203000000023
+        },
+        {
+          "bytes": 57857,
+          "chunks": 11,
+          "firstByteMs": 308.93969999999536,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2363.2648999999947
+        },
+        {
+          "bytes": 57857,
+          "chunks": 11,
+          "firstByteMs": 323.2016000000003,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2653.0478999999978
+        },
+        {
+          "bytes": 57857,
+          "chunks": 11,
+          "firstByteMs": 311.84679999999935,
+          "firstChunkBytes": 7182,
+          "status": 200,
+          "totalMs": 2357.003700000001
+        }
+      ]
+    }
+  ],
+  "shutdown": [
+    {
+      "name": "disable-membership",
+      "passed": true,
+      "code": null
+    },
+    {
+      "name": "ban-test-user",
+      "passed": true,
+      "code": null
+    },
+    {
+      "name": "revoke-test-sessions",
+      "passed": true,
+      "code": null
+    }
+  ],
+  "finishedAt": "2026-09-11T04:33:26.513Z"
+}

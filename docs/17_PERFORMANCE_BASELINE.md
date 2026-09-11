@@ -795,4 +795,27 @@ URL-параметры `answersPage`/`eventsPage` управляют стран�
 summary/details можно было измерять отдельно.
 
 Проверки: targeted report tests 7/7, `npm run typecheck`, `npm run lint`, `npm run build`,
-`npm test` (506/506). Staging timing и фактический RSC/HTML payload ещё не проверены.
+`npm test` (507/507), включая отказ перезаписывать существующий PERF-013 evidence до remote access.
+
+### Staging acceptance report pages — 11.09.2026
+
+`npm run staging:reports -- --execute http://127.0.0.1:4325` проверил локальную production-сборку
+против текущего Supabase на существующих PERF-012 synthetic report fixtures. Результат: 75/75 checks,
+candidate/employee first/second page возвращают HTTP 200, маркеры summary/details присутствуют, ответы
+передаются 11–13 HTTP chunks. Первый chunk стабилен на 7,182 bytes; полный first-page HTML/RSC —
+77,373 bytes для candidate и 76,426 bytes для employee, то есть details не блокируют первый chunk.
+
+Пять warm HTTP samples на shape:
+
+| Shape | TTFB p50 / p95 | Total p50 / p95 | Max bytes |
+| --- | ---: | ---: | ---: |
+| candidate first page | 307 / 333 ms | 2,485 / 2,521 ms | 77,373 |
+| candidate second page | 313 / 327 ms | 2,182 / 2,235 ms | 58,022 |
+| employee first page | 315 / 326 ms | 2,947 / 3,303 ms | 76,426 |
+| employee second page | 323 / 342 ms | 2,387 / 2,653 ms | 57,857 |
+
+Артефакт: `docs/performance/PERF013_STAGING_2026-09-11.json`. Три временных пользователя от
+acceptance/retry прогонов заблокированы, их memberships disabled; read-only shutdown audit 3/3.
+Схема, flags и business rows не менялись. Это локальный Next server + удалённый Supabase, не deployment
+приложения. Fixture содержит 20 answers и не пересекает заполненную границу 50/100; page 2 и URL/control
+path проверены на пустой странице, high-cardinality traversal остаётся ограничением evidence.

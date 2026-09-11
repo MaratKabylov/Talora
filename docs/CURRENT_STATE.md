@@ -1,6 +1,6 @@
 # Текущее состояние Talvia
 
-Обновлено: 2026-09-11. В текущем проекте выполнены разрешённые staging-проверки; PERF-012 evidence collected, deployment индексов не принят. Код PERF-013 готов локально, staging acceptance не выполнен.
+Обновлено: 2026-09-11. В текущем проекте выполнены разрешённые staging-проверки; PERF-012 evidence collected, deployment индексов не принят. PERF-013 принят на локальной production-сборке с текущим Supabase; удалённого app deployment не было.
 
 ## Текущий этап и следующий шаг
 
@@ -25,7 +25,9 @@
 
 - Добавлены opt-in scripts `staging:lists`, `staging:grants`, `staging:sessions`, `staging:scoring`, отчёты JSON и [rollout](33_STAGING_LIST_ACCEPTANCE.md); обновлены план, baseline, rollout PERF-010/011/012.
 - Scripts сохраняют fixture manifests и не перезаписывают существующие отчёты; ownership/fingerprint guard проверен до удалённых запросов. При аварийном прерывании до finally проверять shutdown отдельно.
-- **506/506 tests**, lint, typecheck и production build прошли после PERF-013 report pagination. Targeted report tests 7/7 проверяют logical title lookup, summary/details split, нормализацию страниц, диапазоны и независимые ссылки.
+- **507/507 tests**, lint, typecheck и production build прошли после PERF-013 report pagination/acceptance. Targeted report tests 7/7 проверяют logical title lookup, summary/details split, нормализацию страниц, диапазоны и независимые ссылки; staging safety test запрещает перезапись evidence до remote access.
+- PERF-013 staging report acceptance: **75/75**, четыре candidate/employee first/second-page shapes × 1 first + 5 warm, HTTP 200 и 11–13 stream chunks. First chunk 7,182 bytes; полный first-page HTML/RSC 77,373/76,426 bytes. [Артефакт](performance/PERF013_STAGING_2026-09-11.json).
+- Staging harness создаёт только временного report-reader; финальный shutdown 3/3. Read-only audit подтвердил: все три пользователя повторных прогонов заблокированы, все три memberships disabled. Схема, flags и business rows не менялись.
 - Browser fixture servers `test:browser:navigation`, `test:browser:builder-import`, `test:browser:builder-editor` собрались и поднялись, но CUA transport закрыт, а Chrome/Edge headless в окружении не возвращают DOM/stdout; PASS/FAIL не подтверждён.
 - Builder/browser acceptance step: targeted Node regression 164/164; full `npm test` 501/501, lint, typecheck passed. Browser fixtures compiled/served on 4318/4319/4320, but DOM PASS/FAIL still unconfirmed because CUA transport is closed.
 - Ранее подтверждены **25/25 API smoke** и **32/32 SQL checks** (19 PERF-010 + 13 PERF-011). [SQL-свидетельство пользователя](performance/PERF012_SQL_VERIFICATION_2026-09-10.json): 09:19:59 UTC, PostgreSQL 17.6, 34 индекса на 16 таблицах valid/ready.
@@ -53,6 +55,6 @@
 ## Дальше по плану
 
 - Builder/browser acceptance и server actions без изменения схемы; PERF-012 вернётся только на отдельной staging/preview DB или при готовности DDL gate.
-- Код PERF-013 готов локально: candidate/employee summary loaders получают logical test title через nested `test_versions(... test_templates(title))`; answers и integrity events вынесены под Suspense и листаются независимо по 50/100 строк со стабильным порядком. Счётчики details относятся к текущей странице. До приёмки нужны staging timing и проверка RSC/HTML payload. PERF-014 отложен без schema changes.
+- PERF-013 принят на локальном production server с текущим Supabase: summary/details streaming и page-2 URL/control path подтверждены. Fixture содержит 20 answers, поэтому traversal заполненной границы 50/100 и удалённый app deployment не подтверждены. PERF-014 отложен без schema changes.
 - PERF-015: completion/scoring по результатам измерений; PERF-016/017 — инфраструктура, наблюдаемость, local development.
 - Сохранять чужие изменения. Remote migrations, production-флаги и destructive/downgrade требуют соответствующего разрешения.

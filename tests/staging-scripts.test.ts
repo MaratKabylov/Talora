@@ -76,3 +76,43 @@ test("scoring staging verifies source ownership and preserves an existing manife
     await unlink(source); await unlink(destination); await rmdir(directory);
   }
 });
+
+test("report staging preserves existing evidence before any remote access", async () => {
+  const { runStagingReportAcceptance } = await import(
+    new URL("../scripts/staging-report-acceptance.mjs", import.meta.url).href
+  );
+  const directory = await mkdtemp(join(tmpdir(), "talvia-report-manifest-"));
+  const source = join(directory, "source.json"), destination = join(directory, "report.json");
+  const env = {
+    NEXT_PUBLIC_SUPABASE_URL: "https://fixture.example.invalid",
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "fixture",
+    SUPABASE_SERVICE_ROLE_KEY: "fixture",
+  };
+  const previous = JSON.stringify({ runId: "existing", checks: ["preserve-me"] });
+  await writeFile(destination, previous);
+  await writeFile(source, JSON.stringify({
+    completed: true,
+    projectFingerprint: createHash("sha256").update(new URL(env.NEXT_PUBLIC_SUPABASE_URL).origin).digest("hex"),
+    fixtures: {
+      company: "company-fixture",
+      scopes: [
+        { scope: "candidate", owner: "candidate-fixture" },
+        { scope: "employee", owner: "employee-fixture" },
+      ],
+    },
+  }));
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error("Unexpected remote request"); };
+  try {
+    await assert.rejects(
+      runStagingReportAcceptance(env, "http://localhost:4325", destination, () => {}, source),
+      { code: "EEXIST" },
+    );
+    assert.equal(calls, 0);
+    assert.equal(await readFile(destination, "utf8"), previous);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await unlink(source); await unlink(destination); await rmdir(directory);
+  }
+});

@@ -15,6 +15,7 @@
     "staging:grants": "node --experimental-strip-types scripts/staging-grants-acceptance.mjs",
     "staging:sessions": "node scripts/staging-session-acceptance.mjs",
     "staging:scoring": "node scripts/staging-scoring-acceptance.mjs",
+    "staging:reports": "node scripts/staging-report-acceptance.mjs",
     "test": "node --experimental-strip-types --test --test-isolation=none tests/*.test.ts",
     "test:browser:navigation": "node scripts/assessment-navigation-browser.mjs",
     "test:browser:builder-import": "node scripts/builder-import-browser.mjs",
