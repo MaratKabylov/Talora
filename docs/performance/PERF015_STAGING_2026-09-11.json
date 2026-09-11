@@ -1,0 +1,227 @@
+{
+  "runId": "07d2341a-9bde-456d-a179-800a59cb2bd9",
+  "parentRunId": "342e429f-819f-4f68-9a18-d249fd8b4f7d",
+  "projectFingerprint": "dca5278c627042a7427abd389a8aa6b6611641290de1dc51e3cbfbf3cb6bf9b6",
+  "startedAt": "2026-09-11T05:13:00.800Z",
+  "completed": true,
+  "checks": [
+    {
+      "name": "verified-synthetic-tenant",
+      "passed": true
+    },
+    {
+      "name": "candidate:claim",
+      "passed": true
+    },
+    {
+      "name": "candidate:section-saved",
+      "passed": true
+    },
+    {
+      "name": "candidate:before-unscored",
+      "passed": true
+    },
+    {
+      "name": "candidate:route-200",
+      "passed": true
+    },
+    {
+      "name": "candidate:route-redirect-complete",
+      "passed": true
+    },
+    {
+      "name": "candidate:owner-completed",
+      "passed": true
+    },
+    {
+      "name": "candidate:scores-persisted",
+      "passed": true
+    },
+    {
+      "name": "candidate:invitation-completed",
+      "passed": true
+    },
+    {
+      "name": "candidate:session-scored",
+      "passed": true
+    },
+    {
+      "name": "candidate:result-row",
+      "passed": true
+    },
+    {
+      "name": "candidate:summary-row",
+      "passed": true
+    },
+    {
+      "name": "candidate:report-row",
+      "passed": true
+    },
+    {
+      "name": "candidate:route-retry-200",
+      "passed": true
+    },
+    {
+      "name": "candidate:retry-idempotent",
+      "passed": true
+    },
+    {
+      "name": "employee:claim",
+      "passed": true
+    },
+    {
+      "name": "employee:section-saved",
+      "passed": true
+    },
+    {
+      "name": "employee:before-unscored",
+      "passed": true
+    },
+    {
+      "name": "employee:route-200",
+      "passed": true
+    },
+    {
+      "name": "employee:route-redirect-complete",
+      "passed": true
+    },
+    {
+      "name": "employee:owner-completed",
+      "passed": true
+    },
+    {
+      "name": "employee:scores-persisted",
+      "passed": true
+    },
+    {
+      "name": "employee:invitation-completed",
+      "passed": true
+    },
+    {
+      "name": "employee:session-scored",
+      "passed": true
+    },
+    {
+      "name": "employee:result-row",
+      "passed": true
+    },
+    {
+      "name": "employee:summary-row",
+      "passed": true
+    },
+    {
+      "name": "employee:report-row",
+      "passed": true
+    },
+    {
+      "name": "employee:route-retry-200",
+      "passed": true
+    },
+    {
+      "name": "employee:retry-idempotent",
+      "passed": true
+    }
+  ],
+  "metrics": [
+    {
+      "scope": "candidate",
+      "route": "/api/assessment/complete",
+      "durationMs": 3489.7777000000006,
+      "status": 200
+    },
+    {
+      "scope": "candidate",
+      "route": "/api/assessment/complete:retry",
+      "durationMs": 326.0576000000001,
+      "status": 200
+    },
+    {
+      "scope": "employee",
+      "route": "/api/assessment/complete",
+      "durationMs": 3096.8475000000017,
+      "status": 200
+    },
+    {
+      "scope": "employee",
+      "route": "/api/assessment/complete:retry",
+      "durationMs": 292.5090999999993,
+      "status": 200
+    }
+  ],
+  "serverMetrics": [
+    {
+      "scope": "candidate",
+      "operation": "assessment.finish_session",
+      "durationMs": 460.05,
+      "outcome": "success"
+    },
+    {
+      "scope": "candidate",
+      "operation": "scoring.candidate.calculate",
+      "durationMs": 1.3,
+      "outcome": "success"
+    },
+    {
+      "scope": "candidate",
+      "operation": "scoring.candidate.persist",
+      "durationMs": 630.66,
+      "outcome": "success"
+    },
+    {
+      "scope": "employee",
+      "operation": "assessment.finish_session",
+      "durationMs": 291.74,
+      "outcome": "success"
+    },
+    {
+      "scope": "employee",
+      "operation": "scoring.employee.calculate",
+      "durationMs": 0.19,
+      "outcome": "success"
+    },
+    {
+      "scope": "employee",
+      "operation": "scoring.employee.persist",
+      "durationMs": 320.35,
+      "outcome": "success"
+    }
+  ],
+  "limitations": "Single first/retry sample per scope through a local production build and remote current Supabase; this is not p95 or a production SLA. Server metrics were captured from structured performance.server_operation logs by correlation ID.",
+  "fixtures": {
+    "company": "4042019d-0b25-43b8-a0c1-c44c55897a9d",
+    "template": "dbb95131-7113-4658-a624-b33fcdfa3fb5",
+    "version": "122d7847-58f4-4ea8-8b88-71d73a4946dd",
+    "section": "42bbe8d9-3970-4fd7-b7b0-0613446feeb4",
+    "package": "55bd7168-d4f3-485a-a4bd-2eca756e74f1",
+    "scopes": [
+      {
+        "scope": "candidate",
+        "person": "2f324000-2731-40dc-807a-42000ea49b11",
+        "context": "4fa0c772-f576-46b6-9929-8fd614ca30c8",
+        "owner": "2168dfb6-0b8f-4935-b907-7fb9bc08b6ec",
+        "session": "c3f6c1ab-98c1-4edc-849d-ebb317739934",
+        "invitation": "6f5389bd-963d-4731-a202-3b446f9e799a"
+      },
+      {
+        "scope": "employee",
+        "person": "57098562-0995-4fb4-adb0-9d06001406a2",
+        "context": "bb3cb7c0-063c-4187-907f-0b1e9668e172",
+        "owner": "12206c76-8136-4337-8f8f-4b4f5ceea738",
+        "session": "84398f86-5257-4178-9159-c90bff7a1026",
+        "invitation": "2896a84b-44f3-4e26-a041-88f43b28a832"
+      }
+    ]
+  },
+  "shutdown": [
+    {
+      "name": "invitations:expire-completed-token",
+      "passed": true
+    },
+    {
+      "name": "employee_assessment_invitations:expire-completed-token",
+      "passed": true
+    }
+  ],
+  "scope": "Synthetic candidate/employee Next completion route to real scoring finalizer; no browser UI, SQL EXPLAIN or index before/after comparison.",
+  "finishedAt": "2026-09-11T05:13:21.215Z"
+}

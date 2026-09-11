@@ -819,3 +819,29 @@ acceptance/retry прогонов заблокированы, их memberships d
 Схема, flags и business rows не менялись. Это локальный Next server + удалённый Supabase, не deployment
 приложения. Fixture содержит 20 answers и не пересекает заполненную границу 50/100; page 2 и URL/control
 path проверены на пустой странице, high-cardinality traversal остаётся ограничением evidence.
+
+## 34. PERF-015: completion pipeline, первая итерация — 11.09.2026
+
+V2 completion теперь передаёт финализатору подтверждённую RPC готовность и уже проверенные owner/invitation IDs.
+Это убирает повторный invitation/session preflight только после ответа `ready` от service-only
+`complete_assessment_session_v2`; legacy completion по-прежнему выполняет полную проверку. Candidate и employee
+scoring больше не читают `assessment_package_tests`, когда все session rows содержат замороженные weight/required/
+passing/contribution значения; fallback для старых неполных snapshots сохранён. Persistence остаётся одним
+атомарным `try_persist_scoring_snapshot`, normal completion и recalculation используют ту же модель revision.
+
+Локальная production-сборка против текущего Supabase прошла **29/29** checks для обоих scope: persisted result,
+summary/report, `assessment_completed`, revision 1 и idempotent retry. Один телеметрический sample на scope:
+
+| Scope | First completion | Retry | finish-session RPC | calculation | persistence RPC |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| candidate | 3 490 ms | 326 ms | 460 ms | 1.30 ms | 631 ms |
+| employee | 3 097 ms | 293 ms | 292 ms | 0.19 ms | 320 ms |
+
+[Артефакт](performance/PERF015_STAGING_2026-09-11.json) содержит route и коррелированные server-operation
+метрики. Это единичные samples локального сервера с удалённой БД, не p95 и не production SLA. Первый completion
+остаётся выше условного порога 2 секунд; durable `scoring_jobs`/worker требует изменения схемы и не выполнялся
+согласно решению не менять схему. Созданы только synthetic fixture rows, обе completed invitation-ссылки погашены;
+remote flags, схема и реальные бизнес-строки не менялись.
+
+Проверки после изменения: `npm test` 507/507, `npm run typecheck`, `npm run lint`, `npm run build`,
+`git diff --check`.

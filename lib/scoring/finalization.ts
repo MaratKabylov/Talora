@@ -27,6 +27,7 @@ type FinalizationConfig = {
   score: () => Promise<unknown>;
   sessionParentColumn: "application_id" | "participant_id";
   sessionTable: "test_sessions" | "employee_assessment_sessions";
+  readiness?: "completion_v2";
 };
 
 function claimCutoff(now = new Date()) {
@@ -93,32 +94,34 @@ async function finalizeCompletedAssessment(
   config: FinalizationConfig,
 ): Promise<AssessmentFinalizationResult> {
   const admin = createAdminClient();
-  const [invitationResult, sessionsResult] = await Promise.all([
-    admin
-      .from(config.invitationTable)
-      .select("status")
-      .eq("id", config.invitationId)
-      .maybeSingle(),
-    admin
-      .from(config.sessionTable)
-      .select("status")
-      .eq(config.sessionParentColumn, config.parentId),
-  ]);
+  if (config.readiness !== "completion_v2") {
+    const [invitationResult, sessionsResult] = await Promise.all([
+      admin
+        .from(config.invitationTable)
+        .select("status")
+        .eq("id", config.invitationId)
+        .maybeSingle(),
+      admin
+        .from(config.sessionTable)
+        .select("status")
+        .eq(config.sessionParentColumn, config.parentId),
+    ]);
 
-  if (invitationResult.error || sessionsResult.error || !invitationResult.data) {
-    throw new Error("Unable to verify assessment completion state.");
-  }
+    if (invitationResult.error || sessionsResult.error || !invitationResult.data) {
+      throw new Error("Unable to verify assessment completion state.");
+    }
 
-  if (invitationResult.data.status === "completed") {
-    return "completed";
-  }
+    if (invitationResult.data.status === "completed") {
+      return "completed";
+    }
 
-  if (
-    !ACTIVE_INVITATION_STATUSES.includes(invitationResult.data.status) ||
-    !sessionsResult.data?.length ||
-    sessionsResult.data.some((session) => session.status !== "completed")
-  ) {
-    return "not_ready";
+    if (
+      !ACTIVE_INVITATION_STATUSES.includes(invitationResult.data.status) ||
+      !sessionsResult.data?.length ||
+      sessionsResult.data.some((session) => session.status !== "completed")
+    ) {
+      return "not_ready";
+    }
   }
 
   // PostgreSQL re-checks the UPDATE predicate after taking the row lock. This
@@ -199,6 +202,7 @@ async function finalizeCompletedAssessment(
 export async function finalizeCompletedCandidateAssessment(input: {
   applicationId: string;
   invitationId: string;
+  readiness?: "completion_v2";
 }) {
   return finalizeCompletedAssessment({
     invitationId: input.invitationId,
@@ -208,12 +212,14 @@ export async function finalizeCompletedCandidateAssessment(input: {
     score: () => scoreCompletedApplication(input.applicationId),
     sessionParentColumn: "application_id",
     sessionTable: "test_sessions",
+    readiness: input.readiness,
   });
 }
 
 export async function finalizeCompletedEmployeeAssessment(input: {
   invitationId: string;
   participantId: string;
+  readiness?: "completion_v2";
 }) {
   return finalizeCompletedAssessment({
     invitationId: input.invitationId,
@@ -223,5 +229,6 @@ export async function finalizeCompletedEmployeeAssessment(input: {
     score: () => scoreCompletedEmployeeAssessmentParticipant(input.participantId),
     sessionParentColumn: "participant_id",
     sessionTable: "employee_assessment_sessions",
+    readiness: input.readiness,
   });
 }

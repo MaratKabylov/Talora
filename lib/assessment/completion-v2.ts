@@ -32,8 +32,16 @@ export async function completeAssessmentSessionV2(input: CompletionRequest): Pro
   // No background jobs/new scoring semantics. Last-session retries re-enter the
   // existing claim/idempotency/recovery pipeline even if the SQL commit succeeded.
   const finalization = request.assessmentType === "employee"
-    ? await finalizeCompletedEmployeeAssessment({ participantId: result.ownerId, invitationId: result.invitationId })
-    : await finalizeCompletedCandidateAssessment({ applicationId: result.ownerId, invitationId: result.invitationId });
+    ? await finalizeCompletedEmployeeAssessment({
+        invitationId: result.invitationId,
+        participantId: result.ownerId,
+        readiness: "completion_v2",
+      })
+    : await finalizeCompletedCandidateAssessment({
+        applicationId: result.ownerId,
+        invitationId: result.invitationId,
+        readiness: "completion_v2",
+      });
   if (finalization === "processing") return { status: "processing" };
   return { status: "redirect", redirectTo: finalization === "completed" ? `${root}/complete` : root };
 }

@@ -660,6 +660,16 @@ create index ... on employee_assessment_participants(employee_assessment_id, fit
 
 #### PERF-015 — Оптимизация completion pipeline
 
+**Статус:** первая итерация реализована и проверена 11.09.2026 без изменения схемы. `complete_assessment_session_v2`
+передаёт финализатору подтверждённые owner/invitation IDs и признак готовности, поэтому V2-путь не повторяет
+чтение invitation и всех session statuses; legacy completion сохраняет прежний preflight. Scoring использует
+замороженную package-конфигурацию из session rows и читает `assessment_package_tests` только для старых строк
+без полного snapshot. Атомарный `try_persist_scoring_snapshot` и отдельные calculation/persistence метрики сохранены.
+Локальная production-сборка с текущим Supabase прошла 29/29 checks; first completion 3 490/3 097 ms,
+retry 326/293 ms (candidate/employee). Это по одному sample, не p95. Все полученные first-completion samples
+остаются выше 2 секунд, но вторая итерация требует `scoring_jobs`/worker и отложена по решению не менять схему.
+[Evidence](performance/PERF015_STAGING_2026-09-11.json).
+
 **Первая итерация**
 
 - Устранить повторные загрузки assessment overview.

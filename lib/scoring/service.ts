@@ -392,22 +392,18 @@ export async function scoreCompletedApplication(
   const recommendationPolicy = parseRecommendationPolicy(job.recommendation_policy_json);
   const interpretationPolicy = parseInterpretationPolicy(job.interpretation_policy_json);
 
-  const [sessionsResult, packageTestsResult, weightsResult] = await Promise.all([
+  const [sessionsResult, weightsResult] = await Promise.all([
     admin
       .from("test_sessions")
       .select("id, status, test_version_id, package_weight, package_is_required, package_passing_score, package_contributes_to_overall, test_versions(title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)")
       .eq("application_id", applicationId),
-    admin
-      .from("assessment_package_tests")
-      .select("test_version_id, weight, is_required, passing_score, contributes_to_overall")
-      .eq("package_id", job.assessment_package_id),
     admin
       .from("job_competency_weights")
       .select("competency_key, weight, minimum_score, is_required")
       .eq("job_id", application.job_id),
   ]);
 
-  if (sessionsResult.error || packageTestsResult.error || weightsResult.error) {
+  if (sessionsResult.error || weightsResult.error) {
     throw new Error("Unable to load scoring configuration.");
   }
 
@@ -420,15 +416,25 @@ export async function scoreCompletedApplication(
         session.package_is_required !== null &&
         session.package_contributes_to_overall !== null,
     );
-  const packageTests = hasFrozenPackageConfiguration
-    ? allSessions.map((session) => ({
+  let packageTests: PackageTestRecord[];
+  if (hasFrozenPackageConfiguration) {
+    packageTests = allSessions.map((session) => ({
         contributes_to_overall: session.package_contributes_to_overall!,
         is_required: session.package_is_required!,
         passing_score: session.package_passing_score,
         test_version_id: session.test_version_id,
         weight: session.package_weight!,
-      }))
-    : (packageTestsResult.data ?? []) as PackageTestRecord[];
+      }));
+  } else {
+    const { data, error } = await admin
+      .from("assessment_package_tests")
+      .select("test_version_id, weight, is_required, passing_score, contributes_to_overall")
+      .eq("package_id", job.assessment_package_id);
+    if (error) {
+      throw new Error("Unable to load scoring configuration.");
+    }
+    packageTests = (data ?? []) as PackageTestRecord[];
+  }
   const packageTestsByVersion = new Map(packageTests.map((test) => [test.test_version_id, test]));
   const sessions = hasFrozenPackageConfiguration
     ? allSessions
@@ -830,22 +836,18 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
     assessment.interpretation_policy_json,
   );
 
-  const [sessionsResult, packageTestsResult, weightsResult] = await Promise.all([
+  const [sessionsResult, weightsResult] = await Promise.all([
     admin
       .from("employee_assessment_sessions")
       .select("id, status, test_version_id, package_weight, package_is_required, package_passing_score, package_contributes_to_overall, test_versions(title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)")
       .eq("participant_id", participantId),
-    admin
-      .from("assessment_package_tests")
-      .select("test_version_id, weight, is_required, passing_score, contributes_to_overall")
-      .eq("package_id", assessment.assessment_package_id),
     admin
       .from("employee_assessment_competency_weights")
       .select("competency_key, weight, minimum_score, is_required")
       .eq("employee_assessment_id", participant.employee_assessment_id),
   ]);
 
-  if (sessionsResult.error || packageTestsResult.error || weightsResult.error) {
+  if (sessionsResult.error || weightsResult.error) {
     throw new Error("Unable to load employee scoring configuration.");
   }
 
@@ -858,15 +860,25 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
         session.package_is_required !== null &&
         session.package_contributes_to_overall !== null,
     );
-  const packageTests = hasFrozenPackageConfiguration
-      ? allSessions.map((session) => ({
+  let packageTests: PackageTestRecord[];
+  if (hasFrozenPackageConfiguration) {
+    packageTests = allSessions.map((session) => ({
         contributes_to_overall: session.package_contributes_to_overall!,
         is_required: session.package_is_required!,
         passing_score: session.package_passing_score,
         test_version_id: session.test_version_id,
         weight: session.package_weight!,
-      }))
-    : (packageTestsResult.data ?? []) as PackageTestRecord[];
+      }));
+  } else {
+    const { data, error } = await admin
+      .from("assessment_package_tests")
+      .select("test_version_id, weight, is_required, passing_score, contributes_to_overall")
+      .eq("package_id", assessment.assessment_package_id);
+    if (error) {
+      throw new Error("Unable to load employee scoring configuration.");
+    }
+    packageTests = (data ?? []) as PackageTestRecord[];
+  }
   const packageTestsByVersion = new Map(packageTests.map((test) => [test.test_version_id, test]));
   const sessions = hasFrozenPackageConfiguration
     ? allSessions

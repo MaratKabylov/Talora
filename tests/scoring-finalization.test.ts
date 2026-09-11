@@ -33,6 +33,7 @@ test("scoring uses an atomic recoverable claim before persistence", () => {
   assert.match(finalization, /\.update\(\{ current_stage: SCORING_STAGE \}\)/);
   assert.match(finalization, /\.in\("status", ACTIVE_PARENT_STATUSES\)/);
   assert.match(finalization, /\.or\(availableClaimFilter\(\)\)/);
+  assert.match(finalization, /config\.readiness !== "completion_v2"/);
   assert.match(finalization, /sessionsResult\.data\.some/);
   assert.match(finalization, /releaseScoringClaim/);
   assert.match(finalization, /parent\?\.status !== "completed"/);

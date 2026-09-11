@@ -54,7 +54,7 @@ test("completion uses one RPC and no overview/answer read; only last session ent
       const h = harness({ status: "ready", ownerId: id(6), invitationId: id(7) }, false, outcome);
       const result = await h.completeAssessmentSessionV2({ ...input, assessmentType });
       assert.deepEqual(result, outcome === "processing" ? { status: "processing" } : { status: "redirect", redirectTo: outcome === "completed" ? `${root}/complete` : root });
-      assert.deepEqual(h.scores, [{ scope: assessmentType, args: { invitationId: id(7), [assessmentType === "employee" ? "participantId" : "applicationId"]: id(6) } }]);
+      assert.deepEqual(h.scores, [{ scope: assessmentType, args: { invitationId: id(7), readiness: "completion_v2", [assessmentType === "employee" ? "participantId" : "applicationId"]: id(6) } }]);
       assert.ok(!JSON.stringify(result).includes(id(6))); assert.ok(!JSON.stringify(result).includes(id(7)));
     }
   }
