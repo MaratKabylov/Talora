@@ -36,6 +36,15 @@ import {
   buildReportScoringDetails,
   type ReportScoringDetails,
 } from "@/lib/reports/scoring-details";
+import {
+  finishReportDetailsPage,
+  normalizeReportDetailsPageParams,
+  REPORT_ANSWERS_PAGE_SIZE,
+  REPORT_INTEGRITY_EVENTS_PAGE_SIZE,
+  reportDetailsRange,
+  type ReportDetailsPageParams,
+  type ReportDetailsPageState,
+} from "@/lib/reports/details-pagination";
 import { countAnswerCorrectness } from "@/lib/reports/answer-counts";
 import { resolveCandidateSessionPassingScore } from "@/lib/reports/candidate-session-passing-score";
 import { resolveReportTestTitle } from "@/lib/reports/test-title";
@@ -300,6 +309,10 @@ export type CandidateReportDetailsData = {
     incorrect: number;
   };
   integrity: ReportIntegritySummary;
+  pagination: {
+    answers: ReportDetailsPageState;
+    integrityEvents: ReportDetailsPageState;
+  };
   tests: ReportTest[];
 };
 
@@ -699,8 +712,15 @@ export function getCandidateReportData(companyId: string, applicationId: string)
 async function getCandidateReportDetailsDataUninstrumented(
   companyId: string,
   applicationId: string,
+  pageParams: ReportDetailsPageParams = {},
 ) {
   const supabase = await createClient();
+  const pages = normalizeReportDetailsPageParams(pageParams);
+  const answerRange = reportDetailsRange(pages.answersPage, REPORT_ANSWERS_PAGE_SIZE);
+  const eventRange = reportDetailsRange(
+    pages.eventsPage,
+    REPORT_INTEGRITY_EVENTS_PAGE_SIZE,
+  );
   const { data: applicationData, error: applicationError } = await supabase
     .from("candidate_applications")
     .select("id")
@@ -735,7 +755,8 @@ async function getCandidateReportDetailsDataUninstrumented(
       )
       .eq("application_id", applicationId)
       .order("occurred_at")
-      .range(0, 99),
+      .order("id")
+      .range(eventRange.from, eventRange.to),
   ]);
 
   if (sessionsResult.error || resultsResult.error || integrityEventsResult.error) {
@@ -753,13 +774,26 @@ async function getCandidateReportDetailsDataUninstrumented(
             "id, session_id, selected_option_id, answer_text, answer_json, is_correct, points_awarded, questions(text, question_type, competency_key, order_index, test_sections(title, order_index), answer_options(id, text, match_text, match_target_id, order_index))",
           )
           .in("session_id", sessionIds)
-          .limit(50);
+          .order("created_at")
+          .order("id")
+          .range(answerRange.from, answerRange.to);
 
   if (answersError) {
     throw new Error("Unable to load candidate answers.");
   }
 
-  for (const answer of (answersData ?? []) as unknown as AnswerRecord[]) {
+  const answersPage = finishReportDetailsPage(
+    (answersData ?? []) as unknown as AnswerRecord[],
+    pages.answersPage,
+    REPORT_ANSWERS_PAGE_SIZE,
+  );
+  const integrityEventsPage = finishReportDetailsPage(
+    (integrityEventsResult.data ?? []) as unknown as IntegrityEventRecord[],
+    pages.eventsPage,
+    REPORT_INTEGRITY_EVENTS_PAGE_SIZE,
+  );
+
+  for (const answer of answersPage.items) {
     const question = related(answer.questions);
     if (
       answer.selected_option_id &&
@@ -790,7 +824,7 @@ async function getCandidateReportDetailsDataUninstrumented(
   );
   const answersBySession = new Map<string, AnswerRecord[]>();
 
-  for (const answer of (answersData ?? []) as unknown as AnswerRecord[]) {
+  for (const answer of answersPage.items) {
     const existing = answersBySession.get(answer.session_id) ?? [];
     existing.push(answer);
     answersBySession.set(answer.session_id, existing);
@@ -866,16 +900,24 @@ async function getCandidateReportDetailsDataUninstrumented(
       { correct: 0, incorrect: 0 },
     ),
     integrity: buildCandidateIntegritySummary(
-      (integrityEventsResult.data ?? []) as unknown as IntegrityEventRecord[],
+      integrityEventsPage.items,
       sessions,
       testTitleBySession,
     ),
+    pagination: {
+      answers: answersPage.pagination,
+      integrityEvents: integrityEventsPage.pagination,
+    },
     tests,
   } satisfies CandidateReportDetailsData;
 }
 
-export function getCandidateReportDetailsData(companyId: string, applicationId: string) {
+export function getCandidateReportDetailsData(
+  companyId: string,
+  applicationId: string,
+  pageParams: ReportDetailsPageParams = {},
+) {
   return measureServerOperation("reports.candidate_details", () =>
-    getCandidateReportDetailsDataUninstrumented(companyId, applicationId),
+    getCandidateReportDetailsDataUninstrumented(companyId, applicationId, pageParams),
   );
 }

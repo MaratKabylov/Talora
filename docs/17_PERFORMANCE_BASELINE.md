@@ -787,9 +787,12 @@ Browser fixtures `test:browser:builder-import`, `test:browser:builder-editor` и
 
 Дополнительно candidate/employee report pages разделены на summary и details без изменения схемы:
 primary loader больше не читает answers и integrity event rows; отдельные details loaders под Suspense
-читают первую страницу answers (`limit 50`) и integrity events (`range 0..99`). Добавлены performance
-operation labels `reports.candidate_details` и `reports.employee_details`, чтобы summary/details можно
-было измерять отдельно.
+читают answers страницами по 50 и integrity events страницами по 100. С 11.09.2026 независимые
+URL-параметры `answersPage`/`eventsPage` управляют страницами, запросы используют стабильный порядок
+`created_at, id` и `occurred_at, id`, а дополнительная строка определяет наличие следующей страницы.
+Счётчики answers и integrity summary относятся к отображаемой странице, что явно отмечено в UI.
+Добавлены performance operation labels `reports.candidate_details` и `reports.employee_details`, чтобы
+summary/details можно было измерять отдельно.
 
-Проверки: `node --experimental-strip-types --test --test-isolation=none tests/report-test-title.test.ts`,
-`npm run typecheck`, `npm run lint`, `npm test` (503/503).
+Проверки: targeted report tests 7/7, `npm run typecheck`, `npm run lint`, `npm run build`,
+`npm test` (506/506). Staging timing и фактический RSC/HTML payload ещё не проверены.

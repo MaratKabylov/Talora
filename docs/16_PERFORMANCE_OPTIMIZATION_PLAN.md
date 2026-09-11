@@ -613,7 +613,7 @@ create index ... on employee_assessment_participants(employee_assessment_id, fit
 
 Показывать основную оценку без ожидания всех answers и integrity events.
 
-**Статус:** PERF-013 started: logical test title подтягивается через nested test_versions(... test_templates(title)) без отдельного version→template round-trip; candidate/employee report pages вынесли answers и integrity events в отдельные details loaders под Suspense. Details сейчас грузит первую страницу: 50 answers и 100 integrity events.
+**Статус:** код PERF-013 готов локально без изменения схемы: logical test title подтягивается через nested `test_versions(... test_templates(title))` без отдельного version→template round-trip; candidate/employee report pages вынесли answers и integrity events в отдельные details loaders под Suspense. Независимые URL-параметры `answersPage`/`eventsPage` листают по 50/100 строк со стабильной сортировкой и признаком следующей страницы. Staging timing и проверка RSC/HTML payload ещё не выполнены.
 
 **Технические требования**
 

@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { CancelEmployeeAssessmentForm } from "@/components/employee-assessments/cancel-employee-assessment-form";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { AssessmentDimensionsReport } from "@/components/reports/assessment-dimensions-report";
+import { ReportDetailsPagination } from "@/components/reports/report-details-pagination";
 import { ScoringResultDetails } from "@/components/scoring-result-details";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +29,9 @@ import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
 
 type EmployeeReportParams = Promise<{ id: string }>;
 type EmployeeReportSearchParams = Promise<{
+  answersPage?: string | string[];
   error?: string;
+  eventsPage?: string | string[];
   message?: string;
 }>;
 
@@ -105,7 +108,15 @@ export default async function EmployeeAssessmentReportPage({
     canManageEmployeeAssessments(context.activeCompany.role) &&
     canCancelEmployeeAssessment(data.participant.status);
   const reportPath = `/dashboard/employee-assessments/participants/${data.participant.id}/report`;
-  const detailsPromise = getEmployeeAssessmentReportDetailsData(context.activeCompany.id, id);
+  const detailsPageParams = {
+    answersPage: feedback.answersPage,
+    eventsPage: feedback.eventsPage,
+  };
+  const detailsPromise = getEmployeeAssessmentReportDetailsData(
+    context.activeCompany.id,
+    id,
+    detailsPageParams,
+  );
 
   return (
     <div className="space-y-6">
@@ -210,7 +221,11 @@ export default async function EmployeeAssessmentReportPage({
       </Card>
 
       <Suspense fallback={<ReportDetailsSkeleton title="Контроль прохождения" />}>
-        <EmployeeIntegrityDetails detailsPromise={detailsPromise} />
+        <EmployeeIntegrityDetails
+          detailsPromise={detailsPromise}
+          pageParams={detailsPageParams}
+          path={reportPath}
+        />
       </Suspense>
 
       <AssessmentDimensionsReport groups={data.groups} highlights={data.highlights} />
@@ -270,7 +285,11 @@ export default async function EmployeeAssessmentReportPage({
       </div>
 
       <Suspense fallback={<ReportDetailsSkeleton title="Тесты" />}>
-        <EmployeeTestDetails detailsPromise={detailsPromise} />
+        <EmployeeTestDetails
+          detailsPromise={detailsPromise}
+          pageParams={detailsPageParams}
+          path={reportPath}
+        />
       </Suspense>
     </div>
   );
@@ -295,8 +314,12 @@ function ReportDetailsSkeleton({ title }: { title: string }) {
 
 async function EmployeeIntegrityDetails({
   detailsPromise,
+  pageParams,
+  path,
 }: {
   detailsPromise: EmployeeDetailsPromise;
+  pageParams: { answersPage?: string | string[]; eventsPage?: string | string[] };
+  path: string;
 }) {
   const details = await detailsPromise;
   if (!details) return null;
@@ -309,7 +332,8 @@ async function EmployeeIntegrityDetails({
           <div>
             <CardTitle>Контроль прохождения</CardTitle>
             <CardDescription className="mt-1">
-              События показываются отдельно и не изменяют overall score или fit score.
+              События показываются отдельно и не изменяют overall score или fit score. Сводка
+              рассчитана по текущей странице журнала.
             </CardDescription>
           </div>
           <span
@@ -384,6 +408,12 @@ async function EmployeeIntegrityDetails({
             )}
           </div>
         </details>
+        <ReportDetailsPagination
+          pageParam="eventsPage"
+          pagination={details.pagination.integrityEvents}
+          params={pageParams}
+          path={path}
+        />
       </CardContent>
     </Card>
   );
@@ -391,8 +421,12 @@ async function EmployeeIntegrityDetails({
 
 async function EmployeeTestDetails({
   detailsPromise,
+  pageParams,
+  path,
 }: {
   detailsPromise: EmployeeDetailsPromise;
+  pageParams: { answersPage?: string | string[]; eventsPage?: string | string[] };
+  path: string;
 }) {
   const details = await detailsPromise;
   if (!details) return null;
@@ -402,8 +436,8 @@ async function EmployeeTestDetails({
       <CardHeader>
         <CardTitle>Тесты</CardTitle>
         <CardDescription>
-          История прохождения тестов. Верных ответов: {details.answerCounts.correct}, неверных: {" "}
-          {details.answerCounts.incorrect}. Учитываются только первые 50 ответов details-запроса.
+          История прохождения тестов. На этой странице верных ответов: {details.answerCounts.correct},
+          неверных: {details.answerCounts.incorrect}.
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
@@ -485,6 +519,12 @@ async function EmployeeTestDetails({
             )
           )}
         </div>
+        <ReportDetailsPagination
+          pageParam="answersPage"
+          pagination={details.pagination.answers}
+          params={pageParams}
+          path={path}
+        />
       </CardContent>
     </Card>
   );

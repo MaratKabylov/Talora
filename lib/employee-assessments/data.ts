@@ -29,6 +29,15 @@ import type {
   ReportIntegrityEventType,
   ReportIntegritySummary,
 } from "@/lib/reports/data";
+import {
+  finishReportDetailsPage,
+  normalizeReportDetailsPageParams,
+  REPORT_ANSWERS_PAGE_SIZE,
+  REPORT_INTEGRITY_EVENTS_PAGE_SIZE,
+  reportDetailsRange,
+  type ReportDetailsPageParams,
+  type ReportDetailsPageState,
+} from "@/lib/reports/details-pagination";
 import type { QuestionType } from "@/lib/tests/builder-constants";
 import { listAccessibleAssessmentPackages } from "@/lib/jobs/package-access";
 
@@ -356,6 +365,10 @@ export type EmployeeAssessmentReportDetailsData = {
     incorrect: number;
   };
   integrity: ReportIntegritySummary;
+  pagination: {
+    answers: ReportDetailsPageState;
+    integrityEvents: ReportDetailsPageState;
+  };
   sessions: Array<{
     answers: Array<{
       answer: string;
@@ -1123,8 +1136,15 @@ export function getEmployeeAssessmentReportData(companyId: string, participantId
 async function getEmployeeAssessmentReportDetailsDataUninstrumented(
   companyId: string,
   participantId: string,
+  pageParams: ReportDetailsPageParams = {},
 ) {
   const supabase = await createClient();
+  const pages = normalizeReportDetailsPageParams(pageParams);
+  const answerRange = reportDetailsRange(pages.answersPage, REPORT_ANSWERS_PAGE_SIZE);
+  const eventRange = reportDetailsRange(
+    pages.eventsPage,
+    REPORT_INTEGRITY_EVENTS_PAGE_SIZE,
+  );
   const { data: participantData, error: participantError } = await supabase
     .from("employee_assessment_participants")
     .select("id")
@@ -1152,7 +1172,8 @@ async function getEmployeeAssessmentReportDetailsDataUninstrumented(
       .eq("company_id", companyId)
       .eq("participant_id", participantId)
       .order("occurred_at")
-      .range(0, 99),
+      .order("id")
+      .range(eventRange.from, eventRange.to),
   ]);
 
   if (sessionsResult.error || integrityResult.error) {
@@ -1180,16 +1201,26 @@ async function getEmployeeAssessmentReportDetailsDataUninstrumented(
               "id, session_id, question_id, selected_option_id, answer_text, answer_json, is_correct, points_awarded",
             )
             .in("session_id", sessionIds)
-            .limit(50),
+            .order("created_at")
+            .order("id")
+            .range(answerRange.from, answerRange.to),
         ]);
 
   if (testResultsResult.error || answersResult.error) {
     throw new Error("Unable to load employee assessment report details.");
   }
 
-  const rawAnswers = (answersResult.data ?? []) as unknown as Array<
-    Omit<EmployeeAnswerRecord, "questions">
-  >;
+  const answersPage = finishReportDetailsPage(
+    (answersResult.data ?? []) as unknown as Array<Omit<EmployeeAnswerRecord, "questions">>,
+    pages.answersPage,
+    REPORT_ANSWERS_PAGE_SIZE,
+  );
+  const integrityEventsPage = finishReportDetailsPage(
+    (integrityResult.data ?? []) as unknown as EmployeeIntegrityEventRecord[],
+    pages.eventsPage,
+    REPORT_INTEGRITY_EVENTS_PAGE_SIZE,
+  );
+  const rawAnswers = answersPage.items;
   const questionIds = Array.from(new Set(rawAnswers.map((answer) => answer.question_id)));
   const [questionsResult, optionsResult] =
     questionIds.length === 0
@@ -1343,10 +1374,14 @@ async function getEmployeeAssessmentReportDetailsDataUninstrumented(
       { correct: 0, incorrect: 0 },
     ),
     integrity: employeeIntegritySummary(
-      (integrityResult.data ?? []) as unknown as EmployeeIntegrityEventRecord[],
+      integrityEventsPage.items,
       sessions,
       testTitlesByVersionId,
     ),
+    pagination: {
+      answers: answersPage.pagination,
+      integrityEvents: integrityEventsPage.pagination,
+    },
     sessions: sessionsWithAnswers,
   } satisfies EmployeeAssessmentReportDetailsData;
 }
@@ -1354,8 +1389,9 @@ async function getEmployeeAssessmentReportDetailsDataUninstrumented(
 export function getEmployeeAssessmentReportDetailsData(
   companyId: string,
   participantId: string,
+  pageParams: ReportDetailsPageParams = {},
 ) {
   return measureServerOperation("reports.employee_details", () =>
-    getEmployeeAssessmentReportDetailsDataUninstrumented(companyId, participantId),
+    getEmployeeAssessmentReportDetailsDataUninstrumented(companyId, participantId, pageParams),
   );
 }

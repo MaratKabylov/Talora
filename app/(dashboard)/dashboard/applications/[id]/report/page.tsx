@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/empty-state";
 import { CancelCandidateAssessmentForm } from "@/components/candidates/cancel-candidate-assessment-form";
 import { FeedbackMessage } from "@/components/feedback-message";
 import { AssessmentDimensionsReport } from "@/components/reports/assessment-dimensions-report";
+import { ReportDetailsPagination } from "@/components/reports/report-details-pagination";
 import { ScoringResultDetails } from "@/components/scoring-result-details";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +27,12 @@ import {
 import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
 
 type ReportParams = Promise<{ id: string }>;
-type ReportSearchParams = Promise<{ error?: string; message?: string }>;
+type ReportSearchParams = Promise<{
+  answersPage?: string | string[];
+  error?: string;
+  eventsPage?: string | string[];
+  message?: string;
+}>;
 
 const TEST_SESSION_STATUS_LABELS = {
   cancelled: "Отменен",
@@ -90,7 +96,15 @@ export default async function CandidateReportPage({
   const mayCancel =
     canManageCandidates(context.activeCompany.role) && canCancelCandidateAssessment(report.status);
   const reportPath = `/dashboard/applications/${report.id}/report`;
-  const detailsPromise = getCandidateReportDetailsData(context.activeCompany.id, id);
+  const detailsPageParams = {
+    answersPage: feedback.answersPage,
+    eventsPage: feedback.eventsPage,
+  };
+  const detailsPromise = getCandidateReportDetailsData(
+    context.activeCompany.id,
+    id,
+    detailsPageParams,
+  );
 
   return (
     <div className="space-y-6">
@@ -216,7 +230,11 @@ export default async function CandidateReportPage({
       ) : null}
 
       <Suspense fallback={<ReportDetailsSkeleton title="Контроль прохождения" />}>
-        <CandidateIntegrityDetails detailsPromise={detailsPromise} />
+        <CandidateIntegrityDetails
+          detailsPromise={detailsPromise}
+          pageParams={detailsPageParams}
+          path={reportPath}
+        />
       </Suspense>
 
       {report.reportText ? (
@@ -291,7 +309,11 @@ export default async function CandidateReportPage({
       </Card>
 
       <Suspense fallback={<ReportDetailsSkeleton title="Ответы кандидата" />}>
-        <CandidateAnswersDetails detailsPromise={detailsPromise} />
+        <CandidateAnswersDetails
+          detailsPromise={detailsPromise}
+          pageParams={detailsPageParams}
+          path={reportPath}
+        />
       </Suspense>
     </div>
   );
@@ -316,8 +338,12 @@ function ReportDetailsSkeleton({ title }: { title: string }) {
 
 async function CandidateIntegrityDetails({
   detailsPromise,
+  pageParams,
+  path,
 }: {
   detailsPromise: CandidateDetailsPromise;
+  pageParams: { answersPage?: string | string[]; eventsPage?: string | string[] };
+  path: string;
 }) {
   const details = await detailsPromise;
   if (!details) return null;
@@ -330,7 +356,8 @@ async function CandidateIntegrityDetails({
           <div>
             <CardTitle>Контроль прохождения</CardTitle>
             <CardDescription className="mt-1">
-              События показываются отдельно и не изменяют overall score или fit score.
+              События показываются отдельно и не изменяют overall score или fit score. Сводка
+              рассчитана по текущей странице журнала.
             </CardDescription>
           </div>
           <span
@@ -403,6 +430,12 @@ async function CandidateIntegrityDetails({
             )}
           </div>
         </details>
+        <ReportDetailsPagination
+          pageParam="eventsPage"
+          pagination={details.pagination.integrityEvents}
+          params={pageParams}
+          path={path}
+        />
       </CardContent>
     </Card>
   );
@@ -410,8 +443,12 @@ async function CandidateIntegrityDetails({
 
 async function CandidateAnswersDetails({
   detailsPromise,
+  pageParams,
+  path,
 }: {
   detailsPromise: CandidateDetailsPromise;
+  pageParams: { answersPage?: string | string[]; eventsPage?: string | string[] };
+  path: string;
 }) {
   const details = await detailsPromise;
   if (!details) return null;
@@ -421,8 +458,8 @@ async function CandidateAnswersDetails({
       <CardHeader>
         <CardTitle>Ответы кандидата</CardTitle>
         <CardDescription>
-          История прохождения по конкретным версиям тестов. Верных ответов: {details.answerCounts.correct},
-          неверных: {details.answerCounts.incorrect}. Учитываются только первые 50 ответов details-запроса.
+          История прохождения по конкретным версиям тестов. На этой странице верных ответов: {" "}
+          {details.answerCounts.correct}, неверных: {details.answerCounts.incorrect}.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 pt-6">
@@ -486,6 +523,12 @@ async function CandidateAnswersDetails({
             </details>
           ))
         )}
+        <ReportDetailsPagination
+          pageParam="answersPage"
+          pagination={details.pagination.answers}
+          params={pageParams}
+          path={path}
+        />
       </CardContent>
     </Card>
   );
