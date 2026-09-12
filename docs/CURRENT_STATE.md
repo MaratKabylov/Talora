@@ -1,9 +1,13 @@
 # Текущее состояние Talvia
 
-Обновлено: 2026-09-11. В текущем проекте выполнены разрешённые staging-проверки; PERF-012 evidence collected, deployment индексов не принят. PERF-013 и первая итерация PERF-015 приняты на локальной production-сборке с текущим Supabase; удалённого app deployment не было.
+Обновлено: 2026-09-12. PERF-014 реализован и полностью проверен локально: materialized employee dimensions, атомарный dual-write и bounded comparison read готовы. Remote migration и staging acceptance ещё не выполнены. PERF-012 evidence collected, deployment индексов не принят; PERF-013 и первая итерация PERF-015 приняты на локальной production-сборке с текущим Supabase.
 
 ## Текущий этап и следующий шаг
 
+- **PERF-014: код и migration готовы локально; 513/513 tests, lint, typecheck и production build прошли.**
+- Новая таблица `employee_assessment_dimension_scores` хранит текущие comparison dimensions по `scoring_revision`; normal completion и recalculation заменяют их атомарно вместе со scoring snapshot.
+- Employee comparison читает одну tenant-scoped выборку materialized rows на страницу до 50 участников. Для старых scored participants без строк текущей revision JSON fallback ограничен только их IDs.
+- Подготовлены RLS/grants, private writers, идемпотентный backfill RPC, read-only verification и [rollout PERF-014](34_PERF014_EMPLOYEE_DIMENSIONS_ROLLOUT.md). Следующий шаг — применить migration в текущем Supabase, выполнить verification и staging scoring acceptance.
 - **PERF-012: 226/226 staging checks; 501/501 full tests; evidence collected, индексы не приняты.**
 - Пользователь разрешил использовать текущий Supabase-проект с synthetic companies/users/results. Это не отдельная копия production.
 - Lists/RLS/grants: **122/122**, реальные JWT A/B/dual, tenant isolation, cursor ties/nulls, full traversal, requested-company grant/revoke, disabled membership.
@@ -28,6 +32,7 @@
 - **507/507 tests**, lint, typecheck и production build прошли после PERF-013 report pagination/acceptance. Targeted report tests 7/7 проверяют logical title lookup, summary/details split, нормализацию страниц, диапазоны и независимые ссылки; staging safety test запрещает перезапись evidence до remote access.
 - PERF-013 staging report acceptance: **75/75**, четыре candidate/employee first/second-page shapes × 1 first + 5 warm, HTTP 200 и 11–13 stream chunks. First chunk 7,182 bytes; полный first-page HTML/RSC 77,373/76,426 bytes. [Артефакт](performance/PERF013_STAGING_2026-09-11.json).
 - PERF-015 first iteration: V2 ready-path не повторяет invitation/session preflight; frozen session config не вызывает лишний package-test read, legacy fallback сохранён. Staging **29/29**; first completion 3 490/3 097 ms, retry 326/293 ms, calculation 1.30/0.19 ms, persistence 631/320 ms. Это единичные samples, не p95. [Артефакт](performance/PERF015_STAGING_2026-09-11.json).
+- PERF-014 targeted regression **46/46** проверяет эквивалентность dimension DTO, быстрый/mixed-rollout comparison path, атомарную замену, stale conflict, idempotent backfill, rollback чужой session/version и read-only catalog verification.
 - Staging harness создаёт только временного report-reader; финальный shutdown 3/3. Read-only audit подтвердил: все три пользователя повторных прогонов заблокированы, все три memberships disabled. Схема, flags и business rows не менялись.
 - Browser fixture servers `test:browser:navigation`, `test:browser:builder-import`, `test:browser:builder-editor` собрались и поднялись, но CUA transport закрыт, а Chrome/Edge headless в окружении не возвращают DOM/stdout; PASS/FAIL не подтверждён.
 - Builder/browser acceptance step: targeted Node regression 164/164; full `npm test` 501/501, lint, typecheck passed. Browser fixtures compiled/served on 4318/4319/4320, but DOM PASS/FAIL still unconfirmed because CUA transport is closed.
@@ -47,7 +52,7 @@
 - PERF-011: cursor `(created_at|updated_at, id)`, серверные фильтры/URL, страницы 50/100; comparison `(fit_score, id)`, nulls last, 50 строк.
 - Dashboard candidates/job candidates/participants/jobs/tests/packages/assessments и admin companies/applications/users/audit покрыты кодом; текущая staging-матрица не является полным browser-охватом приложения.
 - Tests/packages используют tenant-scoped invoker RPC. [PERF-011 rollout](31_DASHBOARD_CURSOR_PAGINATION_ROLLOUT.md); cursor не даёт snapshot при изменении даты/fit.
-- PERF-010: employee comparison ещё читает scoring JSON текущих 50 участников. [Rollout](30_DASHBOARD_LIST_READ_MODELS_ROLLOUT.md).
+- PERF-010/014: comparison materialization готова локально; до remote migration deployed-приложение продолжает прежнее чтение scoring JSON. После rollout исторические строки без materialization обслуживаются bounded fallback. [PERF-010 rollout](30_DASHBOARD_LIST_READ_MODELS_ROLLOUT.md), [PERF-014 rollout](34_PERF014_EMPLOYEE_DIMENSIONS_ROLLOUT.md).
 - PERF-009: код/локальные проверки готовы, remote atomic clone migration не подтверждена. [Rollout](29_ATOMIC_TEST_VERSION_CLONE_ROLLOUT.md).
 - PERF-008.1/008.2: staging builder ожидается; `BUILDER_SAVE_V2=false` в `.env.example`, fallback V2 draft → V1 запрещён. [Rollout](28_BUILDER_INCREMENTAL_AUTOSAVE_ROLLOUT.md).
 - Session/scoring suites устанавливают synthetic consent/started state; не покрывают UI consent/start, concurrent/successor completion и все типы ответов.
@@ -56,6 +61,7 @@
 ## Дальше по плану
 
 - Builder/browser acceptance и server actions без изменения схемы; PERF-012 вернётся только на отдельной staging/preview DB или при готовности DDL gate.
-- PERF-013 принят на локальном production server с текущим Supabase: summary/details streaming и page-2 URL/control path подтверждены. Fixture содержит 20 answers, поэтому traversal заполненной границы 50/100 и удалённый app deployment не подтверждены. PERF-014 отложен без schema changes.
+- PERF-013 принят на локальном production server с текущим Supabase: summary/details streaming и page-2 URL/control path подтверждены. Fixture содержит 20 answers, поэтому traversal заполненной границы 50/100 и удалённый app deployment не подтверждены.
+- PERF-014 локально готов. До применения `20260911120000_perf014_employee_dimension_scores.sql` новый код нельзя развёртывать: comparison обращается к новой таблице, а employee completion требует обновлённую атомарную RPC-обёртку.
 - PERF-015: первая итерация готова; все first-completion samples выше 2 секунд. Durable `scoring_jobs`/worker требует изменения схемы и отложен по решению пользователя. Следующий non-schema шаг — PERF-016/017.
 - Сохранять чужие изменения. Remote migrations, production-флаги и destructive/downgrade требуют соответствующего разрешения.

@@ -845,3 +845,26 @@ remote flags, схема и реальные бизнес-строки не ме
 
 Проверки после изменения: `npm test` 507/507, `npm run typecheck`, `npm run lint`, `npm run build`,
 `git diff --check`.
+
+## 35. PERF-014: materialized employee comparison dimensions — 12.09.2026
+
+Employee scoring теперь формирует comparison dimensions тем же `collectAssessmentDimensions`, который ранее
+выполнялся только при чтении страницы. Новый `employee_assessment_dimension_scores` хранит нормализованные строки
+текущей `scoring_revision`. Обновлённый `try_persist_scoring_snapshot` заменяет их в одной транзакции с result,
+summary, report и participant aggregate; ошибка dimension writer откатывает весь snapshot.
+
+Employee comparison делает одну tenant-scoped выборку materialized rows для текущей страницы до 50 участников.
+Если у исторического scored participant ещё нет строк текущей revision, legacy JSON/competency reads выполняются
+только для missing participant IDs. Это позволяет применить migration и развёртывать код до полного backfill без
+потери данных сравнения.
+
+Таблица защищена RLS `is_company_member(company_id)`, browser role имеет только SELECT. Внутренние snapshot и
+dimension writers закрыты от `public`, `anon`, `authenticated` и прямого вызова `service_role`; наружу оставлены
+атомарная wrapper RPC и идемпотентный service-only backfill RPC. Writer блокирует participant, сверяет revision и
+проверяет принадлежность каждой session/version пары.
+
+Локальные проверки: targeted regression 46/46, полный `npm test` 513/513, `npm run typecheck`, `npm run lint`,
+`npm run build`, `git diff --check`. PGlite выполняет реальную migration и read-only verification, проверяя initial
+insert, замену revision, stale conflict, idempotent backfill и rollback при чужой session. Remote migration,
+verification и staging scoring acceptance ещё не выполнены; latency/row-volume эффект на текущем Supabase пока
+не измерен. Порядок выпуска: [PERF-014 rollout](34_PERF014_EMPLOYEE_DIMENSIONS_ROLLOUT.md).

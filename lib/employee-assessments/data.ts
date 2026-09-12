@@ -11,6 +11,10 @@ import {
 } from "@/lib/assessment-results/collect-dimensions";
 import { buildAssessmentHighlights } from "@/lib/assessment-results/highlights";
 import { mergeLegacyPresentationInputs } from "@/lib/assessment-results/legacy-inputs";
+import {
+  materializedEmployeeDimensionValue,
+  type EmployeeMaterializedDimensionRow,
+} from "@/lib/assessment-results/materialized-dimensions";
 import { summarizeAssessmentDimensions } from "@/lib/assessment-results/summarize-dimensions";
 import type {
   AssessmentDimensionGroup,
@@ -108,6 +112,7 @@ type ParticipantRecord = {
   recommendation: Recommendation | string | null;
   requires_review: boolean;
   risk_level: RiskLevel | null;
+  scoring_revision: number;
   status: EmployeeParticipantStatus;
 };
 
@@ -358,6 +363,20 @@ export type EmployeeAssessmentReportData = {
       strengths: unknown[];
   } | null;
 };
+
+type EmployeeComparisonDimensionRecord = EmployeeMaterializedDimensionRow;
+
+type EmployeeComparisonResolvedDimension = Pick<
+  AssessmentDimensionResult,
+  | "assessmentDomain"
+  | "id"
+  | "key"
+  | "normalizedScore"
+  | "order"
+  | "reportGroup"
+  | "testTitle"
+  | "title"
+>;
 
 export type EmployeeAssessmentReportDetailsData = {
   answerCounts: {
@@ -657,7 +676,7 @@ async function getEmployeeComparisonDataUninstrumented(companyId: string, assess
   const supabase = await createClient();
   const page = comparisonPage(companyId, assessmentId, filters, cursor);
   let query = supabase.from("employee_assessment_participants")
-    .select("id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, employees!inner(id, full_name, email, phone, department, role_title), employee_assessment_competency_summary(competency_key, percentage, interpretation_direction)")
+    .select("id, employee_id, status, current_stage, completed_at, created_at, overall_score, fit_score, recommendation, risk_level, requires_review, scoring_revision, employees!inner(id, full_name, email, phone, department, role_title), employee_assessment_competency_summary(competency_key, percentage, interpretation_direction)")
     .eq("company_id", companyId).eq("employee_assessment_id", assessmentId);
   if (filters.status) query = query.eq("status", filters.status);
   if (filters.recommendation) query = query.eq("recommendation", filters.recommendation);
@@ -688,13 +707,38 @@ async function getEmployeeComparisonDataUninstrumented(companyId: string, assess
   const resultPage = page.finish((participantsResult.data ?? []) as unknown as ParticipantRecord[]);
   const rawParticipants = resultPage.items;
   const participantIds = rawParticipants.map((participant) => participant.id);
+  const materializedResult = participantIds.length === 0
+    ? { data: [] as EmployeeComparisonDimensionRecord[], error: null }
+    : await supabase
+        .from("employee_assessment_dimension_scores")
+        .select("participant_id, session_id, test_version_id, dimension_id, dimension_key, group_key, title, percentage, interpretation_direction, assessment_domain, source_type, display_order, scoring_revision")
+        .eq("company_id", companyId)
+        .eq("employee_assessment_id", assessmentId)
+        .in("participant_id", participantIds);
+  if (materializedResult.error) {
+    throw new Error("Unable to load employee comparison dimensions.");
+  }
+  const materializedByParticipant = new Map<string, EmployeeComparisonDimensionRecord[]>();
+  for (const row of (materializedResult.data ?? []) as EmployeeComparisonDimensionRecord[]) {
+    const rows = materializedByParticipant.get(row.participant_id) ?? [];
+    rows.push(row);
+    materializedByParticipant.set(row.participant_id, rows);
+  }
+  const missingParticipantIds = rawParticipants
+    .filter((participant) =>
+      participant.scoring_revision > 0 &&
+      !(materializedByParticipant.get(participant.id) ?? []).some(
+        (row) => row.scoring_revision === participant.scoring_revision,
+      ),
+    )
+    .map((participant) => participant.id);
   const sessionsResult =
-    participantIds.length === 0
+    missingParticipantIds.length === 0
       ? { data: [] as EmployeeComparisonSessionRecord[], error: null }
       : await supabase
           .from("employee_assessment_sessions")
           .select("id, participant_id, test_version_id, package_passing_score")
-          .in("participant_id", participantIds);
+          .in("participant_id", missingParticipantIds);
   if (sessionsResult.error) {
     throw new Error("Unable to load employee comparison dimensions.");
   }
@@ -717,12 +761,12 @@ async function getEmployeeComparisonDataUninstrumented(companyId: string, assess
             "id, title, test_template_id, scoring_schema_version, assessment_domain, result_shape, scoring_config_json",
           )
           .in("id", versionIds),
-    participantIds.length === 0
+    missingParticipantIds.length === 0
       ? { data: [] as EmployeeLegacyScoreRecord[], error: null }
       : supabase
           .from("employee_assessment_competency_scores")
           .select("result_id, participant_id, competency_key, score, max_score, percentage")
-          .in("participant_id", participantIds),
+          .in("participant_id", missingParticipantIds),
   ]);
   if (resultsResult.error || versionsResult.error || competencyScoresResult.error) {
     throw new Error("Unable to load employee comparison dimensions.");
@@ -787,24 +831,40 @@ async function getEmployeeComparisonDataUninstrumented(companyId: string, assess
         minimumScore: null,
         percentage: summary.percentage,
       }));
-      const dimensions = collectAssessmentDimensions({
-        legacy: mergeLegacyPresentationInputs({
-          linkedRows: participantLinkedLegacy,
-          summaryRows: participantSummary,
-          unlinkedRows: participantUnlinkedLegacy,
-        }),
-        sessions: (sessionsByParticipant.get(record.id) ?? []).map((session) => {
-          const version = versionById.get(session.test_version_id);
-          return {
-            definition: extractScoringDefinitionMetadata(version?.scoring_config_json),
-            passingScore: session.package_passing_score,
-            scoringResult: resultBySession.get(session.id),
-            sessionId: session.id,
-            testTitle: version?.title ?? null,
-            testVersionId: session.test_version_id,
-          };
-        }),
-      });
+      const storedDimensions = (materializedByParticipant.get(record.id) ?? [])
+        .filter((row) => row.scoring_revision === record.scoring_revision);
+      const dimensions: EmployeeComparisonResolvedDimension[] = storedDimensions.length > 0
+        ? storedDimensions.map((row) => {
+            const value = materializedEmployeeDimensionValue(row);
+            return {
+              assessmentDomain: value.domain,
+              id: row.dimension_id,
+              key: row.dimension_key,
+              normalizedScore: value.value,
+              order: row.display_order,
+              reportGroup: value.group,
+              testTitle: null,
+              title: row.title,
+            };
+          })
+        : collectAssessmentDimensions({
+            legacy: mergeLegacyPresentationInputs({
+              linkedRows: participantLinkedLegacy,
+              summaryRows: participantSummary,
+              unlinkedRows: participantUnlinkedLegacy,
+            }),
+            sessions: (sessionsByParticipant.get(record.id) ?? []).map((session) => {
+              const version = versionById.get(session.test_version_id);
+              return {
+                definition: extractScoringDefinitionMetadata(version?.scoring_config_json),
+                passingScore: session.package_passing_score,
+                scoringResult: resultBySession.get(session.id),
+                sessionId: session.id,
+                testTitle: version?.title ?? null,
+                testVersionId: session.test_version_id,
+              };
+            }),
+          });
       for (const dimension of dimensions) {
         dimensionMetadata.set(dimension.id, {
           group: dimension.reportGroup,

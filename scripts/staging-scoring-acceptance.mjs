@@ -142,13 +142,18 @@ export async function runScoringAcceptance(env, sourcePath, baseUrl, progress = 
       check(`${scope}:route-200`, completion.status === 200);
       check(`${scope}:route-redirect-complete`, completion.payload?.status === "redirect" && String(completion.payload.redirectTo ?? "").endsWith("/complete"));
 
-      const [ownerAfter, invitationAfter, sessionAfter, resultRows, summaryRows, reportRows] = await Promise.all([
+      const [ownerAfter, invitationAfter, sessionAfter, resultRows, summaryRows, reportRows, dimensionRows] = await Promise.all([
         service.from(ownerTable).select("status,current_stage,completed_at,overall_score,fit_score,recommendation,risk_level,requires_review,scoring_revision").eq("id", owner).single(),
         service.from(invitationTable).select("status,expires_at").eq("id", invitation).single(),
         service.from(sessionTable).select("status,score,max_score,percentage,completed_at").eq("id", session).single(),
         service.from(resultTable).select("session_id,raw_score,max_score,percentage,level,requires_review,scoring_revision").eq("session_id", session),
         service.from(summaryTable).select("competency_key,score,max_score,percentage,weighted_score,is_below_minimum").eq(summaryParent, owner),
         service.from(reportTable).select("overall_score,fit_score,recommendation").eq(summaryParent, owner),
+        employee
+          ? service.from("employee_assessment_dimension_scores")
+              .select("participant_id,session_id,test_version_id,dimension_id,dimension_key,group_key,title,percentage,interpretation_direction,assessment_domain,source_type,display_order,scoring_revision")
+              .eq("participant_id", owner)
+          : Promise.resolve({ data: [], error: null }),
       ]);
       const ownerData = dataOf(ownerAfter, `${scope}-owner-after`);
       const invitationData = dataOf(invitationAfter, `${scope}-invitation-after`);
@@ -156,6 +161,7 @@ export async function runScoringAcceptance(env, sourcePath, baseUrl, progress = 
       const results = dataOf(resultRows, `${scope}-results`);
       const summaries = dataOf(summaryRows, `${scope}-summaries`);
       const reports = dataOf(reportRows, `${scope}-reports`);
+      const dimensions = dataOf(dimensionRows, `${scope}-dimensions`);
 
       check(`${scope}:owner-completed`, ownerData.status === "completed" && ownerData.current_stage === "assessment_completed" && ownerData.completed_at);
       check(`${scope}:scores-persisted`, asNumber(ownerData.overall_score) === 100 && asNumber(ownerData.fit_score) === 100 && ownerData.scoring_revision === 1);
@@ -166,6 +172,15 @@ export async function runScoringAcceptance(env, sourcePath, baseUrl, progress = 
       check(`${scope}:summary-row`, summaries.length === 1 && summaries[0].competency_key === "communication" &&
         asNumber(summaries[0].percentage) === 100 && asNumber(summaries[0].weighted_score) === 100 && summaries[0].is_below_minimum === false);
       check(`${scope}:report-row`, reports.length === 1 && asNumber(reports[0].overall_score) === 100 && asNumber(reports[0].fit_score) === 100);
+      if (employee) {
+        check(`${scope}:dimension-row`, dimensions.length === 1 && dimensions[0].participant_id === owner &&
+          dimensions[0].session_id === session && dimensions[0].test_version_id === version &&
+          dimensions[0].dimension_id === "legacy:work_competencies:communication" &&
+          dimensions[0].dimension_key === "communication" && dimensions[0].group_key === "work_competencies" &&
+          asNumber(dimensions[0].percentage) === 100 && dimensions[0].interpretation_direction === "higher_better" &&
+          dimensions[0].assessment_domain === "behavior" && dimensions[0].source_type === "legacy_competency" &&
+          dimensions[0].scoring_revision === 1);
+      }
 
       const retry = await postCompletion(baseUrl, { assessmentType: routeType, token, sessionId: session, clientId, deviceId });
       report.metrics.push({ scope, route: "/api/assessment/complete:retry", durationMs: retry.durationMs, status: retry.status });

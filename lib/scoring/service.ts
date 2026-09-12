@@ -48,6 +48,13 @@ import {
   calculateContributingOverall,
   packageTestContributesToOverall,
 } from "@/lib/packages/overall-contribution";
+import {
+  collectAssessmentDimensions,
+  extractScoringDefinitionMetadata,
+  type LegacyDimensionInput,
+} from "@/lib/assessment-results/collect-dimensions";
+import { mergeLegacyPresentationInputs } from "@/lib/assessment-results/legacy-inputs";
+import { materializeEmployeeDimensions } from "@/lib/assessment-results/materialized-dimensions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { measureServerOperation } from "@/lib/observability/server-performance";
 
@@ -1030,6 +1037,54 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
     };
   });
 
+  const employeeSessionScoresById = new Map(
+    sessionScores.map((score) => [score.session.id, score]),
+  );
+  const dimensionRows = materializeEmployeeDimensions(
+    collectAssessmentDimensions({
+      legacy: mergeLegacyPresentationInputs({
+        linkedRows: competencyRows.map((row): LegacyDimensionInput => {
+          const sessionScore = employeeSessionScoresById.get(row.session_id);
+          const version = sessionScore
+            ? related(sessionScore.session.test_versions)
+            : null;
+          return {
+            interpretationDirection: summaryRows.find(
+              (summary) => summary.competency_key === row.competency_key,
+            )?.interpretation_direction,
+            isBelowMinimum: false,
+            key: row.competency_key,
+            maxScore: row.max_score,
+            minimumScore: null,
+            percentage: row.percentage,
+            score: row.score,
+            sessionId: row.session_id,
+            testTitle: version?.title ?? null,
+            testVersionId: sessionScore?.session.test_version_id ?? null,
+          };
+        }),
+        summaryRows: summaryRows.map((row): LegacyDimensionInput => ({
+          interpretationDirection: row.interpretation_direction,
+          isBelowMinimum: row.is_below_minimum,
+          key: row.competency_key,
+          minimumScore: null,
+          percentage: row.percentage,
+        })),
+      }),
+      sessions: sessionScores.map((score) => {
+        const version = related(score.session.test_versions);
+        return {
+          definition: extractScoringDefinitionMetadata(version?.scoring_config_json),
+          passingScore: score.packageTest.passing_score,
+          scoringResult: score.scoringResult,
+          sessionId: score.session.id,
+          testTitle: version?.title ?? null,
+          testVersionId: score.session.test_version_id,
+        };
+      }),
+    }),
+  );
+
 
   const autoScoredTests = sessionScores.filter(
     (score) => {
@@ -1161,6 +1216,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
           aggregate,
           answers: answerUpdates,
           competency_scores: competencyRows,
+          dimensions: dimensionRows,
           report,
           results: resultRows,
           risks: riskFlags,

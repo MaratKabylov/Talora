@@ -634,6 +634,13 @@ create index ... on employee_assessment_participants(employee_assessment_id, fit
 
 #### PERF-014 — Материализованные dimension scores для comparison
 
+**Статус:** код и migration готовы локально 12.09.2026; remote migration ещё не применена. Employee scoring
+формирует dimensions через действующий `collectAssessmentDimensions` и передаёт их в атомарный snapshot.
+Новый revision-aware writer проверяет tenant/participant/session/version и заменяет строки вместе с normal completion
+или recalculation. Comparison читает materialized rows одной выборкой на текущую страницу; rollout fallback
+обращается к `scoring_result_json` только для participant IDs без строк текущей revision. Подготовлены RLS,
+PGlite atomic/rollback regression, staging dimension check и [rollout](34_PERF014_EMPLOYEE_DIMENSIONS_ROLLOUT.md).
+
 **Задача**
 
 Не вычислять comparison путем чтения всех `scoring_result_json` каждого участника.

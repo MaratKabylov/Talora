@@ -132,7 +132,7 @@ test("job candidate list context does not load detail settings, weights or packa
 
 test("comparison filters and cursor apply in PostgREST before bounded child reads; aggregates remain global", async () => {
   const h = harness();
-  const rows = Array.from({ length: 51 }, (_, n) => ({ id: id(100+n), fit_score: 50, status: "completed",
+  const rows = Array.from({ length: 51 }, (_, n) => ({ id: id(100+n), fit_score: 50, scoring_revision: 1, status: "completed",
     candidates: { id: id(300+n), full_name: "Fixture" }, employees: { id: id(300+n), full_name: "Fixture" } }));
   h.responses.set("jobs", { id: id(2), title: "Fixture", status: "active" });
   h.responses.set("candidate_applications", rows);
@@ -151,6 +151,12 @@ test("comparison filters and cursor apply in PostgREST before bounded child read
   h.responses.set("employee_assessment_participants", rows);
   h.responses.set("employee_assessment_list", { participant_count: 200 });
   h.responses.set("employee_comparison_filters", { departments: ["Engineering"], role_titles: ["Developer"] });
+  h.responses.set("employee_assessment_dimension_scores", rows.slice(0, 50).map((row, index) => ({
+    assessment_domain: "skills", dimension_id: `dimension:${index}`, dimension_key: "communication",
+    display_order: index, group_key: "knowledge_skills", interpretation_direction: "higher_better",
+    participant_id: row.id, percentage: 80, scoring_revision: 1, session_id: id(500 + index),
+    source_type: "criterion", test_version_id: id(700 + index), title: `Dimension ${index}`,
+  })));
   const employeeResult = await h.load<typeof import("../lib/employee-assessments/data.ts")>("lib/employee-assessments/data.ts")
     .getEmployeeComparisonData(id(1), id(2), { ...filters, department: "Engineering", roleTitle: "Developer" });
   assert.equal(employeeResult?.participants.length, 50);
@@ -158,9 +164,37 @@ test("comparison filters and cursor apply in PostgREST before bounded child read
   assert.match(employeeQuery.get("select") ?? "", /employees!inner/);
   assert.equal(employeeQuery.get("employees.department"), "eq.Engineering");
   assert.equal(employeeQuery.get("employees.role_title"), "eq.Developer");
-  const sessionIds = params(h, "employee_assessment_sessions")[0].get("participant_id")!;
-  assert.equal(sessionIds.slice(3, -1).split(",").length, 50);
-  assert.ok(!sessionIds.includes(id(150)), "lookahead row must not load dimensions");
+  const dimensionIds = params(h, "employee_assessment_dimension_scores")[0].get("participant_id")!;
+  assert.equal(dimensionIds.slice(3, -1).split(",").length, 50);
+  assert.ok(!dimensionIds.includes(id(150)), "lookahead row must not load dimensions");
+  assert.equal(params(h, "employee_assessment_sessions").length, 0);
+  assert.equal(params(h, "employee_assessment_test_results").length, 0);
+  assert.equal(params(h, "employee_assessment_competency_scores").length, 0);
+  assert.equal(params(h, "test_versions").length, 0);
+});
+
+test("employee comparison limits rollout fallback to participants missing the current materialized revision", async () => {
+  const h = harness();
+  const participants = [1, 2].map((n) => ({
+    id: id(100 + n), fit_score: 50, scoring_revision: 2, status: "completed",
+    employees: { id: id(300 + n), full_name: `Employee ${n}` },
+  }));
+  h.responses.set("employee_assessments", { id: id(2), title: "Fixture", status: "active" });
+  h.responses.set("employee_assessment_participants", participants);
+  h.responses.set("employee_assessment_list", { participant_count: 2 });
+  h.responses.set("employee_comparison_filters", { departments: [], role_titles: [] });
+  h.responses.set("employee_assessment_dimension_scores", [{
+    assessment_domain: "skills", dimension_id: "dimension:one", dimension_key: "communication",
+    display_order: 0, group_key: "knowledge_skills", interpretation_direction: "higher_better",
+    participant_id: participants[0].id, percentage: 75, scoring_revision: 2, session_id: id(501),
+    source_type: "criterion", test_version_id: id(701), title: "Communication",
+  }]);
+
+  const result = await h.load<typeof import("../lib/employee-assessments/data.ts")>("lib/employee-assessments/data.ts")
+    .getEmployeeComparisonData(id(1), id(2));
+  assert.equal(result?.participants[0].dimensions["dimension:one"].value, 75);
+  const fallback = params(h, "employee_assessment_sessions")[0].get("participant_id");
+  assert.equal(fallback, `in.(${participants[1].id})`);
 });
 
 test("admin list access is checked before service-role read", async () => {

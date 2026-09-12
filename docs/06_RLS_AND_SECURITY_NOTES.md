@@ -87,6 +87,16 @@ Cursor не является секретом или разрешением: в�
 Новые функции не предоставляют anon/service_role EXECUTE и не меняют исходные RLS.
 Проверки и выпуск: [rollout PERF-011](31_DASHBOARD_CURSOR_PAGINATION_ROLLOUT.md).
 
+## Materialized employee dimensions (PERF-014)
+
+`employee_assessment_dimension_scores` доступна authenticated-пользователю только на SELECT и только при
+`is_company_member(company_id)`; anon и browser DML закрыты. `company_id`, assessment и participant выводятся
+из заблокированной строки participant внутри security-definer writer, а session/test version дополнительно
+проверяются на принадлежность этому participant. Normal scoring и recalculation заменяют dimension rows внутри
+того же вызова `try_persist_scoring_snapshot`, поэтому ошибка вставки откатывает весь scoring snapshot.
+Прямой EXECUTE внутреннего `persist_scoring_snapshot` и dimension writer отозван у `service_role`; наружу оставлены
+только атомарный wrapper и идемпотентный backfill текущей revision. Подробности: [rollout PERF-014](34_PERF014_EMPLOYEE_DIMENSIONS_ROLLOUT.md).
+
 ## Sensitive data
 
 Не использовать для скоринга:
