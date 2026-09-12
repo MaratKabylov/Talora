@@ -55,11 +55,24 @@
     "browser": "Chrome extension",
     "sensitiveBrowserIdentifiersRecorded": false
   },
+  "nativePointer": {
+    "status": "passed",
+    "fixtureMode": "manual",
+    "input": "Chrome mouse pointer drag",
+    "operation": "Move question 101 from the start to the end of section 1",
+    "savedQuestionOrder": [
+      "fe000000-0000-4000-8000-000000000102",
+      "fe000000-0000-4000-8000-000000000103",
+      "fe000000-0000-4000-8000-000000000101"
+    ],
+    "saveStatus": "saved",
+    "automatedEditorRegressionAfterManualCheck": "passed"
+  },
   "result": "passed",
   "domPassConfirmed": true,
   "limitations": [
     "DOM pass was confirmed in a connected Chrome extension browser against local synthetic fixtures.",
-    "No real Auth, Supabase, RLS, network latency or native pointer behavior is covered by these synthetic fixtures.",
+    "No real Auth, Supabase, RLS, network latency or native touch behavior is covered by these synthetic fixtures.",
     "All three local fixture servers were stopped after the check."
   ]
 }

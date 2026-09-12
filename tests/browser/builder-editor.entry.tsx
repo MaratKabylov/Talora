@@ -9,6 +9,7 @@ const id = (n: number) => `fe000000-0000-4000-8000-${String(n).padStart(12, "0")
 const host = document.getElementById("root")!;
 const result = document.getElementById("result")!;
 const baseline = new URLSearchParams(location.search).has("baseline");
+const manual = new URLSearchParams(location.search).has("manual");
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 function check(value: unknown, label: string): asserts value { if (!value) throw Error(label); }
 async function waitFor(fn: () => unknown, label: string) {
@@ -44,7 +45,20 @@ function inputValue(input: HTMLInputElement | HTMLTextAreaElement, value: string
 }
 const saveRequests: BuilderDocumentInput[] = [];
 const loadImportAction = async () => ({ ok: false as const, error: "Not used" });
-const saveAction = async (input: unknown) => { saveRequests.push(structuredClone(input) as BuilderDocumentInput); return { ok: true, savedAt: new Date().toISOString() }; };
+const saveAction = async (input: unknown) => {
+  const document = structuredClone(input) as BuilderDocumentInput;
+  saveRequests.push(document);
+  if (manual) {
+    result.dataset.status = "saved";
+    result.textContent = JSON.stringify({
+      sections: document.sections.map(currentSection => ({
+        id: currentSection.id,
+        questionIds: currentSection.questions.map(currentQuestion => currentQuestion.id),
+      })),
+    });
+  }
+  return { ok: true, savedAt: new Date().toISOString() };
+};
 function mount(sections: BuilderSection[], saveV2?: { revision: string; saveAction: BuilderV2SaveAction; publishAction: BuilderV2PublishAction; returnPath: string }) {
   const root = createRoot(host);
   root.render(<TestBuilderEditor imports={[]} loadImportAction={loadImportAction} initialSections={sections}
@@ -286,6 +300,13 @@ async function v2LostPublishScenario() {
 }
 void (async () => {
   try {
+    if (manual) {
+      mount([section(1, 3), section(2, 1)]);
+      await waitFor(() => host.querySelectorAll("[data-builder-question-id]").length === 4, "manual fixture mounted");
+      result.dataset.status = "ready";
+      result.textContent = "READY: drag question 101 to the end of section 1 and save";
+      return;
+    }
     const summary = await profileLargeEditor();
     const scenarios = baseline ? [] : [await crudScenario(), await typesScenario(), await dragScenario(),
       await v2DebounceScenario(), await v2PublishFlushScenario(), await v2ConflictScenario(), await v2LostPublishScenario()];

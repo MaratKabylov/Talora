@@ -42,7 +42,7 @@
 - PERF-014 targeted regression **46/46** проверяет эквивалентность dimension DTO, быстрый/mixed-rollout comparison path, атомарную замену, stale conflict, idempotent backfill, rollback чужой session/version и read-only catalog verification.
 - Staging harness создаёт только временного report-reader; финальный shutdown 3/3. Read-only audit подтвердил: все три пользователя повторных прогонов заблокированы, все три memberships disabled. Схема, flags и business rows не менялись.
 - Browser/UI acceptance 12.09 пройдена в подключённом Chrome: navigation **30/30**, builder import **8/8**, builder editor profile и 7 editor scenarios получили `data-status=passed`. Editor mount 122.7 ms, edit p50/p95 11.3/20.6 ms; synthetic development fixture, не INP/staging p95. Все servers остановлены. [Evidence](performance/PERF017_BROWSER_UI_RETRY_2026-09-12.json).
-- Browser fixtures подтверждают реальные React DOM flows с synthetic transport. Полный Auth/Next/Supabase/RLS E2E и native pointer/touch остаются за границами этой проверки.
+- Native Chrome mouse drag дополнительно подтверждён: вопрос 101 перемещён в конец секции и сохранён как `102,103,101`; автоматический editor suite после manual check снова прошёл. Полный Auth/Next/Supabase/RLS E2E, native touch и cross-section autoscroll остаются за границами проверки.
 - Ранее подтверждены **25/25 API smoke** и **32/32 SQL checks** (19 PERF-010 + 13 PERF-011). [SQL-свидетельство пользователя](performance/PERF012_SQL_VERIFICATION_2026-09-10.json): 09:19:59 UTC, PostgreSQL 17.6, 34 индекса на 16 таблицах valid/ready.
 - SQL-каталог получен от пользователя, полные тела функций/история миграций не сверены. Наличие RPC дополнено фактическими вызовами в указанной staging-матрице.
 

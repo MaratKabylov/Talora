@@ -926,3 +926,8 @@ builder editor profiling — `data-status=passed` для large-editor profile и
 conflict scenarios. Development React Profiler: initial mount 122.7 ms, 10 edit samples p50/p95 11.3/20.6 ms,
 3 589 DOM nodes при одном раскрытом вопросе. Это synthetic development fixture, не INP и не staging p95.
 [Evidence](performance/PERF017_BROWSER_UI_RETRY_2026-09-12.json). Remote DB, схема и данные не затрагивались.
+
+Дополнительный manual fixture mode позволил проверить настоящий Chrome mouse pointer path без подмены
+`setPointerCapture`/`elementFromPoint`: вопрос 101 перетащен с первой позиции в конец секции 1, после Save
+зафиксирован порядок `102, 103, 101` и `data-status=saved`. Затем автоматический editor suite повторно получил
+`data-status=passed`. Native touch и cross-section autoscroll этим шагом не проверены.
