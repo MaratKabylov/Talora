@@ -931,3 +931,22 @@ conflict scenarios. Development React Profiler: initial mount 122.7 ms, 10 edit 
 `setPointerCapture`/`elementFromPoint`: вопрос 101 перетащен с первой позиции в конец секции 1, после Save
 зафиксирован порядок `102, 103, 101` и `data-status=saved`. Затем автоматический editor suite повторно получил
 `data-status=passed`. Native touch и cross-section autoscroll этим шагом не проверены.
+
+## 39. Candidate Auth/Next/Supabase browser E2E — 12.09.2026
+
+В подключённом Chrome пройден реальный candidate flow на локальном `next start` и текущем Supabase: открытие
+synthetic invitation, consent, профиль, создание и запуск session, ответ на обязательный single-choice вопрос,
+completion page и scoring persistence. Финальная проверка **14/14** подтвердила consent/profile timestamps,
+completed application/invitation/session, ответ, result, competency summary и candidate report; overall/fit и
+percentage равны 100. После проверки invitation оставлен completed, но его срок принудительно установлен в epoch.
+[Evidence](performance/PERF017_AUTH_BROWSER_E2E_2026-09-12.json).
+
+При первом browser submit с локально включёнными `ASSESSMENT_SECTION_SAVE_V2` и `ASSESSMENT_COMPLETION_V2`
+endpoint gate был активен, но UI получил generic section-save error и сохранил выбранный ответ на экране. Тот же
+flow завершился через предусмотренный legacy section-submit/completion fallback при сохранённых V2 session control,
+overview и section read. Поэтому общий candidate flow принят, а optimized section-save browser path остаётся
+блокером rollout до получения безопасного server-side error code и отдельного успешного повтора.
+
+Схема и remote feature flags не менялись. Первый setup run использовал отсутствующую колонку `questions.is_required`
+и остановился до создания candidate/invitation; harness исправлен на фактический `settings_json.required`. Этот run
+оставил один изолированный неполный synthetic draft-фрагмент и отдельный безопасный failure report.

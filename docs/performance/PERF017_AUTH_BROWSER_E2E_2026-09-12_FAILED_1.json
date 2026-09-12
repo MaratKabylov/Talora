@@ -1,0 +1,13 @@
+{
+  "runId": "c2057c5c-04a7-4410-92fa-56d32f6154a7",
+  "parentRunId": "342e429f-819f-4f68-9a18-d249fd8b4f7d",
+  "projectFingerprint": "dca5278c627042a7427abd389a8aa6b6611641290de1dc51e3cbfbf3cb6bf9b6",
+  "startedAt": "2026-09-12T11:48:25.796Z",
+  "completed": false,
+  "browserStages": [],
+  "checks": [],
+  "shutdown": [],
+  "scope": "Chrome candidate consent/profile/test/completion against local production Next and the current verified synthetic Supabase tenant. One required single-choice question. No schema or remote flag changes.",
+  "failure": "seed-questions:PGRST204",
+  "finishedAt": "2026-09-12T11:48:30.159Z"
+}

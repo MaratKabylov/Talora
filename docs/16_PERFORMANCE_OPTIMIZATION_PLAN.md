@@ -745,6 +745,11 @@ Tenant-private metadata и смешанный immutable/live assessment payload 
 Supabase Postgres region не подтверждён; provider-specific config отложен до получения этой пары.
 [Evidence и gate](36_PERF017_RUNTIME_PLACEMENT.md).
 
+Candidate Auth/Next/Supabase browser E2E дополнительно пройден через production server fallback: consent, профиль,
+session, ответ, completion и scoring persistence **14/14**, invitation погашено. Optimized section-save browser
+attempt вернул generic retry error при активном endpoint gate; его rollout остаётся закрыт до диагностики и
+успешного повтора. [Browser evidence](performance/PERF017_AUTH_BROWSER_E2E_2026-09-12.json).
+
 **Технические требования**
 
 - Зафиксировать регион Next.js runtime и Supabase Postgres.

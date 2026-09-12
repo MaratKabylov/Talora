@@ -1,0 +1,100 @@
+{
+  "runId": "3fc53613-7c7a-457d-aeb8-0769e1934b01",
+  "parentRunId": "342e429f-819f-4f68-9a18-d249fd8b4f7d",
+  "projectFingerprint": "dca5278c627042a7427abd389a8aa6b6611641290de1dc51e3cbfbf3cb6bf9b6",
+  "startedAt": "2026-09-12T11:49:24.411Z",
+  "completed": true,
+  "browserStages": [
+    "consent",
+    "profile",
+    "test",
+    "complete"
+  ],
+  "checks": [
+    {
+      "name": "browser-stage-consent",
+      "passed": true
+    },
+    {
+      "name": "browser-stage-profile",
+      "passed": true
+    },
+    {
+      "name": "browser-stage-test",
+      "passed": true
+    },
+    {
+      "name": "browser-stage-complete",
+      "passed": true
+    },
+    {
+      "name": "consent-persisted",
+      "passed": true
+    },
+    {
+      "name": "profile-persisted",
+      "passed": true
+    },
+    {
+      "name": "application-completed",
+      "passed": true
+    },
+    {
+      "name": "application-scores",
+      "passed": true
+    },
+    {
+      "name": "invitation-completed",
+      "passed": true
+    },
+    {
+      "name": "session-completed",
+      "passed": true
+    },
+    {
+      "name": "answer-persisted",
+      "passed": true
+    },
+    {
+      "name": "result-persisted",
+      "passed": true
+    },
+    {
+      "name": "competency-summary-persisted",
+      "passed": true
+    },
+    {
+      "name": "candidate-report-persisted",
+      "passed": true
+    }
+  ],
+  "shutdown": [
+    {
+      "name": "expire-synthetic-invitation",
+      "passed": true
+    }
+  ],
+  "browserRuntime": {
+    "server": "next start on loopback",
+    "optimizedAttempt": {
+      "sessionControlV2": true,
+      "sectionReadV2": true,
+      "softNavigationV2": true,
+      "sectionSaveV2": true,
+      "completionV2": true,
+      "endpointFlagGateActive": true,
+      "sectionSavePassed": false,
+      "observedFailure": "The UI preserved the selected answer and showed its generic section-save retry message. No raw database error was exposed."
+    },
+    "fallbackAttempt": {
+      "sessionControlV2": true,
+      "overviewV2": true,
+      "sectionReadV2": true,
+      "sectionSaveV2": false,
+      "completionV2": false,
+      "completed": true
+    }
+  },
+  "scope": "Chrome candidate consent/profile/test/completion against local production Next and the current verified synthetic Supabase tenant. One required single-choice question. No schema or remote flag changes.",
+  "finishedAt": "2026-09-12T12:04:40.608Z"
+}
