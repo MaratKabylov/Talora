@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "task": "PERF-017",
+  "generatedAt": "2026-09-12T08:22:24.767Z",
+  "mode": "development",
+  "environment": {
+    "executionContext": "local-workstation",
+    "node": "v24.14.0",
+    "os": "win32 10.0.26200",
+    "machineNameRecorded": false,
+    "cwdUnderSyncedOneDrive": true,
+    "nextRuntimeRegion": null,
+    "nextRuntimeRegionSource": null,
+    "supabasePostgresRegion": null
+  },
+  "target": {
+    "baseUrl": "http://127.0.0.1:4331",
+    "path": "/api/tests/import-schema?version=v2",
+    "remoteDatabaseCalls": 0
+  },
+  "first": {
+    "bytes": 24445,
+    "cacheControl": "public, max-age=300, s-maxage=86400, stale-while-revalidate=604800",
+    "durationMs": 484.24,
+    "status": 200
+  },
+  "warm": {
+    "count": 20,
+    "minMs": 12.71,
+    "p50Ms": 15.31,
+    "p95Ms": 21.5,
+    "maxMs": 26.22,
+    "samplesMs": [
+      26.22,
+      21.5,
+      18.84,
+      14.77,
+      14.35,
+      21.19,
+      16.95,
+      16.18,
+      18.66,
+      15.58,
+      14.48,
+      15.31,
+      15.08,
+      15.95,
+      13.26,
+      14.12,
+      13.7,
+      13.51,
+      12.71,
+      16.18
+    ]
+  },
+  "limitations": [
+    "Local workstation measurement; it is not a deployed application or product SLA.",
+    "The fixed schema endpoint performs no remote database calls, so this comparison isolates local Next.js mode overhead.",
+    "The first request can include startup or development compilation work; warm percentiles use sequential requests only.",
+    "No project URL, project reference, key, token, user data or machine name is recorded."
+  ]
+}

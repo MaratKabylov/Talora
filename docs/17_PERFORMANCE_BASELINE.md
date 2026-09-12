@@ -894,3 +894,23 @@ Shared cache не содержит tenant/user/token/session/answer/scoring data
 system test/package metadata оставлены без cache до безопасного разделения immutable content и live access/state.
 Проверки: targeted 7/7, полный `npm test` 516/516, `npm run typecheck`, `npm run lint`, `npm run build`,
 `git diff --check`. Migration, remote data и flags не менялись. [Rollout](35_PERF016_REFERENCE_CACHE_ROLLOUT.md).
+
+## 37. PERF-017: local runtime modes и placement inventory — 12.09.2026
+
+Одинаковый no-DB endpoint `/api/tests/import-schema?version=v2` измерен на локальной Windows-машине под Node.js
+v24.14.0 и Next.js 16.3.1. Для каждого режима выполнены один first request и 20 последовательных warm requests.
+
+| Режим | First | Warm p50 | Warm p95 | Warm min/max |
+| --- | ---: | ---: | ---: | ---: |
+| `next start` | 116.24 ms | 6.70 ms | 11.30 ms | 5.19/14.24 ms |
+| `next dev` | 484.24 ms | 15.31 ms | 21.50 ms | 12.71/26.22 ms |
+
+Все ответы: HTTP 200, 24 445 bytes, ожидаемые filename и public cache policy. Evidence:
+[production](performance/PERF017_LOCAL_PRODUCTION_2026-09-12.json),
+[development](performance/PERF017_LOCAL_DEVELOPMENT_2026-09-12.json). Это local mode comparison без DB/network
+path, concurrency и cold-start контроля; оно не является SLA.
+
+Repository inventory не обнаружил hosting/region config или runtime region env. Рабочая копия находится под
+OneDrive; README теперь рекомендует отдельную несинхронизируемую копию при замедлении `.next`/`node_modules`.
+Фактические deployment runtime и Supabase Postgres regions остаются неизвестны; конфигурация региона ожидает
+точное значение из Supabase Dashboard и выбор hosting provider. [Gate](36_PERF017_RUNTIME_PLACEMENT.md).

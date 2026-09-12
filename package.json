@@ -10,6 +10,7 @@
     "perf:summary": "node scripts/performance-summary.mjs",
     "perf:indexes": "node scripts/perf-index-benchmark.mjs",
     "perf:indexes:isolate": "node scripts/perf-index-isolation.mjs",
+    "perf:runtime": "node scripts/perf-runtime-benchmark.mjs",
     "perf:remote:check": "node --experimental-strip-types scripts/perf-remote-check.mjs",
     "staging:lists": "node --experimental-strip-types scripts/staging-list-acceptance.mjs",
     "staging:grants": "node --experimental-strip-types scripts/staging-grants-acceptance.mjs",

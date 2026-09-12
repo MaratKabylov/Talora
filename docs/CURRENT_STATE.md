@@ -1,9 +1,12 @@
 # Текущее состояние Talvia
 
-Обновлено: 2026-09-12. PERF-014 принята на текущем Supabase. Первый безопасный срез PERF-016 готов локально: cached system cities с tag invalidation и HTTP cache versioned import schemas; app deployment не выполнялся. PERF-012 evidence collected, deployment индексов не принят; PERF-013 и первая итерация PERF-015 приняты на локальной production-сборке с текущим Supabase.
+Обновлено: 2026-09-12. Локальная часть PERF-017 готова: production/dev mode comparison, безопасный benchmark и OneDrive-рекомендация; deployment runtime и Supabase regions ещё не подтверждены. PERF-014 принята на текущем Supabase. Первый безопасный срез PERF-016 готов локально; app deployment не выполнялся.
 
 ## Текущий этап и следующий шаг
 
+- **PERF-017 local gate:** `next start` first/warm p50/p95 116.24/6.70/11.30 ms; `next dev` — 484.24/15.31/21.50 ms на одном no-DB endpoint, 20 warm samples. Это local comparison, не SLA. [Evidence/gate](36_PERF017_RUNTIME_PLACEMENT.md).
+- Hosting/Next runtime region и Supabase Postgres region неизвестны. Следующий шаг — получить точный DB region из Dashboard и hosting provider/region, затем настроить ближайший runtime на preview без изменения схемы.
+- PERF-017 checks: localhost-only guard, два HTTP-прогона по 21 успешному запросу, `npm run lint`, `npm run typecheck`, `npm run build`, `npm test` 516/516, `git diff --check`.
 - **PERF-016 first slice: 516/516 tests, lint, typecheck, production build и HTTP smoke прошли.**
 - Shared cache содержит только глобальные поля городов, profile проверяет company context заранее, admin mutations сбрасывают tag, write validation читает БД напрямую. Import schema v1/v2 кэшируется по отдельным URL. [Rollout](35_PERF016_REFERENCE_CACHE_ROLLOUT.md).
 - **PERF-014: код и migration готовы локально; 513/513 tests, lint, typecheck и production build прошли.**
@@ -68,5 +71,5 @@
 - PERF-013 принят на локальном production server с текущим Supabase: summary/details streaming и page-2 URL/control path подтверждены. Fixture содержит 20 answers, поэтому traversal заполненной границы 50/100 и удалённый app deployment не подтверждены.
 - PERF-014 migration и staging scoring path приняты в текущем Supabase; финальная integrity verification пройдена. Пять исторических missing rows обслуживаются bounded fallback и не требуют немедленного backfill.
 - PERF-015: первая итерация готова; durable `scoring_jobs`/worker требует изменения схемы и отложен по решению пользователя.
-- Следующий non-schema шаг: PERF-017 — зафиксировать runtime/DB region evidence и рекомендацию для Windows/OneDrive; либо продолжить PERF-016 только после безопасного разделения immutable assessment content и live token/session state.
+- PERF-017 закрывает local requirements; deployment gate ожидает точную пару Supabase Postgres region + hosting runtime region. PERF-016 можно продолжать только после безопасного разделения immutable assessment content и live token/session state.
 - Сохранять чужие изменения. Remote migrations, production-флаги и destructive/downgrade требуют соответствующего разрешения.

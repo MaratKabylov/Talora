@@ -739,6 +739,12 @@ Tenant-private metadata и смешанный immutable/live assessment payload 
 
 #### PERF-017 — Проверка размещения и local development
 
+**Статус:** локальная часть готова 12.09.2026. На одной Windows-машине сравнен одинаковый no-DB HTTP shape:
+`next start` first/warm p50/p95 116.24/6.70/11.30 ms, `next dev` — 484.24/15.31/21.50 ms. README и
+воспроизводимый localhost-only benchmark добавлены. Deployment platform/region в репозитории не заданы, точный
+Supabase Postgres region не подтверждён; provider-specific config отложен до получения этой пары.
+[Evidence и gate](36_PERF017_RUNTIME_PLACEMENT.md).
+
 **Технические требования**
 
 - Зафиксировать регион Next.js runtime и Supabase Postgres.
