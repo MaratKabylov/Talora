@@ -1,8 +1,8 @@
 {
-  "runId": "d4d4fa21-73f4-48d2-a280-beabdcef4345",
+  "runId": "3fc53613-7c7a-457d-aeb8-0769e1934b01",
   "parentRunId": "342e429f-819f-4f68-9a18-d249fd8b4f7d",
   "projectFingerprint": "dca5278c627042a7427abd389a8aa6b6611641290de1dc51e3cbfbf3cb6bf9b6",
-  "startedAt": "2026-09-12T13:52:53.927Z",
+  "startedAt": "2026-09-12T11:49:24.411Z",
   "completed": true,
   "browserStages": [
     "consent",
@@ -74,27 +74,27 @@
       "passed": true
     }
   ],
-  "scope": "Chrome candidate consent/profile/test/completion against local production Next and the current verified synthetic Supabase tenant. One required single-choice question. No schema or remote flag changes.",
   "browserRuntime": {
-    "path": "optimized",
-    "origin": "http://127.0.0.1:4333",
-    "flags": {
-      "SESSION_CONTROL_V2": true,
-      "ASSESSMENT_OVERVIEW_V2": true,
-      "ASSESSMENT_SECTION_READ_V2": true,
-      "ASSESSMENT_SOFT_NAVIGATION_V2": true,
-      "ASSESSMENT_SECTION_SAVE_V2": true,
-      "ASSESSMENT_SECTION_PREFETCH_V3": true,
-      "ASSESSMENT_COMPLETION_V2": true
+    "server": "next start on loopback",
+    "optimizedAttempt": {
+      "sessionControlV2": true,
+      "sectionReadV2": true,
+      "softNavigationV2": true,
+      "sectionSaveV2": true,
+      "completionV2": true,
+      "endpointFlagGateActive": true,
+      "sectionSavePassed": false,
+      "observedFailure": "The UI preserved the selected answer and showed its generic section-save retry message. No raw database error was exposed."
     },
-    "observedOperations": [
-      "assessment.autosave",
-      "assessment.save_section",
-      "assessment.finish_session",
-      "scoring.candidate.calculate",
-      "scoring.candidate.persist"
-    ],
-    "result": "passed_without_fallback"
+    "fallbackAttempt": {
+      "sessionControlV2": true,
+      "overviewV2": true,
+      "sectionReadV2": true,
+      "sectionSaveV2": false,
+      "completionV2": false,
+      "completed": true
+    }
   },
-  "finishedAt": "2026-09-12T13:56:39.169Z"
+  "scope": "Chrome candidate consent/profile/test/completion against local production Next and the current verified synthetic Supabase tenant. One required single-choice question. No schema or remote flag changes.",
+  "finishedAt": "2026-09-12T12:04:40.608Z"
 }

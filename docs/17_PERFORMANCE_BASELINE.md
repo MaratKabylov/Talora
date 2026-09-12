@@ -941,11 +941,16 @@ completed application/invitation/session, ответ, result, competency summary
 percentage равны 100. После проверки invitation оставлен completed, но его срок принудительно установлен в epoch.
 [Evidence](performance/PERF017_AUTH_BROWSER_E2E_2026-09-12.json).
 
-При первом browser submit с локально включёнными `ASSESSMENT_SECTION_SAVE_V2` и `ASSESSMENT_COMPLETION_V2`
-endpoint gate был активен, но UI получил generic section-save error и сохранил выбранный ответ на экране. Тот же
-flow завершился через предусмотренный legacy section-submit/completion fallback при сохранённых V2 session control,
-overview и section read. Поэтому общий candidate flow принят, а optimized section-save browser path остаётся
-блокером rollout до получения безопасного server-side error code и отдельного успешного повтора.
+Первый optimized submit вернул 403 до RPC: четыре assessment endpoints сравнивали browser `Origin` с внутренним
+`request.nextUrl.origin`. На локальном production server browser обращался к `127.0.0.1`, а Next нормализовал
+внутренний origin иначе. Общий helper теперь сравнивает origin с фактическим HTTP `Host`; foreign origin по-прежнему
+отклоняется. Добавлена безопасная section-save диагностика без token, SQL и PII.
+
+После исправления новый чистый fixture прошёл со всеми optimized flags без fallback. Production telemetry
+подтвердила успешные `assessment.autosave`, `assessment.save_section`, `assessment.finish_session`, calculation и
+persistence. Финальная проверка БД снова прошла **14/14**, а synthetic invitation погашено. Предыдущие fallback и
+pre-fix результаты сохранены отдельными файлами: [fallback evidence](performance/PERF017_AUTH_BROWSER_E2E_2026-09-12_FALLBACK.json)
+и [pre-fix evidence](performance/PERF017_AUTH_BROWSER_E2E_2026-09-12_PRE_FIX.json).
 
 Схема и remote feature flags не менялись. Первый setup run использовал отсутствующую колонку `questions.is_required`
 и остановился до создания candidate/invitation; harness исправлен на фактический `settings_json.required`. Этот run

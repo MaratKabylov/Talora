@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prefetchAssessmentSection } from "@/lib/assessment/section-prefetch-data";
+import { isSameOriginRequest } from "@/lib/assessment/same-origin";
 import { correlationIdFrom, serverTimingValue } from "@/lib/observability/performance-core";
 
 const requestSchema = z.object({ assessmentType: z.enum(["candidate", "employee"]),
@@ -12,8 +13,7 @@ export async function POST(request: NextRequest) {
   const respond = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: {
     ...headers, "Server-Timing": serverTimingValue("assessment.prefetch_section", performance.now() - startedAt),
   } });
-  const origin = request.headers.get("origin");
-  if (origin && origin !== request.nextUrl.origin) return respond({ error: "Недопустимый источник запроса." }, 403);
+  if (!isSameOriginRequest(request)) return respond({ error: "Недопустимый источник запроса." }, 403);
   if (process.env.ASSESSMENT_SECTION_PREFETCH_V3 !== "true" || process.env.ASSESSMENT_SECTION_READ_V2 !== "true"
     || process.env.ASSESSMENT_SOFT_NAVIGATION_V2 !== "true") return respond({ error: "Предзагрузка недоступна." }, 409);
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));

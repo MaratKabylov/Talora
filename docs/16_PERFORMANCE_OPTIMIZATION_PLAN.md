@@ -745,10 +745,12 @@ Tenant-private metadata и смешанный immutable/live assessment payload 
 Supabase Postgres region не подтверждён; provider-specific config отложен до получения этой пары.
 [Evidence и gate](36_PERF017_RUNTIME_PLACEMENT.md).
 
-Candidate Auth/Next/Supabase browser E2E дополнительно пройден через production server fallback: consent, профиль,
-session, ответ, completion и scoring persistence **14/14**, invitation погашено. Optimized section-save browser
-attempt вернул generic retry error при активном endpoint gate; его rollout остаётся закрыт до диагностики и
-успешного повтора. [Browser evidence](performance/PERF017_AUTH_BROWSER_E2E_2026-09-12.json).
+Candidate Auth/Next/Supabase browser E2E дополнительно пройден в подключённом Chrome через локальный production
+server со всеми optimized assessment flags: consent, профиль, session, ответ, `assessment.save_section`,
+`assessment.finish_session`, completion и scoring persistence **14/14**, invitation погашено. Первоначальный 403
+был вызван сравнением browser `Origin` с внутренним `request.nextUrl.origin`; assessment endpoints теперь сверяют
+его с фактическим `Host`, сохраняя отказ для чужого origin. Повтор прошёл без fallback.
+[Browser evidence](performance/PERF017_AUTH_BROWSER_E2E_2026-09-12.json).
 
 **Технические требования**
 

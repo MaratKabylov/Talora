@@ -10,6 +10,7 @@ import * as presentation from "../lib/tests/presentation-settings.ts";
 import { fetchAssessmentSection, firstQuestionIndex, sectionUrl } from "../lib/assessment/section-navigation.ts";
 import type { AssessmentSectionSnapshot, PublicFlowQuestion } from "../lib/assessment/section-contract.ts";
 import * as sectionSaveContract from "../lib/assessment/section-save-contract.ts";
+import * as sameOrigin from "../lib/assessment/same-origin.ts";
 
 const require = createRequire(import.meta.url);
 require("next/dist/server/node-environment-baseline");
@@ -27,6 +28,7 @@ function routeHarness(result: unknown, env: Record<string, string> = { ASSESSMEN
   const dependencies: Record<string, unknown> = {
     "next/server": { NextRequest, NextResponse }, zod: { z },
     "@/lib/observability/performance-core": performanceCore,
+    "@/lib/assessment/same-origin": sameOrigin,
     "@/lib/tests/presentation-settings": presentation,
     "@/lib/assessment/section-prefetch-data": { readAssessmentSectionTransition: async (input: unknown, cached: unknown) => {
       calls.push({ input, cached }); if (fail) throw Error(`private SQL ${token}`); return result;
@@ -41,11 +43,17 @@ function routeHarness(result: unknown, env: Record<string, string> = { ASSESSMEN
   }, { env });
   return { ...exports, calls };
 }
-function request(input: unknown = body, origin = "https://talvia.test") {
-  return new NextRequest("https://talvia.test/api/assessment/section", {
-    method: "POST", body: JSON.stringify(input), headers: { origin, "Content-Type": "application/json" },
+function request(input: unknown = body, origin = "https://talvia.test", url = "https://talvia.test/api/assessment/section", host = new URL(url).host) {
+  return new NextRequest(url, {
+    method: "POST", body: JSON.stringify(input), headers: { origin, host, "Content-Type": "application/json" },
   });
 }
+
+test("assessment origin guard uses the actual Host header across local aliases", () => {
+  assert.equal(sameOrigin.isSameOriginRequest({ headers: new Headers({ origin: "http://127.0.0.1:4333", host: "127.0.0.1:4333" }) }), true);
+  assert.equal(sameOrigin.isSameOriginRequest({ headers: new Headers({ origin: "http://127.0.0.1:4333", host: "localhost:4333" }) }), false);
+  assert.equal(sameOrigin.isSameOriginRequest({ headers: new Headers({ origin: "not a URL", host: "talvia.test" }) }), false);
+});
 
 test("section navigation endpoint calls only the section reader for either scope and never caches token content", async () => {
   const snapshot = { section: null, sections: [], answers: {}, sectionIndex: 0, reviewMode: false, questionOffset: 0, otherVisibleQuestionCount: 0 };
@@ -59,6 +67,8 @@ test("section navigation endpoint calls only the section reader for either scope
     assert.deepEqual(route.calls, [{ assessmentType, token, sessionId: id(1), requestedIndex: "1", review: "1",
       presentationSettings: presentation.DEFAULT_TEST_PRESENTATION_SETTINGS }]);
   }
+  const aliasRoute = routeHarness(snapshot);
+  assert.equal((await aliasRoute.POST(request(body, "http://127.0.0.1:4333", "http://localhost:4333/api/assessment/section", "127.0.0.1:4333"))).status, 200);
 });
 
 test("section navigation rejects bad origins, identifiers, indexes and disabled flags before data access", async () => {
@@ -110,6 +120,7 @@ test("prefetch endpoint validates origin/flags/input and returns only no-store d
     const calls: unknown[] = [];
     const dependencies: Record<string, unknown> = { "next/server": { NextRequest, NextResponse }, zod: { z },
       "@/lib/observability/performance-core": performanceCore,
+      "@/lib/assessment/same-origin": sameOrigin,
       "@/lib/assessment/section-prefetch-data": { prefetchAssessmentSection: async (input: unknown) => {
         calls.push(input); if (fail) throw Error(`SQL ${token}`); return data;
       } },
@@ -129,6 +140,8 @@ test("prefetch endpoint validates origin/flags/input and returns only no-store d
     assert.match(response.headers.get("server-timing")!, /assessment_prefetch_section/);
     assert.deepEqual(route.calls, [{ assessmentType, token, sessionId: id(1), sectionIndex: 1 }]);
   }
+  const aliasRoute = harness();
+  assert.equal((await aliasRoute.POST(request(body, "http://127.0.0.1:4333", "http://localhost:4333/api/assessment/section-prefetch", "127.0.0.1:4333"))).status, 200);
   for (const flag of Object.keys(enabled)) {
     const route = harness({ ...enabled, [flag]: "false" });
     assert.equal((await route.POST(request())).status, 409); assert.deepEqual(route.calls, []);
@@ -192,6 +205,7 @@ test("section-save route gates every required flag and validates before one scop
     const calls: unknown[][] = [];
     const dependencies: Record<string, unknown> = {
       "next/server": { NextRequest, NextResponse }, "@/lib/assessment/section-save-contract": sectionSaveContract,
+      "@/lib/assessment/same-origin": sameOrigin,
       "@/lib/observability/performance-core": performanceCore,
       "@/lib/observability/server-performance": { measureServerOperation: (_name: string, task: () => unknown) => task() },
       "@/lib/supabase/admin": { createAdminClient: () => ({ rpc: async (...args: unknown[]) => {
@@ -221,6 +235,8 @@ test("section-save route gates every required flag and validates before one scop
   }
   const route = harness();
   assert.equal((await route.POST(request(input, "https://foreign.test"))).status, 403);
+  const aliasRoute = harness();
+  assert.equal((await aliasRoute.POST(request(input, "http://127.0.0.1:4333", "http://localhost:4333/api/assessment/section-save", "127.0.0.1:4333"))).status, 200);
   for (const invalid of [{}, { ...input, token: "bad" }, { ...input, direction: "skip" },
     { ...input, answers: Array(1001).fill(input.answers[0]) },
     { ...input, answers: [{ ...input.answers[0], timeSpentSeconds: -1 }] }]) {
@@ -239,4 +255,23 @@ test("section-save route gates every required flag and validates before one scop
     assert.equal(response.status, status); assert.ok(!(await response.text()).includes(token));
     assert.equal(failed.calls.length, 1);
   }
+  const diagnostics: string[] = [];
+  const originalInfo = console.info;
+  console.info = (...values: unknown[]) => { diagnostics.push(values.join(" ")); };
+  try {
+    const failed = harness({ ...enabled, PERFORMANCE_TELEMETRY_ENABLED: "true" }, null, { code: "XX000", message: token });
+    assert.equal((await failed.POST(request(input))).status, 500);
+  } finally {
+    console.info = originalInfo;
+  }
+  assert.equal(diagnostics.length, 1);
+  const diagnostic = JSON.parse(diagnostics[0]) as Record<string, unknown>;
+  assert.equal(diagnostic.event, "assessment.section_save_failure");
+  assert.equal(diagnostic.operation, "assessment.save_section");
+  assert.equal(diagnostic.category, "database");
+  assert.equal(diagnostic.code, "XX000");
+  assert.equal(diagnostic.version, 1);
+  assert.match(String(diagnostic.correlationId), /^req_[0-9a-f-]{36}$/i);
+  assert.ok(Number.isFinite(Date.parse(String(diagnostic.timestamp))));
+  assert.ok(!diagnostics[0].includes(token));
 });

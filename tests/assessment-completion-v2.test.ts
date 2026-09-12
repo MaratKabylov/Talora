@@ -7,6 +7,7 @@ import { ModuleKind, ScriptTarget, transpileModule } from "typescript";
 import { z } from "zod";
 import * as contract from "../lib/assessment/completion-contract.ts";
 import * as perf from "../lib/observability/performance-core.ts";
+import * as sameOrigin from "../lib/assessment/same-origin.ts";
 
 const require = createRequire(import.meta.url);
 require("next/dist/server/node-environment-baseline");
@@ -79,11 +80,12 @@ test("completion route gates flags/origin/identity and protects errors with no-s
     const calls: unknown[] = [];
     const endpoint = load<typeof import("../app/api/assessment/complete/route.ts")>("../app/api/assessment/complete/route.ts", {
       "next/server": next, "@/lib/observability/performance-core": perf, "@/lib/assessment/completion-contract": contract,
+      "@/lib/assessment/same-origin": sameOrigin,
       "@/lib/assessment/completion-v2": { completeAssessmentSessionV2: async (args: unknown) => { calls.push(args); if (fail) throw Error(token); return { status: "processing" }; } },
     }, env); return { ...endpoint, calls };
   }
-  const request = (body: unknown = input, origin = "https://talvia.test") => new next.NextRequest("https://talvia.test/api/assessment/complete", {
-    method: "POST", headers: { origin, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const request = (body: unknown = input, origin = "https://talvia.test", url = "https://talvia.test/api/assessment/complete", host = new URL(url).host) => new next.NextRequest(url, {
+    method: "POST", headers: { origin, host, "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const good = route(); const response = await good.POST(request({ ...input, answers: "Must not be forwarded" }));
   assert.deepEqual(await response.json(), { status: "processing" }); assert.deepEqual(good.calls, [input]);
   assert.match(response.headers.get("server-timing")!, /assessment_complete/);
@@ -92,6 +94,8 @@ test("completion route gates flags/origin/identity and protects errors with no-s
     assert.equal(response.status, 409); assert.match(response.headers.get("cache-control")!, /no-store/); assert.deepEqual(off.calls, []);
   }
   const invalid = route(); assert.equal((await invalid.POST(request(input, "https://foreign.test"))).status, 403);
+  const alias = route();
+  assert.equal((await alias.POST(request(input, "http://127.0.0.1:4333", "http://localhost:4333/api/assessment/complete", "127.0.0.1:4333"))).status, 200);
   for (const body of [null, {}, { ...input, sessionId: "bad" }, { ...input, token: "bad" }, { ...input, assessmentType: "other" }, { ...input, deviceId: "bad" }]) {
     assert.equal((await invalid.POST(request(body))).status, 400);
   }

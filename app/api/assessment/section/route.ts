@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAssessmentSectionSnapshot } from "@/lib/assessment/section-data";
 import { readAssessmentSectionTransition } from "@/lib/assessment/section-prefetch-data";
+import { isSameOriginRequest } from "@/lib/assessment/same-origin";
 import { DEFAULT_TEST_PRESENTATION_SETTINGS } from "@/lib/tests/presentation-settings";
 import { correlationIdFrom, serverTimingValue } from "@/lib/observability/performance-core";
 
@@ -17,8 +18,7 @@ export async function POST(request: NextRequest) {
   const headers = {
     "Cache-Control": "private, no-store", "x-request-id": correlationIdFrom(request.headers.get("x-request-id")),
   };
-  const origin = request.headers.get("origin");
-  if (origin && origin !== request.nextUrl.origin) {
+  if (!isSameOriginRequest(request)) {
     return NextResponse.json({ error: "Недопустимый источник запроса." }, { headers, status: 403 });
   }
   if (process.env.ASSESSMENT_SOFT_NAVIGATION_V2 !== "true" || process.env.ASSESSMENT_SECTION_READ_V2 !== "true") {

@@ -1,12 +1,12 @@
 # Текущее состояние Talvia
 
-Обновлено: 2026-09-12. Локальная часть PERF-017 и candidate browser E2E готовы; optimized section-save browser path обнаружил блокирующий retry error. Deployment runtime и Supabase regions ещё не подтверждены. PERF-014 принята на текущем Supabase. Первый безопасный срез PERF-016 готов локально; app deployment не выполнялся.
+Обновлено: 2026-09-12. Локальная часть PERF-017 и optimized candidate browser E2E готовы. Deployment runtime и Supabase regions ещё не подтверждены. PERF-014 принята на текущем Supabase. Первый безопасный срез PERF-016 готов локально; app deployment не выполнялся.
 
 ## Текущий этап и следующий шаг
 
 - **PERF-017 local gate:** `next start` first/warm p50/p95 116.24/6.70/11.30 ms; `next dev` — 484.24/15.31/21.50 ms на одном no-DB endpoint, 20 warm samples. Это local comparison, не SLA. [Evidence/gate](36_PERF017_RUNTIME_PLACEMENT.md).
-- Hosting/Next runtime region и Supabase Postgres region неизвестны. После диагностики optimized section-save следующий infrastructure gate — получить точный DB region и hosting provider/region, затем настроить ближайший runtime на preview без изменения схемы.
-- PERF-017 checks: localhost-only guard, два HTTP-прогона по 21 успешному запросу, `npm run lint`, `npm run typecheck`, `npm run build`, `npm test` 516/516, `git diff --check`.
+- Hosting/Next runtime region и Supabase Postgres region неизвестны. Следующий infrastructure gate — получить точный DB region и hosting provider/region, затем настроить ближайший runtime на preview без изменения схемы.
+- PERF-017 checks: localhost-only guard, два HTTP-прогона по 21 успешному запросу, origin/Host regression, `npm run lint`, `npm run typecheck`, `npm run build`, `npm test` 517/517.
 - **PERF-016 first slice: 516/516 tests, lint, typecheck, production build и HTTP smoke прошли.**
 - Shared cache содержит только глобальные поля городов, profile проверяет company context заранее, admin mutations сбрасывают tag, write validation читает БД напрямую. Import schema v1/v2 кэшируется по отдельным URL. [Rollout](35_PERF016_REFERENCE_CACHE_ROLLOUT.md).
 - **PERF-014: код и migration готовы локально; 513/513 tests, lint, typecheck и production build прошли.**
@@ -23,7 +23,7 @@
 - [Отчёт и границы проверки](33_STAGING_LIST_ACCEPTANCE.md), [list JSON](performance/PERF012_STAGING_2026-09-10.json), [session JSON](performance/PERF012_SESSIONS_2026-09-10.json), [scoring JSON](performance/PERF012_SCORING_2026-09-10.json), [baseline §29](17_PERFORMANCE_BASELINE.md).
 - Девять list API shapes ×30 warm: p95 308–532 ms. Answer upsert p95 313/330 ms, section 100 ответов 527/552 ms (candidate/employee), по 30 warm. Это сеть + PostgREST, не SQL/Next route SLA и не сравнение индексов.
 - Две synthetic companies и fixture-строки оставлены. Три test users заблокированы, четыре memberships disabled, две session invitation-ссылки expired. Независимая финальная проверка **6/6**; IDs в JSON, секреты не сохранены.
-- PERF-012 остаётся read-only/before evidence без изменения схемы; candidate browser UI/server actions теперь приняты через fallback, остальные RLS paths остаются отдельным охватом.
+- PERF-012 остаётся read-only/before evidence без изменения схемы; candidate browser UI/server actions теперь приняты на optimized path без fallback, остальные RLS paths остаются отдельным охватом.
 - SQL connection у агента отсутствует; REST EXPLAIN вернул 406/PGRST107. Планы сняты пользователем через SQL Editor; настройки, remote migrations, индексы и feature flags агентом не менялись.
 - Подготовлен SQL Editor пакет [perf012_staging_query_plans.sql](../supabase/verification/perf012_staging_query_plans.sql): read-only context, EXPLAIN без ANALYZE для list/comparison/builder shapes и index inventory.
 - Получены свежий index inventory и 10 EXPLAIN result sets после staging: [plans](performance/PERF012_QUERY_PLANS_2026-09-10.json), [summary](performance/PERF012_QUERY_PLAN_SUMMARY_2026-09-10.json). Черновой minimal set: applications date/job-date/job-fit, participants date/fit и builder parent/order sections/questions/options; jobs низкий приоритет. Это планы без ANALYZE, write gate не закрыт.
@@ -43,7 +43,7 @@
 - Staging harness создаёт только временного report-reader; финальный shutdown 3/3. Read-only audit подтвердил: все три пользователя повторных прогонов заблокированы, все три memberships disabled. Схема, flags и business rows не менялись.
 - Browser/UI acceptance 12.09 пройдена в подключённом Chrome: navigation **30/30**, builder import **8/8**, builder editor profile и 7 editor scenarios получили `data-status=passed`. Editor mount 122.7 ms, edit p50/p95 11.3/20.6 ms; synthetic development fixture, не INP/staging p95. Все servers остановлены. [Evidence](performance/PERF017_BROWSER_UI_RETRY_2026-09-12.json).
 - Native Chrome mouse drag дополнительно подтверждён: вопрос 101 перемещён в конец секции и сохранён как `102,103,101`; автоматический editor suite после manual check снова прошёл. Native touch и cross-section autoscroll остаются за границами проверки.
-- Candidate Chrome E2E на локальном `next start` и текущем Supabase пройден через fallback: consent/profile/test/complete и persistence **14/14**, invitation expired. Optimized section-save endpoint был включён, но browser submit получил generic retry error; rollout этого пути заблокирован до диагностики. [Evidence](performance/PERF017_AUTH_BROWSER_E2E_2026-09-12.json).
+- Candidate Chrome E2E на локальном `next start` и текущем Supabase пройден со всеми optimized assessment flags без fallback: consent/profile/test/complete и persistence **14/14**, invitation expired. Telemetry подтвердила `assessment.save_section`, `assessment.finish_session` и scoring success. Ложный 403 исправлен сравнением browser Origin с фактическим Host; foreign origin остаётся закрыт. [Evidence](performance/PERF017_AUTH_BROWSER_E2E_2026-09-12.json).
 - Ранее подтверждены **25/25 API smoke** и **32/32 SQL checks** (19 PERF-010 + 13 PERF-011). [SQL-свидетельство пользователя](performance/PERF012_SQL_VERIFICATION_2026-09-10.json): 09:19:59 UTC, PostgreSQL 17.6, 34 индекса на 16 таблицах valid/ready.
 - SQL-каталог получен от пользователя, полные тела функций/история миграций не сверены. Наличие RPC дополнено фактическими вызовами в указанной staging-матрице.
 
@@ -69,7 +69,7 @@
 ## Дальше по плану
 
 - Browser synthetic acceptance закрыта; PERF-012 вернётся только на отдельной staging/preview DB или при готовности DDL gate.
-- Следующий кодовый шаг — воспроизвести optimized section-save с безопасным server-side error code, исправить причину и повторить полный candidate browser E2E без fallback.
+- Следующий PERF-017 шаг — deployment placement gate: подтвердить Supabase Postgres region и hosting runtime region, затем проверить preview рядом с БД.
 - PERF-013 принят на локальном production server с текущим Supabase: summary/details streaming и page-2 URL/control path подтверждены. Fixture содержит 20 answers, поэтому traversal заполненной границы 50/100 и удалённый app deployment не подтверждены.
 - PERF-014 migration и staging scoring path приняты в текущем Supabase; финальная integrity verification пройдена. Пять исторических missing rows обслуживаются bounded fallback и не требуют немедленного backfill.
 - PERF-015: первая итерация готова; durable `scoring_jobs`/worker требует изменения схемы и отложен по решению пользователя.
