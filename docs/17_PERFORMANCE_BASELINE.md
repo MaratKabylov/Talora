@@ -914,3 +914,15 @@ Repository inventory не обнаружил hosting/region config или runtim
 OneDrive; README теперь рекомендует отдельную несинхронизируемую копию при замедлении `.next`/`node_modules`.
 Фактические deployment runtime и Supabase Postgres regions остаются неизвестны; конфигурация региона ожидает
 точное значение из Supabase Dashboard и выбор hosting provider. [Gate](36_PERF017_RUNTIME_PLACEMENT.md).
+
+## 38. Browser/UI acceptance retry — 12.09.2026
+
+Повторно собраны и подняты три synthetic browser fixtures: assessment navigation на 4318, builder import на 4319
+и builder editor на 4320. Для каждой fixture HTML и JavaScript bundle отвечают HTTP 200; размеры bundles —
+1 851 072, 1 507 794 и 1 521 373 bytes соответственно. После проверки все локальные servers остановлены.
+
+После подключения Chrome extension DOM acceptance пройдена: navigation **30/30**, builder import **8/8**,
+builder editor profiling — `data-status=passed` для large-editor profile и семи CRUD/type/drag/V2 save/publish/
+conflict scenarios. Development React Profiler: initial mount 122.7 ms, 10 edit samples p50/p95 11.3/20.6 ms,
+3 589 DOM nodes при одном раскрытом вопросе. Это synthetic development fixture, не INP и не staging p95.
+[Evidence](performance/PERF017_BROWSER_UI_RETRY_2026-09-12.json). Remote DB, схема и данные не затрагивались.

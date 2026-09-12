@@ -41,8 +41,8 @@
 - PERF-015 first iteration: V2 ready-path не повторяет invitation/session preflight; frozen session config не вызывает лишний package-test read, legacy fallback сохранён. Staging **29/29**; first completion 3 490/3 097 ms, retry 326/293 ms, calculation 1.30/0.19 ms, persistence 631/320 ms. Это единичные samples, не p95. [Артефакт](performance/PERF015_STAGING_2026-09-11.json).
 - PERF-014 targeted regression **46/46** проверяет эквивалентность dimension DTO, быстрый/mixed-rollout comparison path, атомарную замену, stale conflict, idempotent backfill, rollback чужой session/version и read-only catalog verification.
 - Staging harness создаёт только временного report-reader; финальный shutdown 3/3. Read-only audit подтвердил: все три пользователя повторных прогонов заблокированы, все три memberships disabled. Схема, flags и business rows не менялись.
-- Browser fixture servers `test:browser:navigation`, `test:browser:builder-import`, `test:browser:builder-editor` собрались и поднялись, но CUA transport закрыт, а Chrome/Edge headless в окружении не возвращают DOM/stdout; PASS/FAIL не подтверждён.
-- Builder/browser acceptance step: targeted Node regression 164/164; full `npm test` 501/501, lint, typecheck passed. Browser fixtures compiled/served on 4318/4319/4320, but DOM PASS/FAIL still unconfirmed because CUA transport is closed.
+- Browser/UI acceptance 12.09 пройдена в подключённом Chrome: navigation **30/30**, builder import **8/8**, builder editor profile и 7 editor scenarios получили `data-status=passed`. Editor mount 122.7 ms, edit p50/p95 11.3/20.6 ms; synthetic development fixture, не INP/staging p95. Все servers остановлены. [Evidence](performance/PERF017_BROWSER_UI_RETRY_2026-09-12.json).
+- Browser fixtures подтверждают реальные React DOM flows с synthetic transport. Полный Auth/Next/Supabase/RLS E2E и native pointer/touch остаются за границами этой проверки.
 - Ранее подтверждены **25/25 API smoke** и **32/32 SQL checks** (19 PERF-010 + 13 PERF-011). [SQL-свидетельство пользователя](performance/PERF012_SQL_VERIFICATION_2026-09-10.json): 09:19:59 UTC, PostgreSQL 17.6, 34 индекса на 16 таблицах valid/ready.
 - SQL-каталог получен от пользователя, полные тела функций/история миграций не сверены. Наличие RPC дополнено фактическими вызовами в указанной staging-матрице.
 
@@ -67,7 +67,7 @@
 
 ## Дальше по плану
 
-- Builder/browser acceptance и server actions без изменения схемы; PERF-012 вернётся только на отдельной staging/preview DB или при готовности DDL gate.
+- Browser synthetic acceptance закрыта; PERF-012 вернётся только на отдельной staging/preview DB или при готовности DDL gate.
 - PERF-013 принят на локальном production server с текущим Supabase: summary/details streaming и page-2 URL/control path подтверждены. Fixture содержит 20 answers, поэтому traversal заполненной границы 50/100 и удалённый app deployment не подтверждены.
 - PERF-014 migration и staging scoring path приняты в текущем Supabase; финальная integrity verification пройдена. Пять исторических missing rows обслуживаются bounded fallback и не требуют немедленного backfill.
 - PERF-015: первая итерация готова; durable `scoring_jobs`/worker требует изменения схемы и отложен по решению пользователя.

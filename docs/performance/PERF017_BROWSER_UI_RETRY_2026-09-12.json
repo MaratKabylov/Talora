@@ -1,0 +1,65 @@
+{
+  "task": "browser-ui-acceptance-retry",
+  "checkedAt": "2026-09-12T09:50:36.4054646Z",
+  "environment": "Local Windows workstation; synthetic fixtures; no Supabase access",
+  "fixtures": [
+    {
+      "name": "assessment-navigation",
+      "command": "npm run test:browser:navigation",
+      "url": "http://127.0.0.1:4318",
+      "compileAndServerReady": true,
+      "pageHttpStatus": 200,
+      "bundleHttpStatus": 200,
+      "bundleBytes": 1851072,
+      "domStatus": "passed",
+      "domResult": "PASS: 30 browser scenarios"
+    },
+    {
+      "name": "builder-import",
+      "command": "npm run test:browser:builder-import",
+      "url": "http://127.0.0.1:4319",
+      "compileAndServerReady": true,
+      "pageHttpStatus": 200,
+      "bundleHttpStatus": 200,
+      "bundleBytes": 1507794,
+      "domStatus": "passed",
+      "domResult": "PASS 8 builder browser scenarios"
+    },
+    {
+      "name": "builder-editor",
+      "command": "npm run test:browser:builder-editor",
+      "url": "http://127.0.0.1:4320",
+      "compileAndServerReady": true,
+      "pageHttpStatus": 200,
+      "bundleHttpStatus": 200,
+      "bundleBytes": 1521373,
+      "domStatus": "passed",
+      "profile": {
+        "developmentBaseline": false,
+        "initialDomNodes": 3589,
+        "initialExpandedQuestions": 1,
+        "mountMs": 122.7,
+        "editActualMs": {
+          "samples": 10,
+          "p50": 11.3,
+          "p95": 20.6,
+          "min": 9.4,
+          "max": 20.6
+        },
+        "scenarioCount": 7
+      }
+    }
+  ],
+  "browserTransport": {
+    "available": true,
+    "browser": "Chrome extension",
+    "sensitiveBrowserIdentifiersRecorded": false
+  },
+  "result": "passed",
+  "domPassConfirmed": true,
+  "limitations": [
+    "DOM pass was confirmed in a connected Chrome extension browser against local synthetic fixtures.",
+    "No real Auth, Supabase, RLS, network latency or native pointer behavior is covered by these synthetic fixtures.",
+    "All three local fixture servers were stopped after the check."
+  ]
+}
