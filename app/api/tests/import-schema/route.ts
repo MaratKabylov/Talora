@@ -8,6 +8,7 @@ export async function GET(request: Request) {
   const useV2 = version === "v2";
   return NextResponse.json(useV2 ? schemaV2 : schemaV1, {
     headers: {
+      "Cache-Control": "public, max-age=300, s-maxage=86400, stale-while-revalidate=604800",
       "Content-Disposition": `attachment; filename="talvia-test-import-schema-${useV2 ? "v2" : "v1"}.json"`,
     },
   });

@@ -1,0 +1,19 @@
+{
+  "result": {
+    "perf014_final_verification": {
+      "coverage": {
+        "scored_participants_without_current_dimensions": 5
+      },
+      "integrity": {
+        "row_count": 1,
+        "stale_revision_rows": 0,
+        "tenant_scope_mismatches": 0,
+        "session_scope_mismatches": 0
+      },
+      "checked_at": "2026-09-12T07:44:22.885764+00:00",
+      "staging_fixture": {
+        "materialized_dimension_valid": true
+      }
+    }
+  }
+}

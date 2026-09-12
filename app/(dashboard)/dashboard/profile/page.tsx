@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { updateProfileAction } from "@/lib/auth/actions";
 import { requireCompanyContext } from "@/lib/auth/context";
 import { updateCompanyProfileAction } from "@/lib/company/actions";
+import { listCachedSystemCities } from "@/lib/reference-data/system-cities";
 import { createClient } from "@/lib/supabase/server";
 
 type ProfileSearchParams = Promise<{
@@ -20,12 +21,6 @@ type OrganizationRecord = {
   logo_url: string | null;
   name: string;
   system_cities: { name: string } | { name: string }[] | null;
-};
-
-type SystemCityRecord = {
-  id: string;
-  is_active: boolean;
-  name: string;
 };
 
 function first<T>(relation: T | T[] | null) {
@@ -58,7 +53,7 @@ export default async function ProfilePage({
   const [
     { data: organization, error: organizationError },
     { data: canEditOrganization, error: organizationPermissionError },
-    { data: cities, error: citiesError },
+    cities,
   ] = await Promise.all([
     supabase
       .from("companies")
@@ -66,16 +61,16 @@ export default async function ProfilePage({
       .eq("id", context.activeCompany.id)
       .maybeSingle(),
     supabase.rpc("is_company_admin", { target_company_id: context.activeCompany.id }),
-    supabase.from("system_cities").select("id, name, is_active").order("name"),
+    listCachedSystemCities(),
   ]);
 
-  if (organizationError || organizationPermissionError || citiesError || !organization) {
+  if (organizationError || organizationPermissionError || !organization) {
     throw new Error("Unable to load organization profile.");
   }
 
   const company = organization as OrganizationRecord;
   const cityName = first(company.system_cities)?.name ?? null;
-  const selectableCities = ((cities ?? []) as SystemCityRecord[]).filter(
+  const selectableCities = cities.filter(
     (city) => city.is_active || city.id === company.city_id,
   );
   const isOrganizationEditor = canEditOrganization === true;

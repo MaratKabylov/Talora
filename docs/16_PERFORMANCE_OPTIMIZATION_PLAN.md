@@ -634,7 +634,10 @@ create index ... on employee_assessment_participants(employee_assessment_id, fit
 
 #### PERF-014 — Материализованные dimension scores для comparison
 
-**Статус:** код и migration готовы локально 12.09.2026; remote migration ещё не применена. Employee scoring
+**Статус:** принята на текущем Supabase 12.09.2026. Catalog/RLS verification прошла; staging scoring
+acceptance 30/30 записала и проверила materialized employee dimension; финальная verification подтвердила
+`row_count=1`, валидную fixture dimension и нулевые tenant/session/stale mismatches. Пять исторических scored
+participants остаются на bounded fallback. Employee scoring
 формирует dimensions через действующий `collectAssessmentDimensions` и передаёт их в атомарный snapshot.
 Новый revision-aware writer проверяет tenant/participant/session/version и заменяет строки вместе с normal completion
 или recalculation. Comparison читает materialized rows одной выборкой на текущую страницу; rollout fallback
@@ -706,6 +709,12 @@ retry 326/293 ms (candidate/employee). Это по одному sample, не p95
 ### Этап 6. Кэширование и инфраструктура
 
 #### PERF-016 — Безопасное кэширование immutable/reference data
+
+**Статус:** первый безопасный срез готов локально 12.09.2026. Глобальный справочник городов кэшируется server-side
+на один час с tag invalidation после admin create/update; profile проверяет company context до чтения, а write
+validation продолжает читать БД напрямую. Versioned import schemas получили public browser/shared cache headers.
+Tenant-private metadata и смешанный immutable/live assessment payload не кэшируются. Проверки: targeted 7/7,
+полный suite 516/516, lint, typecheck, production build и HTTP smoke. [Rollout](35_PERF016_REFERENCE_CACHE_ROLLOUT.md).
 
 **Разрешено кэшировать**
 

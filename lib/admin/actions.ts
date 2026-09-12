@@ -1,10 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { getAuthContext } from "@/lib/auth/context";
+import { SYSTEM_CITIES_CACHE_TAG } from "@/lib/reference-data/system-cities";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -212,6 +213,7 @@ export async function createSystemCityAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Не удалось добавить город. Проверьте, что он еще не существует.");
   }
 
+  updateTag(SYSTEM_CITIES_CACHE_TAG);
   await recordPlatformAudit(context, "create_system_city", "system_city", city.id);
   revalidatePath(path);
   revalidatePath("/dashboard/profile");
@@ -252,6 +254,7 @@ export async function updateSystemCityAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Не удалось обновить город. Проверьте уникальность названия.");
   }
 
+  updateTag(SYSTEM_CITIES_CACHE_TAG);
   await recordPlatformAudit(
     context,
     parsed.data.isActive ? "update_system_city" : "disable_system_city",

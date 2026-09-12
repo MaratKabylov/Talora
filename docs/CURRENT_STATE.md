@@ -1,13 +1,17 @@
 # Текущее состояние Talvia
 
-Обновлено: 2026-09-12. PERF-014 реализован и полностью проверен локально: materialized employee dimensions, атомарный dual-write и bounded comparison read готовы. Remote migration и staging acceptance ещё не выполнены. PERF-012 evidence collected, deployment индексов не принят; PERF-013 и первая итерация PERF-015 приняты на локальной production-сборке с текущим Supabase.
+Обновлено: 2026-09-12. PERF-014 принята на текущем Supabase. Первый безопасный срез PERF-016 готов локально: cached system cities с tag invalidation и HTTP cache versioned import schemas; app deployment не выполнялся. PERF-012 evidence collected, deployment индексов не принят; PERF-013 и первая итерация PERF-015 приняты на локальной production-сборке с текущим Supabase.
 
 ## Текущий этап и следующий шаг
 
+- **PERF-016 first slice: 516/516 tests, lint, typecheck, production build и HTTP smoke прошли.**
+- Shared cache содержит только глобальные поля городов, profile проверяет company context заранее, admin mutations сбрасывают tag, write validation читает БД напрямую. Import schema v1/v2 кэшируется по отдельным URL. [Rollout](35_PERF016_REFERENCE_CACHE_ROLLOUT.md).
 - **PERF-014: код и migration готовы локально; 513/513 tests, lint, typecheck и production build прошли.**
 - Новая таблица `employee_assessment_dimension_scores` хранит текущие comparison dimensions по `scoring_revision`; normal completion и recalculation заменяют их атомарно вместе со scoring snapshot.
 - Employee comparison читает одну tenant-scoped выборку materialized rows на страницу до 50 участников. Для старых scored participants без строк текущей revision JSON fallback ограничен только их IDs.
-- Подготовлены RLS/grants, private writers, идемпотентный backfill RPC, read-only verification и [rollout PERF-014](34_PERF014_EMPLOYEE_DIMENSIONS_ROLLOUT.md). Следующий шаг — применить migration в текущем Supabase, выполнить verification и staging scoring acceptance.
+- PERF-014 catalog verification: все 12 проверок table/RLS/grants/RPC прошли; tenant/session/stale mismatches — 0. До staging было 5 исторических scored participants без materialized rows.
+- PERF-014 staging scoring acceptance: **30/30**, candidate/employee completion и idempotent retry; employee dimension row записана с revision 1. Shutdown **2/2**, обе synthetic invitation-ссылки погашены. [Артефакт](performance/PERF014_STAGING_2026-09-12.json).
+- Финальная PERF-014 verification: `row_count=1`, materialized staging dimension valid, tenant/session/stale mismatches — 0, historical fallback coverage — 5. [SQL evidence](performance/PERF014_FINAL_VERIFICATION_2026-09-12.json).
 - **PERF-012: 226/226 staging checks; 501/501 full tests; evidence collected, индексы не приняты.**
 - Пользователь разрешил использовать текущий Supabase-проект с synthetic companies/users/results. Это не отдельная копия production.
 - Lists/RLS/grants: **122/122**, реальные JWT A/B/dual, tenant isolation, cursor ties/nulls, full traversal, requested-company grant/revoke, disabled membership.
@@ -52,7 +56,7 @@
 - PERF-011: cursor `(created_at|updated_at, id)`, серверные фильтры/URL, страницы 50/100; comparison `(fit_score, id)`, nulls last, 50 строк.
 - Dashboard candidates/job candidates/participants/jobs/tests/packages/assessments и admin companies/applications/users/audit покрыты кодом; текущая staging-матрица не является полным browser-охватом приложения.
 - Tests/packages используют tenant-scoped invoker RPC. [PERF-011 rollout](31_DASHBOARD_CURSOR_PAGINATION_ROLLOUT.md); cursor не даёт snapshot при изменении даты/fit.
-- PERF-010/014: comparison materialization готова локально; до remote migration deployed-приложение продолжает прежнее чтение scoring JSON. После rollout исторические строки без materialization обслуживаются bounded fallback. [PERF-010 rollout](30_DASHBOARD_LIST_READ_MODELS_ROLLOUT.md), [PERF-014 rollout](34_PERF014_EMPLOYEE_DIMENSIONS_ROLLOUT.md).
+- PERF-010/014: remote migration применена, но app deployment не выполнялся, поэтому развёрнутое приложение пока использует прежний код. После deploy исторические строки без materialization обслуживаются bounded fallback. [PERF-010 rollout](30_DASHBOARD_LIST_READ_MODELS_ROLLOUT.md), [PERF-014 rollout](34_PERF014_EMPLOYEE_DIMENSIONS_ROLLOUT.md).
 - PERF-009: код/локальные проверки готовы, remote atomic clone migration не подтверждена. [Rollout](29_ATOMIC_TEST_VERSION_CLONE_ROLLOUT.md).
 - PERF-008.1/008.2: staging builder ожидается; `BUILDER_SAVE_V2=false` в `.env.example`, fallback V2 draft → V1 запрещён. [Rollout](28_BUILDER_INCREMENTAL_AUTOSAVE_ROLLOUT.md).
 - Session/scoring suites устанавливают synthetic consent/started state; не покрывают UI consent/start, concurrent/successor completion и все типы ответов.
@@ -62,6 +66,7 @@
 
 - Builder/browser acceptance и server actions без изменения схемы; PERF-012 вернётся только на отдельной staging/preview DB или при готовности DDL gate.
 - PERF-013 принят на локальном production server с текущим Supabase: summary/details streaming и page-2 URL/control path подтверждены. Fixture содержит 20 answers, поэтому traversal заполненной границы 50/100 и удалённый app deployment не подтверждены.
-- PERF-014 локально готов. До применения `20260911120000_perf014_employee_dimension_scores.sql` новый код нельзя развёртывать: comparison обращается к новой таблице, а employee completion требует обновлённую атомарную RPC-обёртку.
-- PERF-015: первая итерация готова; все first-completion samples выше 2 секунд. Durable `scoring_jobs`/worker требует изменения схемы и отложен по решению пользователя. Следующий non-schema шаг — PERF-016/017.
+- PERF-014 migration и staging scoring path приняты в текущем Supabase; финальная integrity verification пройдена. Пять исторических missing rows обслуживаются bounded fallback и не требуют немедленного backfill.
+- PERF-015: первая итерация готова; durable `scoring_jobs`/worker требует изменения схемы и отложен по решению пользователя.
+- Следующий non-schema шаг: PERF-017 — зафиксировать runtime/DB region evidence и рекомендацию для Windows/OneDrive; либо продолжить PERF-016 только после безопасного разделения immutable assessment content и live token/session state.
 - Сохранять чужие изменения. Remote migrations, production-флаги и destructive/downgrade требуют соответствующего разрешения.

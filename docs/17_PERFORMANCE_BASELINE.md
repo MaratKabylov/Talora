@@ -865,6 +865,32 @@ dimension writers закрыты от `public`, `anon`, `authenticated` и пр�
 
 Локальные проверки: targeted regression 46/46, полный `npm test` 513/513, `npm run typecheck`, `npm run lint`,
 `npm run build`, `git diff --check`. PGlite выполняет реальную migration и read-only verification, проверяя initial
-insert, замену revision, stale conflict, idempotent backfill и rollback при чужой session. Remote migration,
-verification и staging scoring acceptance ещё не выполнены; latency/row-volume эффект на текущем Supabase пока
-не измерен. Порядок выпуска: [PERF-014 rollout](34_PERF014_EMPLOYEE_DIMENSIONS_ROLLOUT.md).
+insert, замену revision, stale conflict, idempotent backfill и rollback при чужой session. Пользователь сообщил о
+применении remote migration 12.09.2026. Первая read-only verification подтвердила все 12 catalog/RLS/grant/RPC
+проверок и нулевые tenant/session/stale mismatches; coverage показал 5 исторических scored participants без строк.
+
+Локальная production-сборка против текущего Supabase прошла staging scoring acceptance **30/30**: candidate и
+employee completion, persisted result/summary/report, revision 1 и idempotent retry; employee path дополнительно
+проверил materialized dimension с корректными participant/session/version, group/domain/source и percentage 100.
+Candidate/employee first completion заняли 3 073/2 769 ms, retry — 298/306 ms; это единичные samples, не p95.
+Shutdown 2/2 погасил обе synthetic invitation-ссылки. [Артефакт](performance/PERF014_STAGING_2026-09-12.json).
+Финальная post-acceptance verification подтвердила `row_count=1`, валидную staging dimension и нулевые
+tenant/session/stale mismatches. Coverage осталось 5: эти исторические participants читаются через bounded fallback;
+полный backfill не является условием безопасного rollout. [SQL evidence](performance/PERF014_FINAL_VERIFICATION_2026-09-12.json).
+Порядок выпуска: [PERF-014 rollout](34_PERF014_EMPLOYEE_DIMENSIONS_ROLLOUT.md).
+
+## 36. PERF-016: system reference cache, первый срез — 12.09.2026
+
+Профиль организации больше не читает полный `system_cities` на каждый request. Server-only cache хранит только
+глобальные reference-поля `id`, `name`, `is_active`, использует ключ `reference/system-cities/v1`, tag
+`reference:system-cities` и TTL один час. Admin create/update немедленно вызывают `updateTag`; write-path профиля
+по-прежнему валидирует выбранный город прямым запросом к БД. Admin city list с live company counts не кэшируется.
+
+Import schema v1/v2 получила публичную HTTP cache policy `max-age=300, s-maxage=86400,
+stale-while-revalidate=604800`; query `version` разделяет URL cache keys. Production HTTP smoke вернул 200,
+корректные `talvia.test.v1`/`talvia.test.v2` и разные download filename.
+
+Shared cache не содержит tenant/user/token/session/answer/scoring data. Published assessment content и tenant-scoped
+system test/package metadata оставлены без cache до безопасного разделения immutable content и live access/state.
+Проверки: targeted 7/7, полный `npm test` 516/516, `npm run typecheck`, `npm run lint`, `npm run build`,
+`git diff --check`. Migration, remote data и flags не менялись. [Rollout](35_PERF016_REFERENCE_CACHE_ROLLOUT.md).

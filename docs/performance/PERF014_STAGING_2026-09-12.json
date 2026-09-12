@@ -1,0 +1,192 @@
+{
+  "runId": "b180786b-c871-4244-9be8-0b9bdfb9d3f9",
+  "parentRunId": "342e429f-819f-4f68-9a18-d249fd8b4f7d",
+  "projectFingerprint": "dca5278c627042a7427abd389a8aa6b6611641290de1dc51e3cbfbf3cb6bf9b6",
+  "startedAt": "2026-09-12T06:34:52.238Z",
+  "completed": true,
+  "checks": [
+    {
+      "name": "verified-synthetic-tenant",
+      "passed": true
+    },
+    {
+      "name": "candidate:claim",
+      "passed": true
+    },
+    {
+      "name": "candidate:section-saved",
+      "passed": true
+    },
+    {
+      "name": "candidate:before-unscored",
+      "passed": true
+    },
+    {
+      "name": "candidate:route-200",
+      "passed": true
+    },
+    {
+      "name": "candidate:route-redirect-complete",
+      "passed": true
+    },
+    {
+      "name": "candidate:owner-completed",
+      "passed": true
+    },
+    {
+      "name": "candidate:scores-persisted",
+      "passed": true
+    },
+    {
+      "name": "candidate:invitation-completed",
+      "passed": true
+    },
+    {
+      "name": "candidate:session-scored",
+      "passed": true
+    },
+    {
+      "name": "candidate:result-row",
+      "passed": true
+    },
+    {
+      "name": "candidate:summary-row",
+      "passed": true
+    },
+    {
+      "name": "candidate:report-row",
+      "passed": true
+    },
+    {
+      "name": "candidate:route-retry-200",
+      "passed": true
+    },
+    {
+      "name": "candidate:retry-idempotent",
+      "passed": true
+    },
+    {
+      "name": "employee:claim",
+      "passed": true
+    },
+    {
+      "name": "employee:section-saved",
+      "passed": true
+    },
+    {
+      "name": "employee:before-unscored",
+      "passed": true
+    },
+    {
+      "name": "employee:route-200",
+      "passed": true
+    },
+    {
+      "name": "employee:route-redirect-complete",
+      "passed": true
+    },
+    {
+      "name": "employee:owner-completed",
+      "passed": true
+    },
+    {
+      "name": "employee:scores-persisted",
+      "passed": true
+    },
+    {
+      "name": "employee:invitation-completed",
+      "passed": true
+    },
+    {
+      "name": "employee:session-scored",
+      "passed": true
+    },
+    {
+      "name": "employee:result-row",
+      "passed": true
+    },
+    {
+      "name": "employee:summary-row",
+      "passed": true
+    },
+    {
+      "name": "employee:report-row",
+      "passed": true
+    },
+    {
+      "name": "employee:dimension-row",
+      "passed": true
+    },
+    {
+      "name": "employee:route-retry-200",
+      "passed": true
+    },
+    {
+      "name": "employee:retry-idempotent",
+      "passed": true
+    }
+  ],
+  "metrics": [
+    {
+      "scope": "candidate",
+      "route": "/api/assessment/complete",
+      "durationMs": 3072.7231999999985,
+      "status": 200
+    },
+    {
+      "scope": "candidate",
+      "route": "/api/assessment/complete:retry",
+      "durationMs": 298.1985999999997,
+      "status": 200
+    },
+    {
+      "scope": "employee",
+      "route": "/api/assessment/complete",
+      "durationMs": 2768.6718,
+      "status": 200
+    },
+    {
+      "scope": "employee",
+      "route": "/api/assessment/complete:retry",
+      "durationMs": 305.96110000000044,
+      "status": 200
+    }
+  ],
+  "fixtures": {
+    "company": "4042019d-0b25-43b8-a0c1-c44c55897a9d",
+    "template": "608eccbf-5800-427f-afe5-fe2481e575f2",
+    "version": "f0633e42-9b62-4898-991a-8bcd843e787c",
+    "section": "92e26414-5625-4d8c-a7d5-a192f2cf6819",
+    "package": "7de474ef-4a56-47a5-9571-f03ee9f51e2f",
+    "scopes": [
+      {
+        "scope": "candidate",
+        "person": "23ea5aaf-83c5-4bfb-ab5d-99d6a229462a",
+        "context": "ff10305f-5c4f-402e-9a47-f98b5458324e",
+        "owner": "3195d429-790f-4bd8-8a4f-ab90ed918d7a",
+        "session": "44cca7b2-8788-47c8-8181-be233d669c04",
+        "invitation": "b22391b2-b194-4398-8f6e-abc612bc1fcf"
+      },
+      {
+        "scope": "employee",
+        "person": "87c0a3dc-974d-414d-b71b-824e004efc95",
+        "context": "deaa3ef3-14e5-4919-8e68-55e22d3e61b2",
+        "owner": "ee3206be-c953-4e67-a987-0eb366aa0bfb",
+        "session": "57cd5382-8b00-4e2a-838e-00176568ade1",
+        "invitation": "38c659da-3e66-4592-83db-0d9188158d2c"
+      }
+    ]
+  },
+  "shutdown": [
+    {
+      "name": "invitations:expire-completed-token",
+      "passed": true
+    },
+    {
+      "name": "employee_assessment_invitations:expire-completed-token",
+      "passed": true
+    }
+  ],
+  "scope": "Synthetic candidate/employee Next completion route to real scoring finalizer; no browser UI, SQL EXPLAIN or index before/after comparison.",
+  "finishedAt": "2026-09-12T06:35:15.559Z"
+}

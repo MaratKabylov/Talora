@@ -40,6 +40,15 @@ npm run build
 
 PGlite regression проверяет initial insert, атомарную замену при recalculation, idempotent backfill, stale revision и rollback при чужой session.
 
+## Staging acceptance — 12.09.2026
+
+- Migration применена пользователем в текущем Supabase.
+- Первая read-only verification: 12/12 catalog/RLS/grant/RPC checks, все integrity mismatches равны нулю; 5 исторических scored participants ещё используют fallback.
+- Локальная production-сборка выполнила candidate/employee completion через текущий Supabase: 30/30 checks, включая materialized employee dimension и idempotent retry.
+- Shutdown 2/2: обе созданные invitation-ссылки завершены и погашены.
+- Evidence: [PERF014_STAGING_2026-09-12.json](performance/PERF014_STAGING_2026-09-12.json).
+- Финальный read-only запрос после acceptance: `row_count=1`, staging dimension valid, tenant/session/stale mismatches равны нулю; coverage исторического fallback — 5. [SQL evidence](performance/PERF014_FINAL_VERIFICATION_2026-09-12.json).
+
 ## Откат
 
 При проблеме приложение можно вернуть на прежнее чтение JSON, оставив таблицу и dual-write на месте. Таблицу и данные автоматически не удалять: destructive rollback требует отдельного решения после проверки зависимостей.

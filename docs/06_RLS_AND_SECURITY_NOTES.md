@@ -97,6 +97,14 @@ Cursor не является секретом или разрешением: в�
 Прямой EXECUTE внутреннего `persist_scoring_snapshot` и dimension writer отозван у `service_role`; наружу оставлены
 только атомарный wrapper и идемпотентный backfill текущей revision. Подробности: [rollout PERF-014](34_PERF014_EMPLOYEE_DIMENSIONS_ROLLOUT.md).
 
+## Shared reference cache (PERF-016)
+
+Shared server cache разрешён только для глобального `system_cities` с полями `id`, `name`, `is_active` и для
+публичных versioned import schemas. Профиль проверяет company context до cached read; create/update города немедленно
+инвалидируют tag. Проверка выбранного города при записи остаётся прямым запросом к БД. Tenant-private metadata,
+invitation/token state, leases, deadlines, answers и scoring state в shared cache не помещаются. Подробности:
+[rollout PERF-016](35_PERF016_REFERENCE_CACHE_ROLLOUT.md).
+
 ## Sensitive data
 
 Не использовать для скоринга:
