@@ -670,14 +670,18 @@ PGlite atomic/rollback regression, staging dimension check и [rollout](34_PERF0
 
 #### PERF-015 — Оптимизация completion pipeline
 
-**Статус:** первая итерация реализована и проверена 11.09.2026 без изменения схемы. `complete_assessment_session_v2`
+**Статус:** первая итерация принята; код второй итерации проверен локально, а DB-часть применена и проверена в
+разрешённом текущем Supabase-проекте 13.09.2026. Deployment, scheduler и feature flag ещё не включены.
+`complete_assessment_session_v2`
 передаёт финализатору подтверждённые owner/invitation IDs и признак готовности, поэтому V2-путь не повторяет
 чтение invitation и всех session statuses; legacy completion сохраняет прежний preflight. Scoring использует
 замороженную package-конфигурацию из session rows и читает `assessment_package_tests` только для старых строк
 без полного snapshot. Атомарный `try_persist_scoring_snapshot` и отдельные calculation/persistence метрики сохранены.
 Локальная production-сборка с текущим Supabase прошла 29/29 checks; first completion 3 490/3 097 ms,
 retry 326/293 ms (candidate/employee). Это по одному sample, не p95. Все полученные first-completion samples
-остаются выше 2 секунд, но вторая итерация требует `scoring_jobs`/worker и отложена по решению не менять схему.
+остаются выше 2 секунд. После нового решения применить DDL подготовлены durable `scoring_jobs`, lease worker,
+ограниченные retries, атомарное queued persistence и client polling. Remote verification подтвердила RLS,
+service-only RPC/grants, пустой `search_path`, пустую очередь и отсутствие tenant mismatches; flag ещё не включён.
 [Evidence](performance/PERF015_STAGING_2026-09-11.json).
 
 **Первая итерация**
@@ -697,6 +701,10 @@ retry 326/293 ms (candidate/employee). Это по одному sample, не p95
 - Worker выполняет scoring с retry и idempotency.
 - UI получает статус polling/revalidation с увеличивающимся интервалом.
 - Ошибка scoring видна HR/admin и доступна для безопасного retry.
+
+Локальная реализация закрывает durable queue, candidate/recovery status, автоматический polling, ручной retry и
+защищённый operational drain. Отдельное отображение terminal failure в HR/admin UI остаётся rollout follow-up;
+до него состояние доступно через безопасные агрегаты protected drain/verification без PII.
 
 Не использовать недолговечный fire-and-forget process без durable job record.
 

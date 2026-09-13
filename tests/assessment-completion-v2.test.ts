@@ -23,8 +23,9 @@ function load<T>(path: string, dependencies: Record<string, unknown>, env: Recor
   }, { env });
   return exports as T;
 }
-function harness(data: unknown, error = false, scoreResult: "completed" | "processing" | "not_ready" | "error" = "completed") {
-  const calls: unknown[][] = []; const scores: unknown[] = [];
+function harness(data: unknown, error = false, scoreResult: "completed" | "processing" | "not_ready" | "error" = "completed",
+  env: Record<string, string> = {}, queueResult: "queued" | "processing" | "completed" | "failed" = "queued") {
+  const calls: unknown[][] = []; const scores: unknown[] = []; const enqueues: unknown[] = [];
   const score = async (scope: string, args: unknown) => { scores.push({ scope, args }); if (scoreResult === "error") throw Error("scoring failed"); return scoreResult; };
   const helper = load<typeof import("../lib/assessment/completion-v2.ts")>("../lib/assessment/completion-v2.ts", {
     "server-only": {}, zod: { z }, "./completion-contract": contract,
@@ -34,8 +35,9 @@ function harness(data: unknown, error = false, scoreResult: "completed" | "proce
     } }) },
     "@/lib/scoring/finalization": { finalizeCompletedCandidateAssessment: (args: unknown) => score("candidate", args),
       finalizeCompletedEmployeeAssessment: (args: unknown) => score("employee", args) },
-  });
-  return { ...helper, calls, scores };
+    "@/lib/scoring/jobs": { enqueueAssessmentScoring: async (args: unknown) => { enqueues.push(args); return queueResult; } },
+  }, env);
+  return { ...helper, calls, enqueues, scores };
 }
 
 test("completion uses one RPC and no overview/answer read; only last session enters existing scoring", async () => {
@@ -61,6 +63,20 @@ test("completion uses one RPC and no overview/answer read; only last session ent
   }
 });
 
+test("async completion enqueues verified ready work and exposes only public queue states", async () => {
+  for (const queueResult of ["queued", "processing", "completed", "failed"] as const) {
+    const h = harness({ status: "ready", ownerId: id(6), invitationId: id(7) }, false, "completed",
+      { ASSESSMENT_ASYNC_SCORING_V2: "true" }, queueResult);
+    const result = await h.completeAssessmentSessionV2({ ...input, retryScoring: true });
+    assert.deepEqual(result, queueResult === "completed"
+      ? { status: "redirect", redirectTo: `/assessment/${token}/complete` }
+      : { status: queueResult === "failed" ? "scoring_failed" : "processing" });
+    assert.deepEqual(h.enqueues, [{ invitationId: id(7), parentId: id(6), retryFailed: true, scope: "candidate" }]);
+    assert.deepEqual(h.scores, []);
+    assert.ok(!JSON.stringify(result).includes(id(6)) && !JSON.stringify(result).includes(id(7)));
+  }
+});
+
 test("RPC/DTO errors never fall back; a scoring failure can retry ready without another answer write", async () => {
   for (const [data, error] of [[null, true], [{ status: "ready", ownerId: "invalid" }, false], [{ status: "unexpected" }, false]] as const) {
     const h = harness(data, error); await assert.rejects(h.completeAssessmentSessionV2(input), e => !String(e).includes(token));
@@ -81,6 +97,7 @@ test("completion route gates flags/origin/identity and protects errors with no-s
     const endpoint = load<typeof import("../app/api/assessment/complete/route.ts")>("../app/api/assessment/complete/route.ts", {
       "next/server": next, "@/lib/observability/performance-core": perf, "@/lib/assessment/completion-contract": contract,
       "@/lib/assessment/same-origin": sameOrigin,
+      "@/lib/scoring/jobs": { drainScoringJobs: async () => ({ claimed: 0, completed: 0, failed: 0, retried: 0, unresolved: 0 }) },
       "@/lib/assessment/completion-v2": { completeAssessmentSessionV2: async (args: unknown) => { calls.push(args); if (fail) throw Error(token); return { status: "processing" }; } },
     }, env); return { ...endpoint, calls };
   }
@@ -117,4 +134,17 @@ test("client completion is explicit POST and redirects only within the scoped in
     result = { status: "redirect", redirectTo }; await assert.rejects(contract.requestAssessmentCompletion(input));
   }
   for (const code of [409, 500]) { status = code; await assert.rejects(contract.requestAssessmentCompletion(input), e => !String(e).includes(token)); }
+});
+
+test("client polling clears retry authorization after the first request", async t => {
+  const bodies: unknown[] = [];
+  t.mock.method(globalThis, "fetch", async (_url: string, options: RequestInit) => {
+    bodies.push(JSON.parse(String(options.body)));
+    return Response.json(bodies.length === 1 ? { status: "processing" } : {
+      status: "redirect", redirectTo: `/assessment/${token}/complete`,
+    });
+  });
+  const result = await contract.requestAssessmentCompletionUntilSettled({ ...input, retryScoring: true }, [0]);
+  assert.equal(result.status, "redirect");
+  assert.deepEqual(bodies, [{ ...input, retryScoring: true }, input]);
 });

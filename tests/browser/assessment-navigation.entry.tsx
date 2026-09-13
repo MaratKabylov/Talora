@@ -387,13 +387,11 @@ async function completionScenario(assessmentType: "candidate" | "employee", mode
     window.dispatchEvent(new Event("online")); for (const heartbeat of heartbeats) heartbeat(); await sleep(40);
     check(controlCalls === beforeControl, "No heartbeat/autosave redirects race with pending completion");
     const retry = () => { const button = Array.from(host.querySelectorAll("button")).find(b => b.textContent === "Повторить завершение")!; check(button && !button.disabled, "Retry available"); button.click(); };
-    retry(); await waitFor(() => host.textContent?.includes("Результаты ещё обрабатываются"), "scoring pending");
-    check(routerTransitions.length === 0, "Processing is not presented as completed");
-    retry(); await waitFor(() => routerTransitions.length === 1, "soft terminal router transition");
+    retry(); await waitFor(() => routerTransitions.length === 1, "automatic scoring poll and soft terminal router transition");
     check(routerTransitions[0] === destination, "Server destination is used");
-    check(writes === (mode === "empty" ? 0 : 1) && completes === 3, "Retries only repeat completion, not answers");
+    check(writes === (mode === "empty" ? 0 : 1) && completes === 3, "Polling only repeats completion, not answers");
     check(performance.getEntriesByType("navigation").length === 1, "No document navigation");
-    logs.push(`PASS completion ${assessmentType}, ${mode}, last=${last}: ACK, errors/retry, scoring pending, no duplicate writes, router replace`);
+    logs.push(`PASS completion ${assessmentType}, ${mode}, last=${last}: ACK, retry + automatic scoring poll, no duplicate writes, router replace`);
   } finally { root.unmount(); window.setInterval = originalSetInterval; }
 }
 
@@ -409,9 +407,9 @@ async function recoveryScenario(assessmentType: "candidate" | "employee", number
     root.render(<AssessmentCompletionRecovery assessmentType={assessmentType} token={token} sessionId={id(number)} />);
     await waitFor(() => host.querySelector("button"), "recovery screen"); check(calls === 0, "Recovery never runs scoring during render");
     host.querySelector("button")!.click(); host.querySelector("button")!.click();
-    await waitFor(() => host.textContent?.includes("Результаты ещё обрабатываются"), "recovery pending"); check(calls === 1, "Recovery double click guarded");
-    host.querySelector("button")!.click(); await waitFor(() => routerTransitions.length === 1, "recovery redirect");
-    logs.push(`PASS recovery ${assessmentType}: explicit POST, pending/retry, no claim/answer writes`);
+    await waitFor(() => routerTransitions.length === 1, "automatic recovery poll and redirect");
+    check(calls === 2, "Recovery double click is guarded and polling is bounded");
+    logs.push(`PASS recovery ${assessmentType}: explicit POST, automatic pending poll, no claim/answer writes`);
   } finally { root.unmount(); }
 }
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { requestAssessmentCompletion } from "@/lib/assessment/completion-contract";
+import { requestAssessmentCompletionUntilSettled } from "@/lib/assessment/completion-contract";
 
 // Shown only for an already-completed session with an active invitation and no
 // running successor. GET never starts scoring; recovery requires an explicit POST.
@@ -23,11 +23,15 @@ export function AssessmentCompletionRecovery({ assessmentType, token, sessionId 
     try {
       // Completed retries cannot edit answers or reclaim a lease. IDs are required
       // by the request contract; SQL ignores ownership only for completed sessions.
-      const result = await requestAssessmentCompletion({ assessmentType, token, sessionId,
-        clientId: crypto.randomUUID(), deviceId: crypto.randomUUID() });
+      const result = await requestAssessmentCompletionUntilSettled({ assessmentType, token, sessionId,
+        clientId: crypto.randomUUID(), deviceId: crypto.randomUUID(), retryScoring: true });
       if (!mounted.current) return;
       if (result.status === "redirect") { router.replace(result.redirectTo); navigating = true; return; }
-      setError(result.status === "processing" ? "Результаты ещё обрабатываются. Повторите через несколько секунд." : "Не удалось продолжить оценку. Повторите попытку.");
+      setError(result.status === "processing"
+        ? "Результаты ещё обрабатываются. Повторите через несколько секунд."
+        : result.status === "scoring_failed"
+          ? "Расчёт результатов временно не выполнен. Повторите обработку."
+          : "Не удалось продолжить оценку. Повторите попытку.");
     } catch { if (mounted.current) setError("Не удалось завершить оценку. Ответы сохранены — повторите попытку."); }
     finally { if (!navigating) { submitting.current = false; if (mounted.current) setPending(false); } }
   }

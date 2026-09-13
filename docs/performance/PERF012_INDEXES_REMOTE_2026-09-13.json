@@ -1,0 +1,59 @@
+{
+  "perf012_confirmed_query_indexes": {
+    "checked_at": "2026-09-12T21:45:41.538973+00:00",
+    "server_version": "17.6",
+    "expected_count": 8,
+    "ready_valid_count": 8,
+    "missing_or_invalid": [],
+    "definitions": [
+      {
+        "index_name": "perf012_answer_options_question_order_id",
+        "is_ready": true,
+        "is_valid": true,
+        "definition": "CREATE INDEX perf012_answer_options_question_order_id ON public.answer_options USING btree (question_id, order_index, id)"
+      },
+      {
+        "index_name": "perf012_candidate_applications_company_created_id",
+        "is_ready": true,
+        "is_valid": true,
+        "definition": "CREATE INDEX perf012_candidate_applications_company_created_id ON public.candidate_applications USING btree (company_id, created_at DESC, id)"
+      },
+      {
+        "index_name": "perf012_candidate_applications_company_job_created_id",
+        "is_ready": true,
+        "is_valid": true,
+        "definition": "CREATE INDEX perf012_candidate_applications_company_job_created_id ON public.candidate_applications USING btree (company_id, job_id, created_at DESC, id)"
+      },
+      {
+        "index_name": "perf012_candidate_applications_company_job_fit_id",
+        "is_ready": true,
+        "is_valid": true,
+        "definition": "CREATE INDEX perf012_candidate_applications_company_job_fit_id ON public.candidate_applications USING btree (company_id, job_id, fit_score DESC NULLS LAST, id)"
+      },
+      {
+        "index_name": "perf012_employee_participants_assessment_created_id",
+        "is_ready": true,
+        "is_valid": true,
+        "definition": "CREATE INDEX perf012_employee_participants_assessment_created_id ON public.employee_assessment_participants USING btree (employee_assessment_id, created_at DESC, id)"
+      },
+      {
+        "index_name": "perf012_employee_participants_company_assessment_fit_id",
+        "is_ready": true,
+        "is_valid": true,
+        "definition": "CREATE INDEX perf012_employee_participants_company_assessment_fit_id ON public.employee_assessment_participants USING btree (company_id, employee_assessment_id, fit_score DESC NULLS LAST, id)"
+      },
+      {
+        "index_name": "perf012_questions_section_order_id",
+        "is_ready": true,
+        "is_valid": true,
+        "definition": "CREATE INDEX perf012_questions_section_order_id ON public.questions USING btree (section_id, order_index, id)"
+      },
+      {
+        "index_name": "perf012_test_sections_version_order_id",
+        "is_ready": true,
+        "is_valid": true,
+        "definition": "CREATE INDEX perf012_test_sections_version_order_id ON public.test_sections USING btree (test_version_id, order_index, id)"
+      }
+    ]
+  }
+}

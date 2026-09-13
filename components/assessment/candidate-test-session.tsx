@@ -29,7 +29,7 @@ import {
 import { requestedSectionIndex, type AssessmentSectionSnapshot, type PublicFlowQuestion as FlowQuestion, type PublicFlowSection as FlowSection, type SectionSavedAnswer as SavedAnswer } from "@/lib/assessment/section-contract";
 import { fetchAssessmentSection, firstQuestionIndex, saveAssessmentSection, sectionUrl } from "@/lib/assessment/section-navigation";
 import { SectionPrefetchCache } from "@/lib/assessment/section-prefetch";
-import { requestAssessmentCompletion, safeAssessmentDestination } from "@/lib/assessment/completion-contract";
+import { requestAssessmentCompletionUntilSettled, safeAssessmentDestination } from "@/lib/assessment/completion-contract";
 import { reportClientOperation } from "@/lib/observability/client-performance";
 import type { ClientPerformanceOperation } from "@/lib/observability/performance-core";
 import type { TestPresentationSettings } from "@/lib/tests/presentation-settings";
@@ -1038,7 +1038,7 @@ export function AssessmentTestSession({
     void recordEvent(eventType, questionId);
   }
 
-  async function completeSavedSession() {
+  async function completeSavedSession(retryScoring = false) {
     if (completionSubmittingRef.current || navigatingRef.current || !mountedRef.current || lockState !== "active") return;
     completionSubmittingRef.current = true;
     completionPendingRef.current = true;
@@ -1056,8 +1056,8 @@ export function AssessmentTestSession({
       for (const timer of saveTimersRef.current.values()) clearTimeout(timer);
       saveTimersRef.current.clear();
       if (!mountedRef.current || navigatingRef.current) return;
-      const response = await requestAssessmentCompletion({ assessmentType, token, sessionId,
-        clientId: clientIdRef.current, deviceId: deviceIdRef.current });
+      const response = await requestAssessmentCompletionUntilSettled({ assessmentType, token, sessionId,
+        clientId: clientIdRef.current, deviceId: deviceIdRef.current, retryScoring });
       completionOutcome = "success";
       if (!mountedRef.current || navigatingRef.current) return;
       if (response.status === "incomplete") {
@@ -1066,7 +1066,9 @@ export function AssessmentTestSession({
         setQuestionError(`Не все ответы подтверждены. Проверьте секцию ${response.sectionIndex + 1} и повторите завершение.`);
         if (activeQuestion) startQuestionTimer(activeQuestion.id);
       } else if (response.status === "processing") {
-        setQuestionError("Результаты ещё обрабатываются. Повторите завершение через несколько секунд.");
+        setQuestionError("Результаты ещё обрабатываются. Можно повторить проверку через несколько секунд.");
+      } else if (response.status === "scoring_failed") {
+        setQuestionError("Расчёт результатов временно не выполнен. Ответы сохранены — повторите обработку.");
       } else if (response.status === "expired") {
         // Keep the existing time-expired scoring/event path, not a new scoring implementation.
         const expired = await postControl({ ...identity(), operation: "expire", clientEventId: createId() });
@@ -1520,7 +1522,7 @@ export function AssessmentTestSession({
       {completionPending ? <div className="space-y-3 rounded-lg border p-4" aria-busy={completionSubmitting}>
         <p role="status">{completionSubmitting ? "Завершаем тест..." : "Ответы сохранены. Подтвердите завершение теста."}</p>
         {questionError ? <p role="alert" className="text-sm text-destructive">{questionError}</p> : null}
-        <Button type="button" disabled={completionSubmitting} onClick={() => void completeSavedSession()}>Повторить завершение</Button>
+        <Button type="button" disabled={completionSubmitting} onClick={() => void completeSavedSession(true)}>Повторить завершение</Button>
       </div> : null}
 
       <div

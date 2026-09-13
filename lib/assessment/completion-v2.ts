@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { measureServerOperation } from "@/lib/observability/server-performance";
 import { finalizeCompletedCandidateAssessment, finalizeCompletedEmployeeAssessment } from "@/lib/scoring/finalization";
+import { enqueueAssessmentScoring } from "@/lib/scoring/jobs";
 import { completionRequestSchema, type CompletionRequest, type CompletionResponse } from "./completion-contract";
 
 const resultSchema = z.discriminatedUnion("status", [
@@ -29,8 +30,19 @@ export async function completeAssessmentSessionV2(input: CompletionRequest): Pro
   if (result.status === "next") return { status: "redirect", redirectTo: result.nextSessionId ? `${root}/test/${result.nextSessionId}` : root };
   if (result.status === "finished") return { status: "redirect", redirectTo: `${root}/complete` };
   if (result.status !== "ready") return { status: "redirect", redirectTo: root };
-  // No background jobs/new scoring semantics. Last-session retries re-enter the
-  // existing claim/idempotency/recovery pipeline even if the SQL commit succeeded.
+  if (process.env.ASSESSMENT_ASYNC_SCORING_V2 === "true") {
+    const queued = await enqueueAssessmentScoring({
+      invitationId: result.invitationId,
+      parentId: result.ownerId,
+      retryFailed: request.retryScoring,
+      scope: request.assessmentType,
+    });
+    if (queued === "completed") return { status: "redirect", redirectTo: `${root}/complete` };
+    if (queued === "failed") return { status: "scoring_failed" };
+    return { status: "processing" };
+  }
+
+  // The feature flag preserves the synchronous rollout fallback.
   const finalization = request.assessmentType === "employee"
     ? await finalizeCompletedEmployeeAssessment({
         invitationId: result.invitationId,

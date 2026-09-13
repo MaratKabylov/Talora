@@ -955,3 +955,24 @@ pre-fix результаты сохранены отдельными файла�
 Схема и remote feature flags не менялись. Первый setup run использовал отсутствующую колонку `questions.is_required`
 и остановился до создания candidate/invitation; harness исправлен на фактический `settings_json.required`. Этот run
 оставил один изолированный неполный synthetic draft-фрагмент и отдельный безопасный failure report.
+
+## 40. PERF-012 indexes и PERF-015 async scoring — local implementation 13.09.2026
+
+После решения применить DDL подготовлен узкий набор из восьми индексов по ранее собранным staging EXPLAIN:
+candidate company/date, candidate company/job/date и company/job/fit; employee assessment/date и
+company/assessment/fit; builder version/section/question parent-order. `jobs` исключён из набора из-за малого
+измеренного объёма. PGlite выполнил migration дважды и подтвердил 8/8 ready definitions.
+
+Вторая итерация PERF-015 переносит scoring за durable queue. Job уникален для parent/revision, claim использует
+bounded lease и `SKIP LOCKED`, failure получает до пяти попыток с backoff. Вызов queued persistence блокирует parent
+и job, сверяет worker/scope/revision/lease и одной транзакцией сохраняет scoring snapshot, новую revision,
+completed parent/invitation/job. Прямой доступ к таблице закрыт даже service role; наружу даны только четыре
+service-only security-definer RPC. Client polling ограничен 0.5/1/2/4 секундами, terminal retry является явным.
+
+Локальные профильные проверки прошли. 13.09.2026 обе миграции применены через SQL Editor в разрешённом текущем
+Supabase-проекте (`main PRODUCTION`). PERF-012 verification подтвердила 8/8 ready/valid и пустой список missing;
+PERF-015 — установленную RLS-таблицу, четыре `SECURITY DEFINER` RPC с пустым `search_path`, закрытый прямой доступ,
+пустую очередь и `tenant_parent_mismatches=0`. [Индексы](performance/PERF012_INDEXES_REMOTE_2026-09-13.json),
+[очередь](performance/PERF015_ASYNC_QUEUE_REMOTE_2026-09-13.json). Runtime deployment, scheduler и async flag ещё
+не применены. Числа latency будут добавлены только после rollout; локальный PGlite не является performance SLA.
+[Порядок выпуска](37_PERF012_INDEXES_AND_PERF015_ASYNC_SCORING_ROLLOUT.md).

@@ -18,11 +18,13 @@ const conflictRecoveryMigration = readFileSync(
   "utf8",
 );
 
-test("normal completion and recalculation share one atomic persistence RPC", () => {
+test("normal completion, recalculation and queued completion use atomic persistence RPCs", () => {
   assert.equal((service.match(/"try_persist_scoring_snapshot"/g) ?? []).length, 2);
+  assert.equal((service.match(/"try_persist_queued_scoring_snapshot"/g) ?? []).length, 2);
   assert.match(service, /p_scope: "candidate"/);
   assert.match(service, /p_scope: "employee"/);
-  assert.match(service, /p_snapshot: \{[\s\S]*competency_scores:[\s\S]*results:[\s\S]*summaries:/);
+  assert.match(service, /candidateSnapshot = \{[\s\S]*competency_scores:[\s\S]*results:[\s\S]*summaries:/);
+  assert.match(service, /employeeSnapshot = \{[\s\S]*dimensions:[\s\S]*results:[\s\S]*summaries:/);
   assert.doesNotMatch(service, /\.from\("test_results"\)\s*\.upsert/);
   assert.doesNotMatch(service, /\.from\("candidate_reports"\)\.upsert/);
 });

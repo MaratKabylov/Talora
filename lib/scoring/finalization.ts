@@ -30,6 +30,12 @@ type FinalizationConfig = {
   readiness?: "completion_v2";
 };
 
+type ScoringJobExecution = {
+  expectedRevision: number;
+  jobId: string;
+  workerId: string;
+};
+
 function claimCutoff(now = new Date()) {
   return new Date(now.getTime() - SCORING_CLAIM_TTL_MS).toISOString();
 }
@@ -202,6 +208,7 @@ async function finalizeCompletedAssessment(
 export async function finalizeCompletedCandidateAssessment(input: {
   applicationId: string;
   invitationId: string;
+  job?: ScoringJobExecution;
   readiness?: "completion_v2";
 }) {
   return finalizeCompletedAssessment({
@@ -209,7 +216,11 @@ export async function finalizeCompletedCandidateAssessment(input: {
     invitationTable: "invitations",
     parentId: input.applicationId,
     parentTable: "candidate_applications",
-    score: () => scoreCompletedApplication(input.applicationId),
+    score: () => scoreCompletedApplication(input.applicationId, input.job ? {
+      audit: null,
+      expectedRevision: input.job.expectedRevision,
+      job: { jobId: input.job.jobId, workerId: input.job.workerId },
+    } : undefined),
     sessionParentColumn: "application_id",
     sessionTable: "test_sessions",
     readiness: input.readiness,
@@ -218,6 +229,7 @@ export async function finalizeCompletedCandidateAssessment(input: {
 
 export async function finalizeCompletedEmployeeAssessment(input: {
   invitationId: string;
+  job?: ScoringJobExecution;
   participantId: string;
   readiness?: "completion_v2";
 }) {
@@ -226,7 +238,11 @@ export async function finalizeCompletedEmployeeAssessment(input: {
     invitationTable: "employee_assessment_invitations",
     parentId: input.participantId,
     parentTable: "employee_assessment_participants",
-    score: () => scoreCompletedEmployeeAssessmentParticipant(input.participantId),
+    score: () => scoreCompletedEmployeeAssessmentParticipant(input.participantId, input.job ? {
+      audit: null,
+      expectedRevision: input.job.expectedRevision,
+      job: { jobId: input.job.jobId, workerId: input.job.workerId },
+    } : undefined),
     sessionParentColumn: "participant_id",
     sessionTable: "employee_assessment_sessions",
     readiness: input.readiness,

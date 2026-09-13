@@ -3,13 +3,15 @@ import { z } from "zod";
 export const completionRequestSchema = z.object({
   assessmentType: z.enum(["candidate", "employee"]), token: z.string().regex(/^[a-f0-9]{64}$/i),
   sessionId: z.string().uuid(), clientId: z.string().uuid(), deviceId: z.string().uuid(),
+  retryScoring: z.boolean().optional(),
 });
 export type CompletionRequest = z.infer<typeof completionRequestSchema>;
 export const completionResponseSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("redirect"), redirectTo: z.string() }),
   z.object({ status: z.literal("blocked"), retryAfterSeconds: z.number().int().positive() }),
   z.object({ status: z.literal("incomplete"), sectionIndex: z.number().int().nonnegative() }),
-  z.object({ status: z.literal("processing") }), z.object({ status: z.literal("expired") }),
+  z.object({ status: z.literal("processing") }), z.object({ status: z.literal("scoring_failed") }),
+  z.object({ status: z.literal("expired") }),
 ]);
 export type CompletionResponse = z.infer<typeof completionResponseSchema>;
 
@@ -27,6 +29,20 @@ export async function requestAssessmentCompletion(input: CompletionRequest): Pro
   const result = completionResponseSchema.parse(await response.json());
   if (result.status === "redirect" && !safeAssessmentDestination(result.redirectTo, input)) {
     throw Error("Не удалось подтвердить переход. Повторите завершение.");
+  }
+  return result;
+}
+
+export async function requestAssessmentCompletionUntilSettled(
+  input: CompletionRequest,
+  delaysMs: readonly number[] = [500, 1_000, 2_000, 4_000],
+): Promise<CompletionResponse> {
+  let result = await requestAssessmentCompletion(input);
+  const pollingInput = { ...input, retryScoring: undefined };
+  for (const delayMs of delaysMs) {
+    if (result.status !== "processing") break;
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    result = await requestAssessmentCompletion(pollingInput);
   }
   return result;
 }

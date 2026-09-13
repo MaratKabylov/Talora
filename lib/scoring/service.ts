@@ -758,31 +758,42 @@ export async function scoreCompletedApplication(
     };
 
   const expectedRevision = persistenceContext?.expectedRevision ?? application.scoring_revision ?? 0;
+  const candidateSnapshot = {
+    aggregate,
+    answers: answerUpdates,
+    competency_scores: competencyRows,
+    comparison,
+    report,
+    results: resultRows,
+    risks: riskFlags,
+    sessions: sessionScores.map((score) => ({
+      id: score.session.id,
+      max_score: score.maxScore,
+      percentage: score.percentage,
+      score: score.rawScore,
+    })),
+    summaries: summaryRows,
+  };
   const { data: persisted, error: persistenceError } = await measureServerOperation(
     "scoring.candidate.persist",
     async () =>
-      admin.rpc("try_persist_scoring_snapshot", {
-        p_audit: persistenceContext?.audit ?? null,
-        p_expected_revision: expectedRevision,
-        p_parent_id: application.id,
-        p_scope: "candidate",
-        p_snapshot: {
-          aggregate,
-          answers: answerUpdates,
-          competency_scores: competencyRows,
-          comparison,
-          report,
-          results: resultRows,
-          risks: riskFlags,
-          sessions: sessionScores.map((score) => ({
-            id: score.session.id,
-            max_score: score.maxScore,
-            percentage: score.percentage,
-            score: score.rawScore,
-          })),
-          summaries: summaryRows,
-        },
-      }),
+      persistenceContext?.job
+        ? admin.rpc("try_persist_queued_scoring_snapshot", {
+            p_audit: null,
+            p_expected_revision: expectedRevision,
+            p_job_id: persistenceContext.job.jobId,
+            p_parent_id: application.id,
+            p_scope: "candidate",
+            p_snapshot: candidateSnapshot,
+            p_worker_id: persistenceContext.job.workerId,
+          })
+        : admin.rpc("try_persist_scoring_snapshot", {
+            p_audit: persistenceContext?.audit ?? null,
+            p_expected_revision: expectedRevision,
+            p_parent_id: application.id,
+            p_scope: "candidate",
+            p_snapshot: candidateSnapshot,
+          }),
   );
   if (persistenceError || !persisted) {
     throw new Error(persistenceError?.message ?? "Unable to persist candidate scoring snapshot.");
@@ -1204,31 +1215,42 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
     };
 
   const expectedRevision = persistenceContext?.expectedRevision ?? participant.scoring_revision ?? 0;
+  const employeeSnapshot = {
+    aggregate,
+    answers: answerUpdates,
+    competency_scores: competencyRows,
+    dimensions: dimensionRows,
+    report,
+    results: resultRows,
+    risks: riskFlags,
+    sessions: sessionScores.map((score) => ({
+      id: score.session.id,
+      max_score: score.maxScore,
+      percentage: score.percentage,
+      score: score.rawScore,
+    })),
+    summaries: summaryRows,
+  };
   const { data: persisted, error: persistenceError } = await measureServerOperation(
     "scoring.employee.persist",
     async () =>
-      admin.rpc("try_persist_scoring_snapshot", {
-        p_audit: persistenceContext?.audit ?? null,
-        p_expected_revision: expectedRevision,
-        p_parent_id: participant.id,
-        p_scope: "employee",
-        p_snapshot: {
-          aggregate,
-          answers: answerUpdates,
-          competency_scores: competencyRows,
-          dimensions: dimensionRows,
-          report,
-          results: resultRows,
-          risks: riskFlags,
-          sessions: sessionScores.map((score) => ({
-            id: score.session.id,
-            max_score: score.maxScore,
-            percentage: score.percentage,
-            score: score.rawScore,
-          })),
-          summaries: summaryRows,
-        },
-      }),
+      persistenceContext?.job
+        ? admin.rpc("try_persist_queued_scoring_snapshot", {
+            p_audit: null,
+            p_expected_revision: expectedRevision,
+            p_job_id: persistenceContext.job.jobId,
+            p_parent_id: participant.id,
+            p_scope: "employee",
+            p_snapshot: employeeSnapshot,
+            p_worker_id: persistenceContext.job.workerId,
+          })
+        : admin.rpc("try_persist_scoring_snapshot", {
+            p_audit: persistenceContext?.audit ?? null,
+            p_expected_revision: expectedRevision,
+            p_parent_id: participant.id,
+            p_scope: "employee",
+            p_snapshot: employeeSnapshot,
+          }),
   );
   if (persistenceError || !persisted) {
     throw new Error(persistenceError?.message ?? "Unable to persist employee scoring snapshot.");
@@ -1296,10 +1318,13 @@ type AtomicAuditInput = {
   session_id: string;
 };
 
-type ScoringPersistenceContext = {
-  audit: AtomicAuditInput;
-  expectedRevision: number;
-};
+type ScoringPersistenceContext =
+  | { audit: AtomicAuditInput; expectedRevision: number; job?: never }
+  | {
+      audit?: null;
+      expectedRevision: number;
+      job: { jobId: string; workerId: string };
+    };
 
 function createAtomicAuditInput(
   request: { actorId?: string | null; reason: RecalculationReason; sessionId: string },

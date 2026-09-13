@@ -66,7 +66,7 @@ test("materialized dimensions preserve the comparison identity, label and value"
 
 test("employee scoring sends dimensions through the existing atomic persistence RPC", () => {
   assert.match(scoring, /materializeEmployeeDimensions\([\s\S]*collectAssessmentDimensions/);
-  assert.match(scoring, /p_scope: "employee"[\s\S]*dimensions: dimensionRows/);
+  assert.match(scoring, /employeeSnapshot = \{[\s\S]*dimensions: dimensionRows/);
   assert.equal((scoring.match(/"try_persist_scoring_snapshot"/g) ?? []).length, 2);
 });
 

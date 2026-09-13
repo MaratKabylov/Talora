@@ -1,0 +1,33 @@
+{
+  "perf015_async_scoring_jobs": {
+    "checked_at": "2026-09-12T21:48:31.858959+00:00",
+    "server_version": "17.6",
+    "catalog": {
+      "rls_enabled": true,
+      "table_installed": true,
+      "functions_installed": true,
+      "functions_security_definer": true,
+      "functions_empty_search_path": true
+    },
+    "privileges": {
+      "service_claim": true,
+      "service_finish": true,
+      "service_enqueue": true,
+      "service_persist": true,
+      "anon_table_private": true,
+      "anon_enqueue_private": true,
+      "authenticated_table_private": true,
+      "authenticated_enqueue_private": true,
+      "service_direct_write_private": true
+    },
+    "queue": {
+      "row_count": 0,
+      "pending": 0,
+      "processing": 0,
+      "retry": 0,
+      "failed": 0,
+      "expired_leases": 0,
+      "tenant_parent_mismatches": 0
+    }
+  }
+}

@@ -97,6 +97,17 @@ Cursor не является секретом или разрешением: в�
 Прямой EXECUTE внутреннего `persist_scoring_snapshot` и dimension writer отозван у `service_role`; наружу оставлены
 только атомарный wrapper и идемпотентный backfill текущей revision. Подробности: [rollout PERF-014](34_PERF014_EMPLOYEE_DIMENSIONS_ROLLOUT.md).
 
+## Durable scoring queue (PERF-015)
+
+`scoring_jobs` не доступна напрямую `anon`, `authenticated` или `service_role`; RLS включён без browser policies.
+Service role может вызывать только четыре security-definer RPC с пустым `search_path`: enqueue повторно связывает
+parent/invitation/company и проверяет завершение всех sessions, claim выдаёт ограниченную lease через
+`FOR UPDATE SKIP LOCKED`, finish принимает только текущего непросроченного worker, queued persistence повторно
+сверяет scope/parent/revision/lease. Snapshot, новая scoring revision, завершение parent/invitation и job фиксируются
+одной транзакцией. Endpoint worker защищён отдельным server-only bearer secret длиной не менее 32 символов;
+ошибки наружу возвращаются только как ограниченные machine codes/счётчики. Invitation tokens, ответы и PII в queue
+не сохраняются. Подробности: [rollout PERF-012/015](37_PERF012_INDEXES_AND_PERF015_ASYNC_SCORING_ROLLOUT.md).
+
 ## Shared reference cache (PERF-016)
 
 Shared server cache разрешён только для глобального `system_cities` с полями `id`, `name`, `is_active` и для
