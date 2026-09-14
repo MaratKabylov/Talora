@@ -976,3 +976,16 @@ PERF-015 — установленную RLS-таблицу, четыре `SECURI
 [очередь](performance/PERF015_ASYNC_QUEUE_REMOTE_2026-09-13.json). Runtime deployment, scheduler и async flag ещё
 не применены. Числа latency будут добавлены только после rollout; локальный PGlite не является performance SLA.
 [Порядок выпуска](37_PERF012_INDEXES_AND_PERF015_ASYNC_SCORING_ROLLOUT.md).
+
+## 41. PERF-015: локальная async-приёмка — 13.09.2026
+
+Локальный `next start` запущен с полным набором completion V2 flags, `ASSESSMENT_ASYNC_SCORING_V2=true` и
+временным 64-символьным worker secret. На текущем Supabase synthetic tenant candidate и employee flow прошли
+**40/40** проверок: первый completion вернул `processing`, polling завершился scoped redirect, scoring snapshot,
+parent, invitation и job были согласованы, а повторный completion сохранил revision 1. Неверный bearer secret для
+drain получил 401; разрешённые вызовы вернули только пять безопасных счётчиков без IDs/PII/raw errors.
+
+Встроенный `after()` успел забрать обе jobs раньше scheduler-shaped вызовов, поэтому их агрегаты были нулевыми;
+claim/retry/lease/takeover отдельно покрыты реальным migration test. Оба synthetic invitation погашены, временный
+secret удалён, сервер остановлен. First completion: candidate 947.505 ms, employee 1035.341 ms; это по одному
+локальному sample с remote DB, не p50/p95 и не deployed SLA. [Evidence](performance/PERF015_ASYNC_LOCAL_ACCEPTANCE_2026-09-13.json).

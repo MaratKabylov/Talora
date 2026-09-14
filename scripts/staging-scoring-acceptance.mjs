@@ -30,11 +30,30 @@ async function postCompletion(baseUrl, body) {
   return { durationMs: performance.now() - started, payload, status: response.status };
 }
 
+async function postDrain(baseUrl, secret) {
+  const started = performance.now();
+  const response = await fetch(new URL("/api/internal/scoring/drain", baseUrl), {
+    body: JSON.stringify({ limit: 5 }),
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+    signal: AbortSignal.timeout(60000),
+  });
+  const payload = await response.json().catch(() => ({}));
+  return { durationMs: performance.now() - started, payload, status: response.status };
+}
+
 export async function runScoringAcceptance(env, sourcePath, baseUrl, progress = () => {}) {
   const source = JSON.parse(await readFile(sourcePath, "utf8"));
   const url = env.NEXT_PUBLIC_SUPABASE_URL;
   const key = env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
+  const asyncScoring = env.ASSESSMENT_ASYNC_SCORING_V2 === "true";
+  const workerSecret = env.SCORING_WORKER_SECRET;
   requireValue(url && key && env.NEXT_PUBLIC_SUPABASE_ANON_KEY, "missing-settings");
+  requireValue(!asyncScoring || (workerSecret && workerSecret.length >= 32), "missing-worker-secret");
   requireValue(baseUrl && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/i.test(baseUrl), "local-base-url-required");
   requireValue(source.completed && source.companies?.length === 2 && source.prefix === `PERF-STAGING-${source.runId.slice(0, 8)}` &&
     source.projectFingerprint === createHash("sha256").update(new URL(url).origin).digest("hex"), "source-ownership");
@@ -49,7 +68,9 @@ export async function runScoringAcceptance(env, sourcePath, baseUrl, progress = 
     metrics: [],
     fixtures: {},
     shutdown: [],
-    scope: "Synthetic candidate/employee Next completion route to real scoring finalizer; no browser UI, SQL EXPLAIN or index before/after comparison.",
+    scope: asyncScoring
+      ? "Synthetic candidate/employee Next completion through durable queue and protected local drain; no browser UI, SQL EXPLAIN or index before/after comparison."
+      : "Synthetic candidate/employee Next completion route to real scoring finalizer; no browser UI, SQL EXPLAIN or index before/after comparison.",
   };
   const save = () => writeFile(destination, JSON.stringify(report, null, 2) + "\n");
   await writeFile(destination, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
@@ -140,7 +161,33 @@ export async function runScoringAcceptance(env, sourcePath, baseUrl, progress = 
       const completion = await postCompletion(baseUrl, { assessmentType: routeType, token, sessionId: session, clientId, deviceId });
       report.metrics.push({ scope, route: "/api/assessment/complete", durationMs: completion.durationMs, status: completion.status });
       check(`${scope}:route-200`, completion.status === 200);
-      check(`${scope}:route-redirect-complete`, completion.payload?.status === "redirect" && String(completion.payload.redirectTo ?? "").endsWith("/complete"));
+      if (asyncScoring) {
+        check(`${scope}:route-processing`, completion.payload?.status === "processing");
+        const deniedDrain = await postDrain(baseUrl, `${workerSecret.slice(0, -1)}x`);
+        check(`${scope}:drain-rejects-wrong-secret`, deniedDrain.status === 401);
+
+        let settled = completion;
+        for (let attempt = 0; attempt < 8 && settled.payload?.status === "processing"; attempt += 1) {
+          const drain = await postDrain(baseUrl, workerSecret);
+          report.metrics.push({
+            scope,
+            route: "/api/internal/scoring/drain",
+            durationMs: drain.durationMs,
+            status: drain.status,
+            counters: drain.status === 200 ? drain.payload : undefined,
+          });
+          check(`${scope}:drain-${attempt + 1}-safe-response`, drain.status === 200 &&
+            ["claimed", "completed", "failed", "retried", "unresolved"].every(key => Number.isInteger(drain.payload?.[key])) &&
+            Object.keys(drain.payload ?? {}).every(key => ["claimed", "completed", "failed", "retried", "unresolved"].includes(key)));
+          await new Promise(resolve => setTimeout(resolve, 150));
+          settled = await postCompletion(baseUrl, { assessmentType: routeType, token, sessionId: session, clientId, deviceId });
+          report.metrics.push({ scope, route: "/api/assessment/complete:poll", durationMs: settled.durationMs, status: settled.status });
+        }
+        check(`${scope}:route-redirect-complete`, settled.status === 200 && settled.payload?.status === "redirect" &&
+          String(settled.payload.redirectTo ?? "").endsWith("/complete"));
+      } else {
+        check(`${scope}:route-redirect-complete`, completion.payload?.status === "redirect" && String(completion.payload.redirectTo ?? "").endsWith("/complete"));
+      }
 
       const [ownerAfter, invitationAfter, sessionAfter, resultRows, summaryRows, reportRows, dimensionRows] = await Promise.all([
         service.from(ownerTable).select("status,current_stage,completed_at,overall_score,fit_score,recommendation,risk_level,requires_review,scoring_revision").eq("id", owner).single(),

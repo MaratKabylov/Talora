@@ -1,0 +1,46 @@
+{
+  "perf015_async_local_acceptance": {
+    "finished_at": "2026-09-13T16:50:53.853Z",
+    "completed": true,
+    "checks": {
+      "passed": 40,
+      "total": 40
+    },
+    "runtime": {
+      "type": "local Next.js production server",
+      "database": "authorized current Supabase synthetic tenant",
+      "async_scoring_enabled": true,
+      "worker_secret": "ephemeral and removed"
+    },
+    "candidate": {
+      "first_completion_http_status": 200,
+      "first_completion_status": "processing",
+      "first_completion_ms": 947.505,
+      "polls_until_redirect": 3,
+      "retry_http_status": 200,
+      "retry_ms": 304.889,
+      "scoring_revision_after_retry": 1,
+      "invitation_expired_after_test": true
+    },
+    "employee": {
+      "first_completion_http_status": 200,
+      "first_completion_status": "processing",
+      "first_completion_ms": 1035.341,
+      "polls_until_redirect": 3,
+      "retry_http_status": 200,
+      "retry_ms": 308.368,
+      "scoring_revision_after_retry": 1,
+      "invitation_expired_after_test": true
+    },
+    "drain": {
+      "wrong_secret_rejected_for_both_scopes": true,
+      "authorized_calls": 6,
+      "safe_aggregate_shape": true,
+      "failed": 0,
+      "retried": 0,
+      "unresolved": 0,
+      "note": "The best-effort Next after() worker claimed and completed each fresh job before the explicit scheduler-shaped drain calls, so those calls correctly returned zero counters."
+    },
+    "limitations": "Single synthetic candidate and employee samples. Local Next.js runtime with remote Supabase; not deployed latency or p95."
+  }
+}

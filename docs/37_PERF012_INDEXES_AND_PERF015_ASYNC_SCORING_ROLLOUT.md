@@ -52,3 +52,8 @@ PGlite выполняет обе реальные миграции. Провер
 service-only RPC, tenant/parent/invitation binding, deduplication, lease expiry/takeover, bounded terminal retry,
 explicit retry и rollback всего queued snapshot при ошибке invitation update. TypeScript, lint, production build,
 полный suite и browser navigation фиксируются в `CURRENT_STATE.md` после финального прогона.
+
+13.09.2026 локальный production server с включённым async-флагом прошёл synthetic candidate/employee acceptance
+на текущем Supabase: **40/40**, первый ответ `processing`, polling до scoped `/complete`, повторный POST без роста
+revision, неверный worker secret отклонён, оба invitation погашены. Встроенный `after()` успевал обработать job до
+отдельных scheduler-shaped drain вызовов; они вернули безопасные нулевые агрегаты. [Evidence](performance/PERF015_ASYNC_LOCAL_ACCEPTANCE_2026-09-13.json).

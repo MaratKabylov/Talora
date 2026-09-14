@@ -1,6 +1,6 @@
 # Текущее состояние Talvia
 
-Обновлено: 2026-09-13. PERF-012 indexes и DB-часть PERF-015 async scoring применены и проверены в разрешённом текущем Supabase-проекте (`main PRODUCTION`). Код приложения готов локально; deployment, scheduler, секрет worker и async feature flag ещё не включены.
+Обновлено: 2026-09-13. PERF-012 indexes и DB-часть PERF-015 async scoring применены и проверены в разрешённом текущем Supabase-проекте (`main PRODUCTION`). Полный async flow принят на локальном production server; внешний deployment и постоянный scheduler не настраивались по решению пользователя.
 
 ## Текущий этап
 
@@ -27,16 +27,16 @@
 - `npm run lint`, `npm run typecheck`, `npm run build`: успешно; build содержит `/api/internal/scoring/drain`.
 - PGlite исполняет обе реальные миграции и verification SQL. Покрыты idempotent DDL, tenant isolation, service-only grants, dedup, lease exclusivity/expiry/takeover, bounded retry, explicit terminal retry и rollback атомарной транзакции.
 - Подключённый Chrome: navigation suite **30/30**, включая automatic completion polling, manual retry и recovery без дублирования записи.
+- Local production async acceptance на текущем Supabase: **40/40** для candidate и employee; первый ответ `processing`, polling до результата, неверный worker secret отклонён, retry сохранил revision 1, оба invitation expired. [Evidence](performance/PERF015_ASYNC_LOCAL_ACCEPTANCE_2026-09-13.json).
 - `git diff --check`: успешно; только предупреждения Git о переводе LF в CRLF на Windows.
 - PERF-014 ранее принят на текущем Supabase: staging scoring **30/30**, final integrity без tenant/session/stale mismatches. Исторические пять missing dimension rows обслуживаются bounded fallback.
 - PERF-017 local production/runtime и candidate browser E2E ранее прошли; точные hosting/Supabase regions и production-like latency остаются неизвестны.
 
 ## Следующий шаг
 
-1. Развернуть текущий код с `ASSESSMENT_ASYNC_SCORING_V2=false` и server-only `SCORING_WORKER_SECRET` длиной 32+ символов.
-2. Настроить scheduler раз в минуту: `POST /api/internal/scoring/drain` с `{"limit":5}`.
-3. На preview/staging включить async flag и выполнить synthetic candidate + employee acceptance: processing → completed, повторный POST без роста revision, очередь без unresolved/expired/mismatch.
-4. После приёмки включать постепенно и собрать p50/p95 completion/drain. Результаты локального PGlite не являются performance SLA.
-5. Для PERF-017 подтвердить hosting runtime region и Supabase Postgres region, затем разместить preview ближе к БД.
+1. Если появится внешний hosting, развернуть код с server-only `SCORING_WORKER_SECRET`, затем включить `ASSESSMENT_ASYNC_SCORING_V2` после preview smoke.
+2. Для постоянного внешнего запуска настроить scheduler раз в минуту: `POST /api/internal/scoring/drain` с `{"limit":5}`. Локальная проверка использовала временный secret, который удалён.
+3. После deployment собрать p50/p95 completion/drain. Текущие числа относятся к локальному Next runtime и не являются production SLA.
+4. Для PERF-017 подтвердить hosting runtime region и Supabase Postgres region, затем разместить preview ближе к БД.
 
 `tests/fixtures/*.sql` остаются локальными stand-ins. Удалённые destructive/downgrade операции и production flags без отдельного решения не выполнять.
