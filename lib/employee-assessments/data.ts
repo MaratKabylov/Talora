@@ -72,11 +72,10 @@ type EmployeeAssessmentRecord = {
   updated_at: string;
 };
 
-type WeightRecord = {
+type RequirementRecord = {
   competency_key: CompetencyKey;
   is_required: boolean;
   minimum_score: number | null;
-  weight: number;
 };
 
 type EmployeeRecord = {
@@ -245,11 +244,10 @@ export type EmployeeAssessmentDetails = {
   updatedAt: string;
 };
 
-export type EmployeeAssessmentWeight = {
+export type EmployeeAssessmentCompetencyRequirement = {
   competencyKey: CompetencyKey;
   isRequired: boolean;
   minimumScore: number | null;
-  weightPercent: number;
 };
 
 export type EmployeeAssessmentParticipant = {
@@ -287,7 +285,7 @@ export type EmployeeAssessmentPageData = {
   assessment: EmployeeAssessmentDetails;
   packages: Awaited<ReturnType<typeof listAccessibleAssessmentPackages>>;
   participants: EmployeeAssessmentParticipant[];
-  weights: EmployeeAssessmentWeight[];
+  requirements: EmployeeAssessmentCompetencyRequirement[];
 };
 
 export type EmployeeComparisonParticipant = Omit<EmployeeAssessmentParticipant, "latestInvitation"> & {
@@ -620,7 +618,7 @@ export async function listEmployeeAssessmentPackages(companyId: string) {
 export async function getEmployeeAssessmentPageData(companyId: string, assessmentId: string, params: ListParams = {}) {
   const supabase = await createClient();
   const page = listPage(["employee-participants", companyId, assessmentId], "created_at", params);
-  const [assessmentResult, weightsResult, participantsResult, packages] = await Promise.all([
+  const [assessmentResult, requirementsResult, participantsResult, packages] = await Promise.all([
     supabase
       .from("employee_assessments")
       .select(
@@ -631,7 +629,7 @@ export async function getEmployeeAssessmentPageData(companyId: string, assessmen
       .maybeSingle(),
     supabase
       .from("employee_assessment_competency_weights")
-      .select("competency_key, weight, minimum_score, is_required")
+      .select("competency_key, minimum_score, is_required")
       .eq("company_id", companyId)
       .eq("employee_assessment_id", assessmentId),
     page.apply(supabase
@@ -647,7 +645,7 @@ export async function getEmployeeAssessmentPageData(companyId: string, assessmen
     listAccessibleAssessmentPackages(supabase, companyId),
   ]);
 
-  if (assessmentResult.error || weightsResult.error || participantsResult.error) {
+  if (assessmentResult.error || requirementsResult.error || participantsResult.error) {
     throw new Error("Unable to load employee assessment details.");
   }
 
@@ -663,11 +661,10 @@ export async function getEmployeeAssessmentPageData(companyId: string, assessmen
     participants: items
       .map(normalizeParticipant)
       .filter((participant): participant is EmployeeAssessmentParticipant => participant !== null),
-    weights: ((weightsResult.data ?? []) as WeightRecord[]).map((weight) => ({
-      competencyKey: weight.competency_key,
-      isRequired: weight.is_required,
-      minimumScore: weight.minimum_score,
-      weightPercent: Number(weight.weight) * 100,
+    requirements: ((requirementsResult.data ?? []) as RequirementRecord[]).map((requirement) => ({
+      competencyKey: requirement.competency_key,
+      isRequired: requirement.is_required,
+      minimumScore: requirement.minimum_score,
     })),
   } satisfies EmployeeAssessmentPageData;
 }

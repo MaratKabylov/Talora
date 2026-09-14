@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireCompanyContext } from "@/lib/auth/context";
-import { COMPETENCIES, type CompetencyKey } from "@/lib/jobs/constants";
+import { FIT_COMPETENCIES, type CompetencyKey } from "@/lib/jobs/constants";
 import { isAssessmentPackageAvailable } from "@/lib/jobs/package-access";
 import { createClient } from "@/lib/supabase/server";
 
@@ -47,34 +47,15 @@ const assessmentSchema = z.object({
     .max(180, "Название слишком длинное."),
 });
 
-const weightSchema = z.object({
+const requirementSchema = z.object({
   competencyKey: z.enum(
-    COMPETENCIES.map((competency) => competency.key) as [CompetencyKey, ...CompetencyKey[]],
+    FIT_COMPETENCIES.map((competency) => competency.key) as [CompetencyKey, ...CompetencyKey[]],
   ),
   isRequired: z.boolean(),
   minimumScore: optionalPercentage,
-  weightPercent: z.preprocess(
-    (value) => {
-      const text = typeof value === "string" ? value.trim().replace(",", ".") : "";
-      return text ? Number(text) : Number.NaN;
-    },
-    z
-      .number()
-      .min(0, "Вес не может быть меньше 0.")
-      .max(100, "Вес не может быть больше 100."),
-  ),
 });
 
-const weightsSchema = z.array(weightSchema).superRefine((weights, context) => {
-  const sum = weights.reduce((total, weight) => total + weight.weightPercent, 0);
-
-  if (Math.abs(sum - 100) > 0.01) {
-    context.addIssue({
-      code: "custom",
-      message: `Сумма весов должна быть 100%. Сейчас: ${sum.toLocaleString("ru-RU")}%.`,
-    });
-  }
-});
+const requirementsSchema = z.array(requirementSchema);
 
 const invitationSchema = z.object({
   department: optionalText(120),
@@ -141,13 +122,12 @@ function parseAssessment(formData: FormData) {
   });
 }
 
-function parseWeights(formData: FormData) {
-  return weightsSchema.safeParse(
-    COMPETENCIES.map((competency) => ({
+function parseRequirements(formData: FormData) {
+  return requirementsSchema.safeParse(
+    FIT_COMPETENCIES.map((competency) => ({
       competencyKey: competency.key,
       isRequired: formData.get(`required_${competency.key}`) === "on",
       minimumScore: formString(formData, `minimum_${competency.key}`),
-      weightPercent: formString(formData, `weight_${competency.key}`),
     })),
   );
 }
@@ -156,18 +136,18 @@ function assessmentPath(assessmentId: string) {
   return `/dashboard/employee-assessments/${assessmentId}`;
 }
 
-function weightsToRows(
+function requirementsToRows(
   companyId: string,
   employeeAssessmentId: string,
-  weights: z.infer<typeof weightsSchema>,
+  requirements: z.infer<typeof requirementsSchema>,
 ) {
-  return weights.map((weight) => ({
+  return requirements.map((requirement) => ({
     company_id: companyId,
-    competency_key: weight.competencyKey,
+    competency_key: requirement.competencyKey,
     employee_assessment_id: employeeAssessmentId,
-    is_required: weight.isRequired,
-    minimum_score: weight.minimumScore,
-    weight: weight.weightPercent / 100,
+    is_required: requirement.isRequired,
+    minimum_score: requirement.minimumScore,
+    weight: 1,
   }));
 }
 
@@ -223,14 +203,14 @@ export async function createEmployeeAssessmentAction(formData: FormData) {
   }
 
   const assessment = parseAssessment(formData);
-  const weights = parseWeights(formData);
+  const requirements = parseRequirements(formData);
 
   if (!assessment.success) {
     redirectWithFeedback(path, "error", assessment.error.issues[0].message);
   }
 
-  if (!weights.success) {
-    redirectWithFeedback(path, "error", weights.error.issues[0].message);
+  if (!requirements.success) {
+    redirectWithFeedback(path, "error", requirements.error.issues[0].message);
   }
 
   const supabase = await createClient();
@@ -262,17 +242,17 @@ export async function createEmployeeAssessmentAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Не удалось создать оценку сотрудников.");
   }
 
-  const { error: weightsError } = await supabase
+  const { error: requirementsError } = await supabase
     .from("employee_assessment_competency_weights")
-    .insert(weightsToRows(context.activeCompany.id, createdAssessment.id, weights.data));
+    .insert(requirementsToRows(context.activeCompany.id, createdAssessment.id, requirements.data));
 
-  if (weightsError) {
+  if (requirementsError) {
     await supabase
       .from("employee_assessments")
       .delete()
       .eq("company_id", context.activeCompany.id)
       .eq("id", createdAssessment.id);
-    redirectWithFeedback(path, "error", "Не удалось сохранить веса компетенций.");
+    redirectWithFeedback(path, "error", "Не удалось сохранить требования к компетенциям.");
   }
 
   revalidatePath("/dashboard/employee-assessments");
@@ -332,7 +312,7 @@ export async function updateEmployeeAssessmentAction(formData: FormData) {
   redirectWithFeedback(path, "message", "Параметры оценки обновлены.");
 }
 
-export async function updateEmployeeAssessmentWeightsAction(formData: FormData) {
+export async function updateEmployeeAssessmentCompetencyRequirementsAction(formData: FormData) {
   const employeeAssessmentId = z.string().uuid().safeParse(formString(formData, "employeeAssessmentId"));
 
   if (!employeeAssessmentId.success) {
@@ -343,12 +323,12 @@ export async function updateEmployeeAssessmentWeightsAction(formData: FormData) 
   const context = await requireCompanyContext();
 
   if (!canManageEmployeeAssessments(context.activeCompany.role)) {
-    redirectWithFeedback(path, "error", "У вашей роли нет права изменять веса.");
+    redirectWithFeedback(path, "error", "У вашей роли нет права изменять требования к компетенциям.");
   }
 
-  const weights = parseWeights(formData);
-  if (!weights.success) {
-    redirectWithFeedback(path, "error", weights.error.issues[0].message);
+  const requirements = parseRequirements(formData);
+  if (!requirements.success) {
+    redirectWithFeedback(path, "error", requirements.error.issues[0].message);
   }
 
   const supabase = await createClient();
@@ -365,16 +345,16 @@ export async function updateEmployeeAssessmentWeightsAction(formData: FormData) 
 
   const { error } = await supabase
     .from("employee_assessment_competency_weights")
-    .upsert(weightsToRows(context.activeCompany.id, employeeAssessmentId.data, weights.data), {
+    .upsert(requirementsToRows(context.activeCompany.id, employeeAssessmentId.data, requirements.data), {
       onConflict: "employee_assessment_id,competency_key",
     });
 
   if (error) {
-    redirectWithFeedback(path, "error", "Не удалось обновить веса компетенций.");
+    redirectWithFeedback(path, "error", "Не удалось обновить требования к компетенциям.");
   }
 
   revalidatePath(path);
-  redirectWithFeedback(path, "message", "Веса компетенций обновлены.");
+  redirectWithFeedback(path, "message", "Требования к компетенциям обновлены.");
 }
 
 export async function inviteEmployeeToAssessmentAction(formData: FormData) {

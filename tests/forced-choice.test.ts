@@ -294,31 +294,23 @@ test("scoring: Motivation-9 gives MOST +1, LEAST -1 and the middle scale 0", () 
   assert.equal(normalizeForcedChoiceScore(result.motivation_growth), 100);
 });
 
-test("fit score: all Motivation-9 keys are excluded even if weights are configured", () => {
+test("fit score: measured non-motivation competencies contribute equally", () => {
   const competencies = [
     { competency_key: "learning_ability", percentage: 64 },
+    { competency_key: "logical_reasoning", percentage: 84 },
+    { competency_key: "attention_to_detail", percentage: null },
     ...motivation9Keys.map((key) => ({ competency_key: key, percentage: 100 })),
   ];
-  const weights = [
-    { competency_key: "learning_ability", weight: 1 },
-    ...motivation9Keys.map((key) => ({ competency_key: key, weight: 10 })),
-  ];
 
-  assert.equal(calculateFitScore(competencies, weights), 64);
+  assert.equal(calculateFitScore(competencies), 74);
   assert.equal(
     calculateFitScore(
       competencies.filter((competency) => isMotivationCompetencyKey(competency.competency_key)),
-      weights,
     ),
     null,
   );
   assert.equal(motivation9Keys.every(isMotivationCompetencyKey), true);
-  assert.equal(
-    COMPETENCIES.filter((competency) => motivation9Keys.includes(competency.key as never)).every(
-      (competency) => competency.defaultWeight === 0,
-    ),
-    true,
-  );
+  assert.equal(COMPETENCIES.some((competency) => motivation9Keys.includes(competency.key as never)), true);
 });
 
 test("report: complete Motivation-9 profile is ranked into the requested groups", () => {

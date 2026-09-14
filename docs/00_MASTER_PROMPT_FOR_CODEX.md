@@ -130,9 +130,9 @@
 - risk_level;
 - recommendation.
 
-### 3. Вес компетенций
+### 3. Требования к компетенциям
 
-Для каждой вакансии можно задать веса компетенций:
+Для каждой вакансии можно задать обязательность и минимальный результат компетенций:
 
 - learning_ability;
 - attention_to_detail;
@@ -140,9 +140,16 @@
 - work_behavior;
 - communication;
 - responsibility;
-- motivation_fit.
+- work_organization;
+- work_initiative;
+- work_result_orientation;
+- work_collaboration;
+- work_adaptability.
 
-`fit_score` считается по весам вакансии.
+`fit_score` считается автоматически как простое среднее фактически измеренных
+немотивационных компетенций. Компетенции без результата не считаются нулевыми и
+не входят в среднее. Мотивационный профиль оценивается отдельно относительно
+целевого профиля вакансии.
 
 ### 4. Мотивация
 
@@ -302,7 +309,8 @@
 
 `overall_score` = средневзвешенный результат тестов в assessment package.
 
-`fit_score` = сумма `competency_percentage * job_competency_weight`.
+`fit_score` = среднее `competency_percentage` по фактически измеренным
+немотивационным компетенциям.
 
 Если обязательная компетенция ниже minimum_score, добавить risk flag и понизить рекомендацию.
 

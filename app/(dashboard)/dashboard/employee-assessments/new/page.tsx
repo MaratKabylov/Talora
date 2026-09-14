@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { EmployeeAssessmentFields } from "@/components/employee-assessments/employee-assessment-fields";
 import { FeedbackMessage } from "@/components/feedback-message";
-import { CompetencyWeightsFields } from "@/components/jobs/competency-weights-fields";
+import { CompetencyRequirementsFields } from "@/components/jobs/competency-requirements-fields";
 import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,12 +52,12 @@ export default async function NewEmployeeAssessmentPage({
             <EmployeeAssessmentFields disabled={!mayManage} packages={packages} />
             <div className="space-y-3">
               <div>
-                <h2 className="text-sm font-medium">Веса компетенций</h2>
+                <h2 className="text-sm font-medium">Требования к компетенциям</h2>
                 <p className="text-sm text-muted-foreground">
-                  Эти веса используются для fit score внутри оценки сотрудников.
+                  Fit score рассчитывается автоматически как среднее измеренных компетенций. Здесь можно задать обязательные минимумы.
                 </p>
               </div>
-              <CompetencyWeightsFields disabled={!mayManage} />
+              <CompetencyRequirementsFields disabled={!mayManage} />
             </div>
             {mayManage ? (
               <PendingSubmitButton pendingText="Создаем оценку..." type="submit">

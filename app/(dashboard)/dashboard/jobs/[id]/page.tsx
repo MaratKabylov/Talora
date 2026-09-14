@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { FeedbackMessage } from "@/components/feedback-message";
-import { CompetencyWeightsFields } from "@/components/jobs/competency-weights-fields";
+import { CompetencyRequirementsFields } from "@/components/jobs/competency-requirements-fields";
 import { CompositeScoringFields } from "@/components/jobs/composite-scoring-fields";
 import { JobDetailsFields } from "@/components/jobs/job-details-fields";
 import { ProfileTargetFields } from "@/components/jobs/profile-target-fields";
@@ -13,7 +13,7 @@ import {
   updateJobAction,
   updateJobCompositeConfigAction,
   updateJobProfileTargetsAction,
-  updateJobWeightsAction,
+  updateJobCompetencyRequirementsAction,
 } from "@/lib/jobs/actions";
 import { canManageJobs, JOB_STATUS_LABELS } from "@/lib/jobs/constants";
 import { getJobPageData } from "@/lib/jobs/data";
@@ -93,16 +93,16 @@ export default async function JobPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Веса компетенций</CardTitle>
+          <CardTitle>Требования к компетенциям</CardTitle>
           <CardDescription>
-            Настройка используется для будущего расчета fit score. Сумма весов должна быть 100%.
+            Fit score рассчитывается автоматически как среднее измеренных компетенций. Здесь можно задать обязательные минимумы.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          <form action={updateJobWeightsAction} className="space-y-5">
+          <form action={updateJobCompetencyRequirementsAction} className="space-y-5">
             <input name="jobId" type="hidden" value={data.job.id} />
-            <CompetencyWeightsFields disabled={!mayManage} weights={data.weights} />
-            {mayManage ? <Button type="submit">Сохранить веса</Button> : null}
+            <CompetencyRequirementsFields disabled={!mayManage} requirements={data.requirements} />
+            {mayManage ? <Button type="submit">Сохранить требования</Button> : null}
           </form>
         </CardContent>
       </Card>

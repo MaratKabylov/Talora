@@ -8,13 +8,13 @@ import { EmployeeAssessmentFields } from "@/components/employee-assessments/empl
 import { EmployeeAssessmentParticipantsTable } from "@/components/employee-assessments/employee-assessment-participants-table";
 import { InviteEmployeeForm } from "@/components/employee-assessments/invite-employee-form";
 import { FeedbackMessage } from "@/components/feedback-message";
-import { CompetencyWeightsFields } from "@/components/jobs/competency-weights-fields";
+import { CompetencyRequirementsFields } from "@/components/jobs/competency-requirements-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireCompanyContext } from "@/lib/auth/context";
 import {
   updateEmployeeAssessmentAction,
-  updateEmployeeAssessmentWeightsAction,
+  updateEmployeeAssessmentCompetencyRequirementsAction,
 } from "@/lib/employee-assessments/actions";
 import {
   canManageEmployeeAssessments,
@@ -94,16 +94,16 @@ export default async function EmployeeAssessmentPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Веса компетенций</CardTitle>
+          <CardTitle>Требования к компетенциям</CardTitle>
           <CardDescription>
-            Настройка используется для fit score внутри этой оценки сотрудников. Сумма весов должна быть 100%.
+            Fit score рассчитывается автоматически как среднее измеренных компетенций. Здесь можно задать обязательные минимумы.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          <form action={updateEmployeeAssessmentWeightsAction} className="space-y-5">
+          <form action={updateEmployeeAssessmentCompetencyRequirementsAction} className="space-y-5">
             <input name="employeeAssessmentId" type="hidden" value={data.assessment.id} />
-            <CompetencyWeightsFields disabled={!mayManage} weights={data.weights} />
-            {mayManage ? <Button type="submit">Сохранить веса</Button> : null}
+            <CompetencyRequirementsFields disabled={!mayManage} requirements={data.requirements} />
+            {mayManage ? <Button type="submit">Сохранить требования</Button> : null}
           </form>
         </CardContent>
       </Card>

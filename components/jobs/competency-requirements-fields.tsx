@@ -1,32 +1,31 @@
 import { Input } from "@/components/ui/input";
-import { COMPETENCIES } from "@/lib/jobs/constants";
-import type { JobWeight } from "@/lib/jobs/data";
+import { FIT_COMPETENCIES } from "@/lib/jobs/constants";
+import type { CompetencyRequirement } from "@/lib/jobs/data";
 
-export function CompetencyWeightsFields({
+export function CompetencyRequirementsFields({
   disabled = false,
-  weights = [],
+  requirements = [],
 }: {
   disabled?: boolean;
-  weights?: JobWeight[];
+  requirements?: CompetencyRequirement[];
 }) {
-  const existingWeights = new Map(weights.map((weight) => [weight.competencyKey, weight]));
-  const hasSavedWeights = weights.length > 0;
+  const existingRequirements = new Map(
+    requirements.map((requirement) => [requirement.competencyKey, requirement]),
+  );
 
   return (
-    <div className="overflow-hidden rounded-lg border">
+    <div className="overflow-x-auto rounded-lg border">
       <table className="w-full text-sm">
         <thead className="bg-muted/50 text-left text-muted-foreground">
           <tr>
             <th className="px-4 py-3 font-medium">Компетенция</th>
-            <th className="w-32 px-4 py-3 font-medium">Вес, %</th>
             <th className="w-32 px-4 py-3 font-medium">Минимум, %</th>
             <th className="w-32 px-4 py-3 text-center font-medium">Обязательна</th>
           </tr>
         </thead>
         <tbody>
-          {COMPETENCIES.map((competency) => {
-            const savedWeight = existingWeights.get(competency.key);
-            const defaultWeight = hasSavedWeights ? 0 : competency.defaultWeight;
+          {FIT_COMPETENCIES.map((competency) => {
+            const savedRequirement = existingRequirements.get(competency.key);
 
             return (
               <tr className="border-t" key={competency.key}>
@@ -34,20 +33,7 @@ export function CompetencyWeightsFields({
                 <td className="px-4 py-2">
                   <Input
                     className="h-9"
-                    defaultValue={savedWeight?.weightPercent ?? defaultWeight}
-                    disabled={disabled}
-                    max="100"
-                    min="0"
-                    name={`weight_${competency.key}`}
-                    required
-                    step="0.01"
-                    type="number"
-                  />
-                </td>
-                <td className="px-4 py-2">
-                  <Input
-                    className="h-9"
-                    defaultValue={savedWeight?.minimumScore ?? ""}
+                    defaultValue={savedRequirement?.minimumScore ?? ""}
                     disabled={disabled}
                     max="100"
                     min="0"
@@ -60,7 +46,7 @@ export function CompetencyWeightsFields({
                 <td className="px-4 py-2 text-center">
                   <input
                     className="size-4 rounded border-input accent-primary"
-                    defaultChecked={savedWeight?.isRequired ?? false}
+                    defaultChecked={savedRequirement?.isRequired ?? false}
                     disabled={disabled}
                     name={`required_${competency.key}`}
                     type="checkbox"

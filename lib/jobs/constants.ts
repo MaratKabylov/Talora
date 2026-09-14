@@ -28,27 +28,27 @@ export const EMPLOYMENT_TYPE_LABELS: Record<(typeof EMPLOYMENT_TYPE_VALUES)[numb
 };
 
 export const COMPETENCIES = [
-  { key: "learning_ability", label: "Обучаемость", defaultWeight: 20 },
-  { key: "attention_to_detail", label: "Внимательность", defaultWeight: 20 },
-  { key: "logical_reasoning", label: "Логика", defaultWeight: 20 },
-  { key: "work_behavior", label: "Рабочее поведение", defaultWeight: 15 },
-  { key: "communication", label: "Коммуникация", defaultWeight: 10 },
-  { key: "responsibility", label: "Ответственность", defaultWeight: 15 },
-  { key: "work_organization", label: "Организованность", defaultWeight: 0 },
-  { key: "work_initiative", label: "Инициативность", defaultWeight: 0 },
-  { key: "work_result_orientation", label: "Ориентация на результат", defaultWeight: 0 },
-  { key: "work_collaboration", label: "Сотрудничество", defaultWeight: 0 },
-  { key: "work_adaptability", label: "Самоконтроль и адаптивность", defaultWeight: 0 },
-  { key: "motivation_result", label: "Мотивация: результат", defaultWeight: 0 },
-  { key: "motivation_growth", label: "Мотивация: развитие", defaultWeight: 0 },
-  { key: "motivation_autonomy", label: "Мотивация: автономия", defaultWeight: 0 },
-  { key: "motivation_influence", label: "Мотивация: влияние", defaultWeight: 0 },
-  { key: "motivation_team", label: "Мотивация: команда", defaultWeight: 0 },
-  { key: "motivation_stability", label: "Мотивация: стабильность", defaultWeight: 0 },
-  { key: "motivation_income", label: "Мотивация: вознаграждение", defaultWeight: 0 },
-  { key: "motivation_recognition", label: "Мотивация: признание", defaultWeight: 0 },
-  { key: "motivation_meaning", label: "Мотивация: смысл", defaultWeight: 0 },
-  { key: "motivation_structure", label: "Мотивация: структура", defaultWeight: 0 },
+  { key: "learning_ability", label: "Обучаемость" },
+  { key: "attention_to_detail", label: "Внимательность" },
+  { key: "logical_reasoning", label: "Логика" },
+  { key: "work_behavior", label: "Рабочее поведение" },
+  { key: "communication", label: "Коммуникация" },
+  { key: "responsibility", label: "Ответственность" },
+  { key: "work_organization", label: "Организованность" },
+  { key: "work_initiative", label: "Инициативность" },
+  { key: "work_result_orientation", label: "Ориентация на результат" },
+  { key: "work_collaboration", label: "Сотрудничество" },
+  { key: "work_adaptability", label: "Самоконтроль и адаптивность" },
+  { key: "motivation_result", label: "Мотивация: результат" },
+  { key: "motivation_growth", label: "Мотивация: развитие" },
+  { key: "motivation_autonomy", label: "Мотивация: автономия" },
+  { key: "motivation_influence", label: "Мотивация: влияние" },
+  { key: "motivation_team", label: "Мотивация: команда" },
+  { key: "motivation_stability", label: "Мотивация: стабильность" },
+  { key: "motivation_income", label: "Мотивация: вознаграждение" },
+  { key: "motivation_recognition", label: "Мотивация: признание" },
+  { key: "motivation_meaning", label: "Мотивация: смысл" },
+  { key: "motivation_structure", label: "Мотивация: структура" },
 ] as const;
 
 export type JobStatus = (typeof JOB_STATUS_VALUES)[number];
@@ -57,6 +57,10 @@ export type CompetencyKey = (typeof COMPETENCIES)[number]["key"];
 
 export const MOTIVATION_COMPETENCIES = COMPETENCIES.filter((competency) =>
   isLegacyMotivationDimension(competency.key),
+);
+
+export const FIT_COMPETENCIES = COMPETENCIES.filter(
+  (competency) => !isLegacyMotivationDimension(competency.key),
 );
 
 export const MOTIVATION_9_COMPETENCIES = MOTIVATION_COMPETENCIES.filter(

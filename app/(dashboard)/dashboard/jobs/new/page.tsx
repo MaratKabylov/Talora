@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { FeedbackMessage } from "@/components/feedback-message";
-import { CompetencyWeightsFields } from "@/components/jobs/competency-weights-fields";
+import { CompetencyRequirementsFields } from "@/components/jobs/competency-requirements-fields";
 import { JobDetailsFields } from "@/components/jobs/job-details-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,13 +61,13 @@ export default async function NewJobPage({
 
           <Card>
             <CardHeader>
-              <CardTitle>Веса компетенций</CardTitle>
+              <CardTitle>Требования к компетенциям</CardTitle>
               <CardDescription>
-                Вес определяет вклад компетенции в fit score. Сумма весов должна составлять 100%.
+                Fit score рассчитывается автоматически как среднее измеренных компетенций. Здесь можно задать обязательные минимумы.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-              <CompetencyWeightsFields />
+              <CompetencyRequirementsFields />
             </CardContent>
           </Card>
 

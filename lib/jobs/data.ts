@@ -39,11 +39,10 @@ type JobRecord = {
   updated_at: string;
 };
 
-type WeightRecord = {
+type RequirementRecord = {
   competency_key: CompetencyKey;
   is_required: boolean;
   minimum_score: number | null;
-  weight: number;
 };
 
 export type JobDetails = {
@@ -64,11 +63,10 @@ export type JobDetails = {
   updatedAt: string;
 };
 
-export type JobWeight = {
+export type CompetencyRequirement = {
   competencyKey: CompetencyKey;
   isRequired: boolean;
   minimumScore: number | null;
-  weightPercent: number;
 };
 
 function getRelatedPackage(value: PackageRelation) {
@@ -138,7 +136,7 @@ export async function listAssessmentPackages(companyId: string) {
 
 export async function getJobPageData(companyId: string, jobId: string) {
   const supabase = await createClient();
-  const [jobResult, weightsResult, packages] = await Promise.all([
+  const [jobResult, requirementsResult, packages] = await Promise.all([
     supabase
       .from("jobs")
       .select(
@@ -149,13 +147,13 @@ export async function getJobPageData(companyId: string, jobId: string) {
       .maybeSingle(),
     supabase
       .from("job_competency_weights")
-      .select("competency_key, weight, minimum_score, is_required")
+      .select("competency_key, minimum_score, is_required")
       .eq("company_id", companyId)
       .eq("job_id", jobId),
     listAccessibleAssessmentPackages(supabase, companyId),
   ]);
 
-  if (jobResult.error || weightsResult.error) {
+  if (jobResult.error || requirementsResult.error) {
     throw new Error("Unable to load job details.");
   }
 
@@ -166,11 +164,10 @@ export async function getJobPageData(companyId: string, jobId: string) {
   return {
     job: normalizeJob(jobResult.data as unknown as JobRecord),
     packages,
-    weights: ((weightsResult.data ?? []) as WeightRecord[]).map((weight) => ({
-      competencyKey: weight.competency_key,
-      isRequired: weight.is_required,
-      minimumScore: weight.minimum_score,
-      weightPercent: Number(weight.weight) * 100,
+    requirements: ((requirementsResult.data ?? []) as RequirementRecord[]).map((requirement) => ({
+      competencyKey: requirement.competency_key,
+      isRequired: requirement.is_required,
+      minimumScore: requirement.minimum_score,
     })),
   };
 }

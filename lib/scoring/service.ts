@@ -109,11 +109,10 @@ type CandidateSessionScoringRecord = SessionRecord & {
   package_weight: number | null;
 };
 
-type WeightRecord = {
+type RequirementRecord = {
   competency_key: CompetencyKey;
   is_required: boolean;
   minimum_score: number | null;
-  weight: number;
 };
 
 const COMPETENCY_LABELS = new Map(
@@ -399,18 +398,18 @@ export async function scoreCompletedApplication(
   const recommendationPolicy = parseRecommendationPolicy(job.recommendation_policy_json);
   const interpretationPolicy = parseInterpretationPolicy(job.interpretation_policy_json);
 
-  const [sessionsResult, weightsResult] = await Promise.all([
+  const [sessionsResult, requirementsResult] = await Promise.all([
     admin
       .from("test_sessions")
       .select("id, status, test_version_id, package_weight, package_is_required, package_passing_score, package_contributes_to_overall, test_versions(title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)")
       .eq("application_id", applicationId),
     admin
       .from("job_competency_weights")
-      .select("competency_key, weight, minimum_score, is_required")
+      .select("competency_key, minimum_score, is_required")
       .eq("job_id", application.job_id),
   ]);
 
-  if (sessionsResult.error || weightsResult.error) {
+  if (sessionsResult.error || requirementsResult.error) {
     throw new Error("Unable to load scoring configuration.");
   }
 
@@ -569,16 +568,27 @@ export async function scoreCompletedApplication(
     }));
   });
 
-  const weights = (weightsResult.data ?? []) as unknown as WeightRecord[];
-  const weightsByCompetency = new Map(weights.map((weight) => [weight.competency_key, weight]));
+  const requirements = (requirementsResult.data ?? []) as unknown as RequirementRecord[];
+  const requirementsByCompetency = new Map(
+    requirements.map((requirement) => [requirement.competency_key, requirement]),
+  );
   const competencyTotals = combineCompetencies(sessionScores);
   const competencyDirections = collectCompetencyDirections(sessionScores);
-  const summaryRows = [...competencyTotals.entries()].map(([key, total]) => {
+  const competencyEntries = [...competencyTotals.entries()];
+  const fitCompetencyCount = competencyEntries.filter(
+    ([key, total]) => !isMotivationCompetencyKey(key) && competencyPercentage(total) !== null,
+  ).length;
+  const summaryRows = competencyEntries.map(([key, total]) => {
     const value = competencyPercentage(total);
-    const weight = weightsByCompetency.get(key);
+    const requirement = requirementsByCompetency.get(key);
     const isBelowMinimum =
       !isMotivationCompetencyKey(key) &&
-      Boolean(weight?.is_required && weight.minimum_score !== null && value !== null && value < weight.minimum_score);
+      Boolean(
+        requirement?.is_required &&
+        requirement.minimum_score !== null &&
+        value !== null &&
+        value < requirement.minimum_score,
+      );
 
     return {
       application_id: application.id,
@@ -589,7 +599,10 @@ export async function scoreCompletedApplication(
       max_score: round(total.maxScore),
       percentage: value,
       score: round(total.score),
-      weighted_score: value !== null && weight ? round(value * Number(weight.weight)) : null,
+      weighted_score:
+        value !== null && !isMotivationCompetencyKey(key) && fitCompetencyCount > 0
+          ? round(value / fitCompetencyCount)
+          : null,
     };
   });
 
@@ -616,8 +629,8 @@ export async function scoreCompletedApplication(
     })),
   );
 
-  // Motivation needs a job-side target profile before it can fairly influence fit.
-  const fitScore = calculateFitScore(summaryRows, weights);
+  // Motivation is excluded from competency fit and evaluated separately against job targets.
+  const fitScore = calculateFitScore(summaryRows);
   const motivationFit = calculateProfileFit(
     collectProfileDimensions(sessionScores, "motivation"),
     normalizeProfileTargets(job.motivation_target_profile_json),
@@ -650,8 +663,8 @@ export async function scoreCompletedApplication(
   }> = [];
 
   for (const row of summaryRows) {
-    const weight = weightsByCompetency.get(row.competency_key);
-    const minimumScore = weight?.minimum_score;
+    const requirement = requirementsByCompetency.get(row.competency_key);
+    const minimumScore = requirement?.minimum_score;
     if (row.is_below_minimum && minimumScore !== null && minimumScore !== undefined) {
       riskFlags.push({
         application_id: application.id,
@@ -854,18 +867,18 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
     assessment.interpretation_policy_json,
   );
 
-  const [sessionsResult, weightsResult] = await Promise.all([
+  const [sessionsResult, requirementsResult] = await Promise.all([
     admin
       .from("employee_assessment_sessions")
       .select("id, status, test_version_id, package_weight, package_is_required, package_passing_score, package_contributes_to_overall, test_versions(title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json)")
       .eq("participant_id", participantId),
     admin
       .from("employee_assessment_competency_weights")
-      .select("competency_key, weight, minimum_score, is_required")
+      .select("competency_key, minimum_score, is_required")
       .eq("employee_assessment_id", participant.employee_assessment_id),
   ]);
 
-  if (sessionsResult.error || weightsResult.error) {
+  if (sessionsResult.error || requirementsResult.error) {
     throw new Error("Unable to load employee scoring configuration.");
   }
 
@@ -1024,16 +1037,27 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
     }));
   });
 
-  const weights = (weightsResult.data ?? []) as unknown as WeightRecord[];
-  const weightsByCompetency = new Map(weights.map((weight) => [weight.competency_key, weight]));
+  const requirements = (requirementsResult.data ?? []) as unknown as RequirementRecord[];
+  const requirementsByCompetency = new Map(
+    requirements.map((requirement) => [requirement.competency_key, requirement]),
+  );
   const competencyTotals = combineCompetencies(sessionScores);
   const competencyDirections = collectCompetencyDirections(sessionScores);
-  const summaryRows = [...competencyTotals.entries()].map(([key, total]) => {
+  const competencyEntries = [...competencyTotals.entries()];
+  const fitCompetencyCount = competencyEntries.filter(
+    ([key, total]) => !isMotivationCompetencyKey(key) && competencyPercentage(total) !== null,
+  ).length;
+  const summaryRows = competencyEntries.map(([key, total]) => {
     const value = competencyPercentage(total);
-    const weight = weightsByCompetency.get(key);
+    const requirement = requirementsByCompetency.get(key);
     const isBelowMinimum =
       !isMotivationCompetencyKey(key) &&
-      Boolean(weight?.is_required && weight.minimum_score !== null && value !== null && value < weight.minimum_score);
+      Boolean(
+        requirement?.is_required &&
+        requirement.minimum_score !== null &&
+        value !== null &&
+        value < requirement.minimum_score,
+      );
 
     return {
       competency_key: key,
@@ -1044,7 +1068,10 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
       participant_id: participant.id,
       percentage: value,
       score: round(total.score),
-      weighted_score: value !== null && weight ? round(value * Number(weight.weight)) : null,
+      weighted_score:
+        value !== null && !isMotivationCompetencyKey(key) && fitCompetencyCount > 0
+          ? round(value / fitCompetencyCount)
+          : null,
     };
   });
 
@@ -1118,7 +1145,7 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
     })),
   );
 
-  const fitScore = calculateFitScore(summaryRows, weights) ?? overallScore;
+  const fitScore = calculateFitScore(summaryRows);
 
   const riskFlags: Array<{
     description: string;
@@ -1130,8 +1157,8 @@ export async function scoreCompletedEmployeeAssessmentParticipant(
   }> = [];
 
   for (const row of summaryRows) {
-    const weight = weightsByCompetency.get(row.competency_key);
-    const minimumScore = weight?.minimum_score;
+    const requirement = requirementsByCompetency.get(row.competency_key);
+    const minimumScore = requirement?.minimum_score;
     if (row.is_below_minimum && minimumScore !== null && minimumScore !== undefined) {
       riskFlags.push({
         description: `Результат ${row.percentage}% ниже обязательного минимума ${minimumScore}%.`,

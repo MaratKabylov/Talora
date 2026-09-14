@@ -11,8 +11,8 @@ import { createClient } from "@/lib/supabase/server";
 
 import {
   canManageJobs,
-  COMPETENCIES,
   EMPLOYMENT_TYPE_VALUES,
+  FIT_COMPETENCIES,
   JOB_STATUS_VALUES,
   type CompetencyKey,
 } from "./constants";
@@ -52,29 +52,13 @@ const jobSchema = z.object({
   title: z.string().trim().min(2, "Укажите название вакансии.").max(180, "Название слишком длинное."),
 });
 
-const weightSchema = z.object({
-  competencyKey: z.enum(COMPETENCIES.map((competency) => competency.key) as [CompetencyKey, ...CompetencyKey[]]),
+const requirementSchema = z.object({
+  competencyKey: z.enum(FIT_COMPETENCIES.map((competency) => competency.key) as [CompetencyKey, ...CompetencyKey[]]),
   isRequired: z.boolean(),
   minimumScore: optionalPercentage,
-  weightPercent: z.preprocess(
-    (value) => {
-      const text = typeof value === "string" ? value.trim().replace(",", ".") : "";
-      return text ? Number(text) : Number.NaN;
-    },
-    z.number().min(0, "Вес не может быть меньше 0.").max(100, "Вес не может быть больше 100."),
-  ),
 });
 
-const weightsSchema = z.array(weightSchema).superRefine((weights, context) => {
-  const sum = weights.reduce((total, weight) => total + weight.weightPercent, 0);
-
-  if (Math.abs(sum - 100) > 0.01) {
-    context.addIssue({
-      code: "custom",
-      message: `Сумма весов должна быть 100%. Сейчас: ${sum.toLocaleString("ru-RU")}%.`,
-    });
-  }
-});
+const requirementsSchema = z.array(requirementSchema);
 
 function formString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -100,13 +84,12 @@ function parseJob(formData: FormData) {
   });
 }
 
-function parseWeights(formData: FormData) {
-  return weightsSchema.safeParse(
-    COMPETENCIES.map((competency) => ({
+function parseRequirements(formData: FormData) {
+  return requirementsSchema.safeParse(
+    FIT_COMPETENCIES.map((competency) => ({
       competencyKey: competency.key,
       isRequired: formData.get(`required_${competency.key}`) === "on",
       minimumScore: formString(formData, `minimum_${competency.key}`),
-      weightPercent: formString(formData, `weight_${competency.key}`),
     })),
   );
 }
@@ -144,18 +127,18 @@ function parseCompositeConfig(formData: FormData) {
   }
 }
 
-function weightsToRows(
+function requirementsToRows(
   companyId: string,
   jobId: string,
-  weights: z.infer<typeof weightsSchema>,
+  requirements: z.infer<typeof requirementsSchema>,
 ) {
-  return weights.map((weight) => ({
+  return requirements.map((requirement) => ({
     company_id: companyId,
-    competency_key: weight.competencyKey,
-    is_required: weight.isRequired,
+    competency_key: requirement.competencyKey,
+    is_required: requirement.isRequired,
     job_id: jobId,
-    minimum_score: weight.minimumScore,
-    weight: weight.weightPercent / 100,
+    minimum_score: requirement.minimumScore,
+    weight: 1,
   }));
 }
 
@@ -168,14 +151,14 @@ export async function createJobAction(formData: FormData) {
   }
 
   const job = parseJob(formData);
-  const weights = parseWeights(formData);
+  const requirements = parseRequirements(formData);
 
   if (!job.success) {
     redirectWithFeedback(path, "error", job.error.issues[0].message);
   }
 
-  if (!weights.success) {
-    redirectWithFeedback(path, "error", weights.error.issues[0].message);
+  if (!requirements.success) {
+    redirectWithFeedback(path, "error", requirements.error.issues[0].message);
   }
 
   const supabase = await createClient();
@@ -204,17 +187,17 @@ export async function createJobAction(formData: FormData) {
     redirectWithFeedback(path, "error", "Не удалось создать вакансию.");
   }
 
-  const { error: weightsError } = await supabase
+  const { error: requirementsError } = await supabase
     .from("job_competency_weights")
-    .insert(weightsToRows(context.activeCompany.id, createdJob.id, weights.data));
+    .insert(requirementsToRows(context.activeCompany.id, createdJob.id, requirements.data));
 
-  if (weightsError) {
+  if (requirementsError) {
     await supabase
       .from("jobs")
       .delete()
       .eq("company_id", context.activeCompany.id)
       .eq("id", createdJob.id);
-    redirectWithFeedback(path, "error", "Не удалось сохранить веса компетенций.");
+    redirectWithFeedback(path, "error", "Не удалось сохранить требования к компетенциям.");
   }
 
   revalidatePath("/dashboard/jobs");
@@ -271,7 +254,7 @@ export async function updateJobAction(formData: FormData) {
   redirectWithFeedback(path, "message", "Параметры вакансии обновлены.");
 }
 
-export async function updateJobWeightsAction(formData: FormData) {
+export async function updateJobCompetencyRequirementsAction(formData: FormData) {
   const jobId = z.string().uuid().safeParse(formString(formData, "jobId"));
 
   if (!jobId.success) {
@@ -282,12 +265,12 @@ export async function updateJobWeightsAction(formData: FormData) {
   const context = await requireCompanyContext();
 
   if (!canManageJobs(context.activeCompany.role)) {
-    redirectWithFeedback(path, "error", "У вашей роли нет права изменять веса.");
+    redirectWithFeedback(path, "error", "У вашей роли нет права изменять требования к компетенциям.");
   }
 
-  const weights = parseWeights(formData);
-  if (!weights.success) {
-    redirectWithFeedback(path, "error", weights.error.issues[0].message);
+  const requirements = parseRequirements(formData);
+  if (!requirements.success) {
+    redirectWithFeedback(path, "error", requirements.error.issues[0].message);
   }
 
   const supabase = await createClient();
@@ -304,16 +287,16 @@ export async function updateJobWeightsAction(formData: FormData) {
 
   const { error } = await supabase
     .from("job_competency_weights")
-    .upsert(weightsToRows(context.activeCompany.id, jobId.data, weights.data), {
+    .upsert(requirementsToRows(context.activeCompany.id, jobId.data, requirements.data), {
       onConflict: "job_id,competency_key",
     });
 
   if (error) {
-    redirectWithFeedback(path, "error", "Не удалось обновить веса компетенций.");
+    redirectWithFeedback(path, "error", "Не удалось обновить требования к компетенциям.");
   }
 
   revalidatePath(path);
-  redirectWithFeedback(path, "message", "Веса компетенций обновлены.");
+  redirectWithFeedback(path, "message", "Требования к компетенциям обновлены.");
 }
 
 export async function updateJobProfileTargetsAction(formData: FormData) {

@@ -32,7 +32,7 @@
 - [ ] Create job.
 - [ ] Edit job.
 - [ ] Job detail page.
-- [ ] Configure competency weights for job.
+- [ ] Configure required competency minimums for job.
 
 ## Milestone 4 — Tests library
 
@@ -78,7 +78,7 @@
 - [ ] Calculate test_results.
 - [ ] Calculate competency_scores.
 - [ ] Calculate application overall_score.
-- [ ] Calculate fit_score by job weights.
+- [ ] Calculate fit_score as the equal average of measured non-motivation competencies.
 - [ ] Generate risk flags.
 
 ## Milestone 9 — Reports
