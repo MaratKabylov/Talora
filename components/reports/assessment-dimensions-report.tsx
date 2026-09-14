@@ -1,3 +1,5 @@
+import { ChevronDown } from "lucide-react";
+
 import type {
   AssessmentDimensionGroup,
   AssessmentDimensionResult,
@@ -116,68 +118,74 @@ export function AssessmentDimensionGroups({ groups }: { groups: AssessmentDimens
         );
         const showNorm = group.dimensions.some((dimension) => dimension.norm !== null);
         return (
-          <Card key={group.key}>
-            <CardHeader>
-              <CardTitle>{group.title}</CardTitle>
-              {description ? <CardDescription>{description}</CardDescription> : null}
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="overflow-hidden rounded-lg border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-left text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">{dimensionColumnTitle(group.key)}</th>
-                      <th className="px-4 py-3 font-medium">{valueColumnTitle(group.key)}</th>
-                      {showNorm ? <th className="px-4 py-3 font-medium">Норма</th> : null}
-                      {showStatus ? <th className="px-4 py-3 font-medium">Статус</th> : null}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.dimensions.map((dimension) => (
-                      <tr className="border-t" key={dimension.id}>
-                        <td className="px-4 py-3 font-medium">
-                          <span>{dimension.title}</span>
-                          {dimension.testTitle ? (
-                            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                              {dimension.testTitle}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span>{formatDimensionValue(dimension)}</span>
-                          {dimension.interpretation ? (
-                            <span className="mt-0.5 block text-xs text-muted-foreground">
-                              {dimension.interpretation.label}
-                            </span>
-                          ) : null}
-                        </td>
-                        {showNorm ? (
-                          <td className="px-4 py-3 text-muted-foreground">
-                            <span>{formatNorm(dimension) ?? "—"}</span>
-                            {dimension.norm?.populationLabel ? (
-                              <span className="mt-0.5 block text-xs">
-                                Нормативная группа: {dimension.norm.populationLabel}
+          <Card className="self-start py-0" key={group.key}>
+            <details className="group" open>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-6 py-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden">
+                <span className="font-semibold leading-none">{group.title}</span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none"
+                />
+              </summary>
+              <CardContent className="pb-6">
+                {description ? <CardDescription className="mb-6">{description}</CardDescription> : null}
+                <div className="overflow-hidden rounded-lg border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-left text-muted-foreground">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">{dimensionColumnTitle(group.key)}</th>
+                        <th className="px-4 py-3 font-medium">{valueColumnTitle(group.key)}</th>
+                        {showNorm ? <th className="px-4 py-3 font-medium">Норма</th> : null}
+                        {showStatus ? <th className="px-4 py-3 font-medium">Статус</th> : null}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.dimensions.map((dimension) => (
+                        <tr className="border-t" key={dimension.id}>
+                          <td className="px-4 py-3 font-medium">
+                            <span>{dimension.title}</span>
+                            {dimension.testTitle ? (
+                              <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                {dimension.testTitle}
                               </span>
                             ) : null}
                           </td>
-                        ) : null}
-                        {showStatus ? (
-                          <td
-                            className={
-                              dimension.threshold?.status === "failed"
-                                ? "px-4 py-3 text-destructive"
-                                : "px-4 py-3 text-muted-foreground"
-                            }
-                          >
-                            {thresholdLabel(dimension) ?? "—"}
+                          <td className="px-4 py-3">
+                            <span>{formatDimensionValue(dimension)}</span>
+                            {dimension.interpretation ? (
+                              <span className="mt-0.5 block text-xs text-muted-foreground">
+                                {dimension.interpretation.label}
+                              </span>
+                            ) : null}
                           </td>
-                        ) : null}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
+                          {showNorm ? (
+                            <td className="px-4 py-3 text-muted-foreground">
+                              <span>{formatNorm(dimension) ?? "—"}</span>
+                              {dimension.norm?.populationLabel ? (
+                                <span className="mt-0.5 block text-xs">
+                                  Нормативная группа: {dimension.norm.populationLabel}
+                                </span>
+                              ) : null}
+                            </td>
+                          ) : null}
+                          {showStatus ? (
+                            <td
+                              className={
+                                dimension.threshold?.status === "failed"
+                                  ? "px-4 py-3 text-destructive"
+                                  : "px-4 py-3 text-muted-foreground"
+                              }
+                            >
+                              {thresholdLabel(dimension) ?? "—"}
+                            </td>
+                          ) : null}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </details>
           </Card>
         );
       })}

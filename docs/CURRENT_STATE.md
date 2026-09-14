@@ -1,9 +1,10 @@
 # Текущее состояние Talvia
 
-Обновлено: 2026-09-13. PERF-012 indexes и DB-часть PERF-015 async scoring применены и проверены в разрешённом текущем Supabase-проекте (`main PRODUCTION`). Полный async flow принят на локальном production server; внешний deployment и постоянный scheduler не настраивались по решению пользователя.
+Обновлено: 2026-09-14. Группы показателей в отчётах кандидата и сотрудника сделаны сворачиваемыми. PERF-012 indexes и DB-часть PERF-015 async scoring ранее применены и проверены в разрешённом текущем Supabase-проекте (`main PRODUCTION`). Полный async flow принят на локальном production server; внешний deployment и постоянный scheduler не настраивались по решению пользователя.
 
 ## Текущий этап
 
+- **UI отчётов:** `components/reports/assessment-dimensions-report.tsx` — независимые нативные `details/summary` для групп показателей, раскрытые по умолчанию; стрелка состояния, управление с клавиатуры, видимый фокус. Карточки не растягиваются по высоте соседнего блока. Код готов; визуальная проверка в браузере и deployment этой правки не выполнены.
 - **PERF-012:** установлены восемь индексов для candidate/employee list/comparison и builder parent-order запросов. Remote catalog: `expected_count=8`, `ready_valid_count=8`, `missing_or_invalid=[]`, PostgreSQL 17.6. [Evidence](performance/PERF012_INDEXES_REMOTE_2026-09-13.json).
 - Индекс `jobs` не добавлялся: измеренный объём около 121 строки и EXPLAIN не подтвердили пользу. Старый `(company_id, job_id)` индекс applications не удалялся.
 - **PERF-015:** установлена durable `scoring_jobs` с RLS, дедупликацией parent/revision, lease claim через `SKIP LOCKED`, пятью попытками с backoff и атомарным queued persistence.
@@ -23,6 +24,8 @@
 
 ## Проверки
 
+- Текущая UI-правка (2026-09-14): ESLint изменённого компонента, `npm run typecheck`, профильные `assessment-results` и `report-scoring-details` — **22/22**, `git diff --check` успешно. Полная сборка не запускалась для этой небольшой правки представления.
+- Ниже — предыдущие проверки PERF от 2026-09-13, не повторявшиеся для UI-правки:
 - `npm test`: **523/523**.
 - `npm run lint`, `npm run typecheck`, `npm run build`: успешно; build содержит `/api/internal/scoring/drain`.
 - PGlite исполняет обе реальные миграции и verification SQL. Покрыты idempotent DDL, tenant isolation, service-only grants, dedup, lease exclusivity/expiry/takeover, bounded retry, explicit terminal retry и rollback атомарной транзакции.
@@ -33,6 +36,8 @@
 - PERF-017 local production/runtime и candidate browser E2E ранее прошли; точные hosting/Supabase regions и production-like latency остаются неизвестны.
 
 ## Следующий шаг
+
+Для UI: проверить сворачивание групп в браузере на отчётах кандидата и сотрудника, включая узкий экран.
 
 1. Если появится внешний hosting, развернуть код с server-only `SCORING_WORKER_SECRET`, затем включить `ASSESSMENT_ASYNC_SCORING_V2` после preview smoke.
 2. Для постоянного внешнего запуска настроить scheduler раз в минуту: `POST /api/internal/scoring/drain` с `{"limit":5}`. Локальная проверка использовала временный secret, который удалён.
