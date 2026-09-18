@@ -119,7 +119,7 @@ export function AssessmentDimensionGroups({ groups }: { groups: AssessmentDimens
         const showNorm = group.dimensions.some((dimension) => dimension.norm !== null);
         return (
           <Card className="self-start py-0" key={group.key}>
-            <details className="group" open>
+            <details className="group">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-xl px-6 py-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden">
                 <span className="font-semibold leading-none">{group.title}</span>
                 <ChevronDown

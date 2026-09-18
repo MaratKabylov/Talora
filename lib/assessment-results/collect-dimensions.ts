@@ -97,10 +97,10 @@ const DERIVED_SCORE_TITLES: Record<string, string> = {
 
 const SAFE_DERIVED_CRITERION_IDS = new Set(Object.keys(DERIVED_SCORE_TITLES));
 const DERIVED_SCORE_ORDER: Record<string, number> = {
-  learning_final: 0,
-  learning_initial: 1,
-  learning_recovery: 2,
-  attention_accuracy: 0,
+  learning_final: 10,
+  learning_initial: 11,
+  learning_recovery: 12,
+  attention_accuracy: 20,
   sjt_total: 0,
   criterion_total: 0,
 };
@@ -159,7 +159,7 @@ function isReportableCriterion(
   key: string,
 ) {
   if (result.assessmentDomain === "learning") {
-    return key === "learning_final" || key === "learning_initial" || key === "learning_recovery";
+    return key === "learning_final";
   }
   if (result.assessmentDomain === "attention") return key === "attention_accuracy";
   if (result.assessmentDomain === "sjt") return key === "sjt_total";

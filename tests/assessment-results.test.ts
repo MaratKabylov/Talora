@@ -207,6 +207,8 @@ test("candidate and employee reports use the same assessment dimension read mode
   assert.match(employeeDataSource, /collectAssessmentDimensions/);
   assert.match(candidateDataSource, /collectAssessmentDimensions/);
   assert.match(sharedUiSource, /AssessmentDimensionsReport/);
+  assert.match(sharedUiSource, /<details className="group">/);
+  assert.doesNotMatch(sharedUiSource, /<details className="group" open>/);
   assert.doesNotMatch(sharedUiSource, /В норме/);
 });
 
@@ -257,7 +259,7 @@ test("objective collector hides question criterion IDs and keeps the configured 
   assert.equal(dimensions[0].id, "version-objective:criterion:criterion_total");
 });
 
-test("learning, attention, and SJT expose only domain report scores", () => {
+test("learning, attention, and SJT expose only their summary report scores", () => {
   const learning = collectAssessmentDimensions({
     sessions: [{
       definition: extractScoringDefinitionMetadata({
@@ -276,11 +278,8 @@ test("learning, attention, and SJT expose only domain report scores", () => {
       }),
     }],
   });
-  assert.deepEqual(learning.map((dimension) => dimension.key), [
-    "learning_initial",
-    "learning_recovery",
-    "learning_final",
-  ]);
+  assert.deepEqual(learning.map((dimension) => dimension.key), ["learning_final"]);
+  assert.equal(learning[0].title, "Обучаемость");
 
   const attention = collectAssessmentDimensions({
     sessions: [{
@@ -294,6 +293,13 @@ test("learning, attention, and SJT expose only domain report scores", () => {
     }],
   });
   assert.deepEqual(attention.map((dimension) => dimension.key), ["attention_accuracy"]);
+  assert.equal(attention[0].title, "Внимательность");
+
+  const cognitive = summarizeAssessmentDimensions([...attention, ...learning]);
+  assert.deepEqual(
+    cognitive[0].dimensions.map((dimension) => dimension.title),
+    ["Обучаемость", "Внимательность"],
+  );
 
   const sjt = collectAssessmentDimensions({
     sessions: [{
