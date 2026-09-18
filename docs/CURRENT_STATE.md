@@ -6,7 +6,7 @@
 
 - **Competency fit:** UI «Веса компетенций» заменён на «Требования к компетенциям» с полями минимума и обязательности. Ручной процент и проверка суммы 100% удалены в candidate/job и employee assessment flows. Мотивационные шкалы не показываются в требованиях и не входят в competency fit.
 - `fit_score` считает простое среднее только доступных немотивационных competency percentages; отсутствующие результаты не считаются нулём. `weighted_score` summary rows хранит равную долю компетенции. Employee fallback на `overall_score` удалён.
-- **UI отчётов:** `components/reports/assessment-dimensions-report.tsx` — независимые нативные `details/summary` для групп показателей, свёрнутые по умолчанию; стрелка состояния, управление с клавиатуры, видимый фокус. Карточки не растягиваются по высоте соседнего блока. В когнитивной сводке `learning_final` отображается как «Обучаемость» перед `attention_accuracy`; промежуточные learning-метрики остаются в подробностях теста. Код готов; визуальная проверка в браузере и deployment этой правки не выполнены.
+- **UI отчётов:** `components/reports/assessment-dimensions-report.tsx` — независимые нативные `details/summary` для групп показателей, свёрнутые по умолчанию; стрелка состояния, управление с клавиатуры, видимый фокус. Карточки не растягиваются по высоте соседнего блока. В когнитивной сводке `learning_final` отображается как «Обучаемость» перед `attention_accuracy`; промежуточные learning-метрики остаются в подробностях теста. Для legacy-результатов отдельного теста `learning_ability`, где competency row не сохранён, отчёты кандидата и сотрудника используют итоговый процент теста. Код готов; визуальная проверка в браузере и deployment этой правки не выполнены.
 - **PERF-012:** установлены восемь индексов для candidate/employee list/comparison и builder parent-order запросов. Remote catalog: `expected_count=8`, `ready_valid_count=8`, `missing_or_invalid=[]`, PostgreSQL 17.6. [Evidence](performance/PERF012_INDEXES_REMOTE_2026-09-13.json).
 - Индекс `jobs` не добавлялся: измеренный объём около 121 строки и EXPLAIN не подтвердили пользу. Старый `(company_id, job_id)` индекс applications не удалялся.
 - **PERF-015:** установлена durable `scoring_jobs` с RLS, дедупликацией parent/revision, lease claim через `SKIP LOCKED`, пятью попытками с backoff и атомарным queued persistence.
@@ -27,7 +27,7 @@
 
 ## Проверки
 
-- Текущие изменения (2026-09-18): `npm run lint`, `npm run typecheck`, `npm run build` — успешно; профильный `assessment-results` — **20/20**, полный `npm test` — **524/524**.
+- Текущие изменения (2026-09-18): `npm run lint`, `npm run typecheck`, `npm run build` — успешно; профильные `assessment-results` + `report-test-title` — **25/25**, полный `npm test` — **525/525**.
 - Предыдущая полная регрессия (2026-09-14): `npm test` — **524/524**; профильная scoring/forms регрессия — **54/54**.
 - PGlite исполняет обе реальные миграции и verification SQL. Покрыты idempotent DDL, tenant isolation, service-only grants, dedup, lease exclusivity/expiry/takeover, bounded retry, explicit terminal retry и rollback атомарной транзакции.
 - Подключённый Chrome: navigation suite **30/30**, включая automatic completion polling, manual retry и recovery без дублирования записи.

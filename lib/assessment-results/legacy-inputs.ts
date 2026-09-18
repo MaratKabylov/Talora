@@ -6,6 +6,51 @@ type MergeLegacyInputs = {
   unlinkedRows?: readonly LegacyDimensionInput[];
 };
 
+type LegacyLearningFallbackInput = {
+  category: string | null | undefined;
+  existingRows: readonly LegacyDimensionInput[];
+  maxScore?: number | null;
+  minimumScore?: number | null;
+  percentage: number | null | undefined;
+  score?: number | null;
+  sessionId: string;
+  testTitle?: string | null;
+  testVersionId: string;
+};
+
+export function buildLegacyLearningFallback({
+  category,
+  existingRows,
+  maxScore,
+  minimumScore,
+  percentage,
+  score,
+  sessionId,
+  testTitle,
+  testVersionId,
+}: LegacyLearningFallbackInput): LegacyDimensionInput | null {
+  if (
+    category !== "learning_ability" ||
+    typeof percentage !== "number" ||
+    !Number.isFinite(percentage) ||
+    existingRows.some((row) => row.key === "learning_ability" && row.sessionId === sessionId)
+  ) {
+    return null;
+  }
+
+  return {
+    isBelowMinimum: false,
+    key: "learning_ability",
+    maxScore: maxScore ?? null,
+    minimumScore: minimumScore ?? null,
+    percentage,
+    score: score ?? null,
+    sessionId,
+    testTitle: testTitle ?? null,
+    testVersionId,
+  };
+}
+
 function mergeDirection(
   row: LegacyDimensionInput,
   summary: LegacyDimensionInput | undefined,

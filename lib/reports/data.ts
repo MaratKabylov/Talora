@@ -7,7 +7,10 @@ import {
   type LegacyDimensionInput,
 } from "@/lib/assessment-results/collect-dimensions";
 import { buildAssessmentHighlights } from "@/lib/assessment-results/highlights";
-import { mergeLegacyPresentationInputs } from "@/lib/assessment-results/legacy-inputs";
+import {
+  buildLegacyLearningFallback,
+  mergeLegacyPresentationInputs,
+} from "@/lib/assessment-results/legacy-inputs";
 import {
   getLegacyAssessmentDimension,
   isLegacyMotivationDimension,
@@ -98,6 +101,7 @@ type RiskRecord = {
 };
 
 type TemplateTitleRecord = {
+  category: string;
   title: string;
 };
 
@@ -520,7 +524,7 @@ async function getCandidateReportDataUninstrumented(companyId: string, applicati
       supabase
         .from("test_sessions")
         .select(
-          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, package_id, package_passing_score, test_versions(id, title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json, test_templates(title))",
+          "id, status, percentage, started_at, deadline_at, completed_at, submission_reason, package_id, package_passing_score, test_versions(id, title, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json, test_templates(title, category))",
         )
         .eq("application_id", applicationId)
         .order("created_at"),
@@ -627,6 +631,24 @@ async function getCandidateReportDataUninstrumented(companyId: string, applicati
     };
     if (result && session) linkedLegacy.push(row);
     else unlinkedLegacy.push(row);
+  }
+  for (const session of sessions) {
+    const result = resultsBySession.get(session.id);
+    const version = related(session.test_versions);
+    const template = version ? related(version.test_templates) : null;
+    if (!result || !version) continue;
+    const fallback = buildLegacyLearningFallback({
+      category: template?.category,
+      existingRows: linkedLegacy,
+      maxScore: result.max_score,
+      minimumScore: minimumScoreByCompetency.get("learning_ability") ?? null,
+      percentage: result.percentage ?? session.percentage,
+      score: result.raw_score,
+      sessionId: session.id,
+      testTitle: template?.title ?? version.title,
+      testVersionId: version.id,
+    });
+    if (fallback) linkedLegacy.push(fallback);
   }
   const summaryLegacy = ((summaryResult.data ?? []) as unknown as SummaryRecord[]).map((summary) => ({
     interpretationDirection: summary.interpretation_direction,

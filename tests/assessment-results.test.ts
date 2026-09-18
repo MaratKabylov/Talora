@@ -9,7 +9,10 @@ import {
   extractScoringDefinitionMetadata,
 } from "../lib/assessment-results/collect-dimensions.ts";
 import { buildAssessmentHighlights } from "../lib/assessment-results/highlights.ts";
-import { mergeLegacyPresentationInputs } from "../lib/assessment-results/legacy-inputs.ts";
+import {
+  buildLegacyLearningFallback,
+  mergeLegacyPresentationInputs,
+} from "../lib/assessment-results/legacy-inputs.ts";
 import { resolveAssessmentReportGroup } from "../lib/assessment-results/report-groups.ts";
 import { summarizeAssessmentDimensions } from "../lib/assessment-results/summarize-dimensions.ts";
 import { resolveCandidateSessionPassingScore } from "../lib/reports/candidate-session-passing-score.ts";
@@ -513,6 +516,59 @@ test("legacy input merge preserves unlinked rows, fills missing summary keys, an
   assert.ok(dimensions.some((dimension) => dimension.sourceType === "legacy_competency" && dimension.key === "responsibility"));
   assert.ok(dimensions.some((dimension) => dimension.key === "communication"));
   assert.ok(dimensions.some((dimension) => dimension.key === "learning_ability"));
+});
+
+test("legacy learning test result fills a missing competency row without duplicating a stored score", () => {
+  const fallback = buildLegacyLearningFallback({
+    category: "learning_ability",
+    existingRows: [],
+    percentage: 50,
+    score: 8,
+    sessionId: "learning-session",
+    testTitle: "Обучаемость",
+    testVersionId: "learning-version",
+  });
+  assert.deepEqual(fallback, {
+    isBelowMinimum: false,
+    key: "learning_ability",
+    maxScore: null,
+    minimumScore: null,
+    percentage: 50,
+    score: 8,
+    sessionId: "learning-session",
+    testTitle: "Обучаемость",
+    testVersionId: "learning-version",
+  });
+  assert.equal(buildLegacyLearningFallback({
+    category: "learning_ability",
+    existingRows: [fallback!],
+    percentage: 50,
+    sessionId: "learning-session",
+    testVersionId: "learning-version",
+  }), null);
+  assert.equal(buildLegacyLearningFallback({
+    category: "attention_to_detail",
+    existingRows: [],
+    percentage: 28.13,
+    sessionId: "attention-session",
+    testVersionId: "attention-version",
+  }), null);
+
+  const groups = summarizeAssessmentDimensions(collectAssessmentDimensions({
+    legacy: [
+      fallback!,
+      {
+        isBelowMinimum: false,
+        key: "attention_to_detail",
+        percentage: 28.13,
+        sessionId: "attention-session",
+      },
+    ],
+  }));
+  assert.deepEqual(
+    groups[0].dimensions.map((dimension) => [dimension.title, dimension.normalizedScore]),
+    [["Обучаемость", 50], ["Внимательность", 28.13]],
+  );
 });
 
 test("legacy interpretation direction conflicts resolve to neutral", () => {

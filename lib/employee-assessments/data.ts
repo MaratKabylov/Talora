@@ -10,7 +10,10 @@ import {
   type LegacyDimensionInput,
 } from "@/lib/assessment-results/collect-dimensions";
 import { buildAssessmentHighlights } from "@/lib/assessment-results/highlights";
-import { mergeLegacyPresentationInputs } from "@/lib/assessment-results/legacy-inputs";
+import {
+  buildLegacyLearningFallback,
+  mergeLegacyPresentationInputs,
+} from "@/lib/assessment-results/legacy-inputs";
 import {
   materializedEmployeeDimensionValue,
   type EmployeeMaterializedDimensionRow,
@@ -185,6 +188,7 @@ type SessionRecord = {
 };
 
 type ReportTestTemplateTitleRecord = {
+  category: string;
   title: string;
 };
 
@@ -1050,7 +1054,7 @@ async function getEmployeeAssessmentReportDataUninstrumented(companyId: string, 
       : await supabase
           .from("test_versions")
           .select(
-            "id, title, test_template_id, scoring_schema_version, assessment_domain, result_shape, scoring_config_json, test_templates(title)",
+            "id, title, test_template_id, scoring_schema_version, assessment_domain, result_shape, scoring_config_json, test_templates(title, category)",
           )
           .in("id", versionIds);
 
@@ -1123,6 +1127,23 @@ async function getEmployeeAssessmentReportDataUninstrumented(companyId: string, 
       };
       if (result && session) linkedLegacy.push(row);
       else unlinkedLegacy.push(row);
+  }
+  for (const session of sessions) {
+    const result = session.employee_assessment_test_results?.[0];
+    const version = versionById.get(session.test_version_id);
+    const template = version ? related(version.test_templates) : null;
+    if (!result || !version) continue;
+    const fallback = buildLegacyLearningFallback({
+      category: template?.category,
+      existingRows: linkedLegacy,
+      minimumScore: minimumScoreByCompetency.get("learning_ability") ?? null,
+      percentage: result.percentage ?? session.percentage,
+      score: result.raw_score ?? session.score,
+      sessionId: session.id,
+      testTitle: template?.title ?? version.title,
+      testVersionId: session.test_version_id,
+    });
+    if (fallback) linkedLegacy.push(fallback);
   }
   const legacySummary = ((summaryResult.data ?? []) as unknown as ReportSummaryRecord[]).map(
     (summary) => ({
@@ -1358,7 +1379,7 @@ async function getEmployeeAssessmentReportDetailsDataUninstrumented(
       : await supabase
           .from("test_versions")
           .select(
-            "id, title, test_template_id, scoring_schema_version, assessment_domain, result_shape, scoring_config_json, test_templates(title)",
+            "id, title, test_template_id, scoring_schema_version, assessment_domain, result_shape, scoring_config_json, test_templates(title, category)",
           )
           .in("id", versionIds);
 

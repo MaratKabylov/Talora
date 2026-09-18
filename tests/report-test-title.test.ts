@@ -26,8 +26,8 @@ test("report loaders fetch logical template titles with session/version data", (
     "utf8",
   );
 
-  assert.match(candidateDataSource, /test_versions\([^\n]*test_templates\(title\)/);
-  assert.match(employeeDataSource, /from\("test_versions"\)[\s\S]*test_templates\(title\)/);
+  assert.match(candidateDataSource, /test_versions\([^\n]*test_templates\(title, category\)/);
+  assert.match(employeeDataSource, /from\("test_versions"\)[\s\S]*test_templates\(title, category\)/);
   assert.doesNotMatch(candidateDataSource, /from\("test_templates"\)\.select\("id, title"\)/);
   assert.doesNotMatch(employeeDataSource, /from\("test_templates"\)\.select\("id, title"\)/);
 });
