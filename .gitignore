@@ -22,6 +22,8 @@ pnpm-debug.log*
 # testing
 /coverage
 /artifacts/performance/
+/artifacts/talvia-tests-audit/
+/artifacts/talvia-tests-audit.zip
 
 # typescript
 *.tsbuildinfo

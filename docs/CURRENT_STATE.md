@@ -1,6 +1,6 @@
 # Текущее состояние Talvia
 
-Обновлено: 2026-09-18. Ручные веса компетенций убраны из вакансий и оценок сотрудников; competency `fit_score` теперь является равным средним фактически измеренных немотивационных компетенций. Группы показателей в отчётах кандидата и сотрудника свёрнуты по умолчанию; когнитивная сводка показывает итоговые «Обучаемость» и «Внимательность». PERF-012 indexes и DB-часть PERF-015 async scoring ранее применены и проверены в разрешённом текущем Supabase-проекте (`main PRODUCTION`).
+Обновлено: 2026-09-24. Добавлен одноразовый read-only экспорт системных тестов для аудита качества; архив `artifacts/talvia-tests-audit.zip` сформирован из текущего Supabase-проекта с проверкой счётчиков. Ручные веса компетенций убраны из вакансий и оценок сотрудников; competency `fit_score` теперь является равным средним фактически измеренных немотивационных компетенций. Группы показателей в отчётах кандидата и сотрудника свёрнуты по умолчанию; когнитивная сводка показывает итоговые «Обучаемость» и «Внимательность». PERF-012 indexes и DB-часть PERF-015 async scoring ранее применены и проверены в разрешённом текущем Supabase-проекте (`main PRODUCTION`).
 
 ## Текущий этап
 
@@ -13,6 +13,7 @@
 - Remote catalog подтвердил таблицу, RLS, четыре `SECURITY DEFINER` RPC, пустой `search_path`, закрытый direct table access и service-only execute. Queue пуста; expired leases и tenant-parent mismatches — 0. [Evidence](performance/PERF015_ASYNC_QUEUE_REMOTE_2026-09-13.json).
 - Completion за флагом `ASSESSMENT_ASYNC_SCORING_V2`: enqueue возвращает `processing`, Next `after()` делает best-effort drain, client выполняет bounded polling, отдельный protected endpoint предназначен для scheduler.
 - Флаг по умолчанию выключен. Синхронный completion остаётся рабочим rollback path.
+- **Audit export:** `scripts/export-system-tests-audit.mjs` читает только `test_templates`, `test_versions`, `test_sections`, `questions`, `answer_options` через Supabase service credentials и fetch-guard `GET/HEAD`. Экспортирует по одному JSON на системный тест: последнюю опубликованную версию и все draft-версии, включая raw `settings_json`, `scoring_config_json`, scoring audit index, исходные IDs и связи remediation/options. Участники, результаты, invitations/tokens, пароли и env не запрашиваются и не сериализуются.
 
 ## Реализация и безопасность
 
@@ -28,6 +29,7 @@
 ## Проверки
 
 - Текущие изменения (2026-09-18): `npm run lint`, `npm run typecheck`, `npm run build` — успешно; профильные `assessment-results` + `report-test-title` — **25/25**, полный `npm test` — **525/525**.
+- Audit export (2026-09-24): `node --check scripts/export-system-tests-audit.mjs` — успешно; `node scripts/export-system-tests-audit.mjs` — успешно. Экспортировано 5 системных тестов / 6 версий / 17 секций / 112 вопросов / 411 вариантов; `manifest.verification.templateCountMatchesDatabase=true`, `contentCountsMatchDatabase=true`. `tar -tf artifacts/talvia-tests-audit.zip` подтвердил состав ZIP.
 - Предыдущая полная регрессия (2026-09-14): `npm test` — **524/524**; профильная scoring/forms регрессия — **54/54**.
 - PGlite исполняет обе реальные миграции и verification SQL. Покрыты idempotent DDL, tenant isolation, service-only grants, dedup, lease exclusivity/expiry/takeover, bounded retry, explicit terminal retry и rollback атомарной транзакции.
 - Подключённый Chrome: navigation suite **30/30**, включая automatic completion polling, manual retry и recovery без дублирования записи.
