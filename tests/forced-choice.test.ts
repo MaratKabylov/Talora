@@ -313,8 +313,8 @@ test("fit score: measured non-motivation competencies contribute equally", () =>
   assert.equal(COMPETENCIES.some((competency) => motivation9Keys.includes(competency.key as never)), true);
 });
 
-test("report: complete Motivation-9 profile is ranked into the requested groups", () => {
-  const percentages = [67, 83, 94, 56, 44, 17, 28, 39, 61];
+test("report: complete Motivation-9 profile uses shared competition ranks for ties", () => {
+  const percentages = [61, 72.2, 50, 39, 72.2, 61, 28, 17, 50];
   const profile = buildMotivation9Profile(
     MOTIVATION_9_COMPETENCIES.map((competency, index) => ({
       key: competency.key,
@@ -324,14 +324,11 @@ test("report: complete Motivation-9 profile is ranked into the requested groups"
   );
 
   assert.ok(profile);
-  assert.deepEqual(
-    profile.core.map((competency) => competency.key),
-    ["motivation_autonomy", "motivation_growth"],
-  );
-  assert.deepEqual(
-    profile.groups.map((group) => group.competencies.length),
-    [2, 2, 3, 2],
-  );
+  assert.deepEqual(profile.ranked.map((competency) => competency.rank), [1, 1, 3, 3, 5, 5, 7, 8, 9]);
+  assert.deepEqual(profile.ranked.slice(0, 2).map((competency) => competency.key), [
+    "motivation_growth",
+    "motivation_team",
+  ]);
 });
 
 test("report: legacy six-scale profile keeps the backward-compatible fallback", () => {

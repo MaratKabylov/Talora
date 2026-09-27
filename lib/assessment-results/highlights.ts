@@ -1,4 +1,5 @@
 import type { AssessmentDimensionGroup, AssessmentDimensionResult, AssessmentHighlight } from "./types";
+import { assignCompetitionRanks } from "../reports/profile-ranking.ts";
 
 function withScores(dimensions: readonly AssessmentDimensionResult[]) {
   return dimensions.filter(
@@ -22,16 +23,26 @@ export function buildAssessmentHighlights(
     const ranked = scored.slice().sort((left, right) => right.normalizedScore - left.normalizedScore);
 
     if (group.key === "motivation") {
+      const rankedWithTies = assignCompetitionRanks(ranked, (dimension) => dimension.normalizedScore);
+      const leadingRank = rankedWithTies[0]?.rank ?? null;
+      const leading = rankedWithTies
+        .filter((entry) => entry.rank === leadingRank)
+        .map((entry) => entry.value);
+      const lower = rankedWithTies
+        .filter((entry) => entry.rank !== null && entry.rank !== leadingRank)
+        .map((entry) => entry.value);
       highlights.push({
         group: group.key,
-        text: `Ведущие мотиваторы: ${names(ranked.slice(0, 3))}.`,
+        text: `Более приоритетные факторы профиля: ${names(leading)}.`,
         title: "Мотивация",
       });
-      if (ranked.length > 3) {
+      if (lower.length > 0) {
+        const lowestScore = lower.at(-1)?.normalizedScore ?? null;
+        const lowest = lower.filter((dimension) => dimension.normalizedScore === lowestScore);
         highlights.push({
           group: group.key,
-          text: `Менее выраженные мотиваторы: ${names(ranked.slice(-Math.min(3, ranked.length - 3)).reverse())}.`,
-          title: "Менее выраженные мотиваторы",
+          text: `Относительно менее приоритетные факторы: ${names(lowest)}.`,
+          title: "Относительные приоритеты",
         });
       }
     } else if (group.key === "work_competencies") {

@@ -1,9 +1,11 @@
 # Текущее состояние Talvia
 
-Обновлено: 2026-09-24. Добавлен одноразовый read-only экспорт системных тестов для аудита качества; архив `artifacts/talvia-tests-audit.zip` сформирован из текущего Supabase-проекта с проверкой счётчиков. Ручные веса компетенций убраны из вакансий и оценок сотрудников; competency `fit_score` теперь является равным средним фактически измеренных немотивационных компетенций. Группы показателей в отчётах кандидата и сотрудника свёрнуты по умолчанию; когнитивная сводка показывает итоговые «Обучаемость» и «Внимательность». PERF-012 indexes и DB-часть PERF-015 async scoring ранее применены и проверены в разрешённом текущем Supabase-проекте (`main PRODUCTION`).
+Обновлено: 2026-09-27. Начата реализация `Talvia_Scoring_V2_TZ.md`: исправлена интерпретация профильных результатов в отчётах без изменения опубликованных версий и исторических результатов. Мотивационные показатели получают competition rank с одинаковым рангом при равных значениях, позиционные группы удалены; ипсативные шкалы явно помечены как несопоставимые между участниками. Детали Learning/Attention показывают требуемые метрики. Новые V2 draft-версии четырёх системных тестов ещё не подготовлены и не опубликованы. PERF-012 indexes и DB-часть PERF-015 async scoring ранее применены и проверены в разрешённом текущем Supabase-проекте (`main PRODUCTION`).
 
 ## Текущий этап
 
+- **Scoring V2 / отчёты:** `groupForRank()` и жёсткие группы мотивации удалены. `lib/reports/profile-ranking.ts` присваивает ранг вида `1, 1, 3, 3`; таблица мотивации показывает ранг и числовое значение, highlights не разрывают одинаковые верхние/нижние значения между разными формулировками. Для Forced Choice выводится пояснение `within_person_only`.
+- **Learning / Attention details:** Learning показывает initial, recovery, gain, post-feedback и final; отсутствие recovery отображается как «Не применимо». Attention дополнительно показывает correct count; accuracy, completion, errors, omissions и response time остаются раздельными, время не включается в score.
 - **Competency fit:** UI «Веса компетенций» заменён на «Требования к компетенциям» с полями минимума и обязательности. Ручной процент и проверка суммы 100% удалены в candidate/job и employee assessment flows. Мотивационные шкалы не показываются в требованиях и не входят в competency fit.
 - `fit_score` считает простое среднее только доступных немотивационных competency percentages; отсутствующие результаты не считаются нулём. `weighted_score` summary rows хранит равную долю компетенции. Employee fallback на `overall_score` удалён.
 - **UI отчётов:** `components/reports/assessment-dimensions-report.tsx` — независимые нативные `details/summary` для групп показателей, свёрнутые по умолчанию; стрелка состояния, управление с клавиатуры, видимый фокус. Карточки не растягиваются по высоте соседнего блока. В когнитивной сводке `learning_final` отображается как «Обучаемость» перед `attention_accuracy`; промежуточные learning-метрики остаются в подробностях теста. Для legacy-результатов отдельного теста `learning_ability`, где competency row не сохранён, отчёты кандидата и сотрудника используют итоговый процент теста. Код готов; визуальная проверка в браузере и deployment этой правки не выполнены.
@@ -28,6 +30,7 @@
 
 ## Проверки
 
+- Текущий Scoring V2 report slice (2026-09-27): профильные тесты **56/56**, полный `npm test` — **527/527**, `npm run lint`, `npm run typecheck`, `npm run build`, `git diff --check` — успешно. Для typecheck локально восстановлен отсутствовавший установленный dev-пакет `@electric-sql/pglite`; manifest/lockfile не менялись.
 - Текущие изменения (2026-09-18): `npm run lint`, `npm run typecheck`, `npm run build` — успешно; профильные `assessment-results` + `report-test-title` — **25/25**, полный `npm test` — **525/525**.
 - Audit export (2026-09-24): `node --check scripts/export-system-tests-audit.mjs` — успешно; `node scripts/export-system-tests-audit.mjs` — успешно. Экспортировано 5 системных тестов / 6 версий / 17 секций / 112 вопросов / 411 вариантов; `manifest.verification.templateCountMatchesDatabase=true`, `contentCountsMatchDatabase=true`. `tar -tf artifacts/talvia-tests-audit.zip` подтвердил состав ZIP.
 - Предыдущая полная регрессия (2026-09-14): `npm test` — **524/524**; профильная scoring/forms регрессия — **54/54**.
@@ -40,11 +43,10 @@
 
 ## Следующий шаг
 
-Для UI: проверить в браузере отчёты кандидата и сотрудника — все группы должны стартовать свёрнутыми, а при наличии завершённых learning/attention тестов когнитивный блок должен показывать «Обучаемость» и «Внимательность», включая узкий экран.
+Продолжить этап 1 Scoring V2: получить актуальные экспортированные определения четырёх системных тестов, преобразовать их в `talvia.test.v2`, прогнать preview/publication validation и подготовить только новые draft-версии. Публикацию и изменение production-данных без отдельного подтверждения не выполнять.
 
-1. Если появится внешний hosting, развернуть код с server-only `SCORING_WORKER_SECRET`, затем включить `ASSESSMENT_ASYNC_SCORING_V2` после preview smoke.
-2. Для постоянного внешнего запуска настроить scheduler раз в минуту: `POST /api/internal/scoring/drain` с `{"limit":5}`. Локальная проверка использовала временный secret, который удалён.
-3. После deployment собрать p50/p95 completion/drain. Текущие числа относятся к локальному Next runtime и не являются production SLA.
-4. Для PERF-017 подтвердить hosting runtime region и Supabase Postgres region, затем разместить preview ближе к БД.
+1. Доработать candidate/employee answer summary для профильных тестов: скрыть correct/incorrect и показывать полное количество ответов/полноту без зависимости от пагинации.
+2. Проверить новые ранги, ипсативное пояснение и Learning/Attention cards в браузере на отчётах кандидата и сотрудника, включая узкий экран.
+3. Если появится внешний hosting, развернуть код с server-only `SCORING_WORKER_SECRET`, затем включить `ASSESSMENT_ASYNC_SCORING_V2` после preview smoke.
 
 `tests/fixtures/*.sql` остаются локальными stand-ins. Удалённые destructive/downgrade операции и production flags без отдельного решения не выполнять.

@@ -7,6 +7,7 @@ import type {
   AssessmentReportGroup,
 } from "@/lib/assessment-results/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { assignCompetitionRanks } from "@/lib/reports/profile-ranking";
 
 function dimensionColumnTitle(group: AssessmentReportGroup) {
   if (group === "cognitive") return "Показатель";
@@ -72,6 +73,9 @@ function profileDescription(group: AssessmentReportGroup) {
   return null;
 }
 
+const IPSATIVE_EXPLANATION =
+  "Результаты отражают относительный профиль внутри одного человека и не предназначены для прямого сравнения баллов разных участников.";
+
 export function AssessmentHighlights({ highlights }: { highlights: AssessmentHighlight[] }) {
   if (highlights.length === 0) return null;
 
@@ -113,6 +117,12 @@ export function AssessmentDimensionGroups({ groups }: { groups: AssessmentDimens
     <div className="grid gap-6 lg:grid-cols-2">
       {groups.map((group) => {
         const description = profileDescription(group.key);
+        const rankedDimensions = group.key === "motivation"
+          ? assignCompetitionRanks(group.dimensions, (dimension) => dimension.normalizedScore)
+          : group.dimensions.map((dimension) => ({ rank: null, value: dimension }));
+        const isIpsative = group.dimensions.some(
+          (dimension) => dimension.sourceType === "forced_choice",
+        );
         const showStatus = group.dimensions.some(
           (dimension) => dimension.threshold !== null || dimension.valueStatus !== "available",
         );
@@ -129,10 +139,18 @@ export function AssessmentDimensionGroups({ groups }: { groups: AssessmentDimens
               </summary>
               <CardContent className="pb-6">
                 {description ? <CardDescription className="mb-6">{description}</CardDescription> : null}
+                {isIpsative ? (
+                  <p className="mb-6 rounded-md border px-3 py-2 text-sm text-muted-foreground">
+                    {IPSATIVE_EXPLANATION}
+                  </p>
+                ) : null}
                 <div className="overflow-hidden rounded-lg border">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50 text-left text-muted-foreground">
                       <tr>
+                        {group.key === "motivation" ? (
+                          <th className="w-16 px-4 py-3 font-medium">Ранг</th>
+                        ) : null}
                         <th className="px-4 py-3 font-medium">{dimensionColumnTitle(group.key)}</th>
                         <th className="px-4 py-3 font-medium">{valueColumnTitle(group.key)}</th>
                         {showNorm ? <th className="px-4 py-3 font-medium">Норма</th> : null}
@@ -140,8 +158,11 @@ export function AssessmentDimensionGroups({ groups }: { groups: AssessmentDimens
                       </tr>
                     </thead>
                     <tbody>
-                      {group.dimensions.map((dimension) => (
+                      {rankedDimensions.map(({ rank, value: dimension }) => (
                         <tr className="border-t" key={dimension.id}>
+                          {group.key === "motivation" ? (
+                            <td className="px-4 py-3 tabular-nums">{rank ?? "—"}</td>
+                          ) : null}
                           <td className="px-4 py-3 font-medium">
                             <span>{dimension.title}</span>
                             {dimension.testTitle ? (

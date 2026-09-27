@@ -1,8 +1,8 @@
 import type { ReportScoringDetails } from "@/lib/reports/scoring-details";
 
-function percent(value: number | null) {
+function percent(value: number | null, emptyLabel = "Нет данных") {
   return value === null
-    ? "Нет данных"
+    ? emptyLabel
     : `${value.toLocaleString("ru-RU", { maximumFractionDigits: 2 })}%`;
 }
 
@@ -41,9 +41,13 @@ export function ScoringResultDetails({ details }: { details: ReportScoringDetail
           <h3 className="text-sm font-medium">Обучаемость</h3>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Metric label="Первичный результат" value={percent(details.learning.initial_score)} />
-            <Metric label="Recovery" value={percent(details.learning.recovery_rate)} />
-            <Metric label="Learning gain" value={percent(details.learning.learning_gain)} />
-            <Metric label="Итог" value={percent(details.learning.final_score)} />
+            <Metric
+              label="Успешность повторных заданий"
+              value={percent(details.learning.recovery_rate, "Не применимо")}
+            />
+            <Metric label="Прирост после обратной связи" value={percent(details.learning.learning_gain)} />
+            <Metric label="Результат после обратной связи" value={percent(details.learning.post_feedback_score)} />
+            <Metric label="Итоговый показатель" value={percent(details.learning.final_score)} />
           </div>
         </section>
       ) : null}
@@ -53,6 +57,7 @@ export function ScoringResultDetails({ details }: { details: ReportScoringDetail
           <h3 className="text-sm font-medium">Внимание</h3>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Metric label="Точность" value={percent(details.attention.accuracy)} />
+            <Metric label="Правильно" value={String(details.attention.correct_count)} />
             <Metric label="Ошибки" value={String(details.attention.incorrect_count)} />
             <Metric label="Пропуски" value={String(details.attention.omitted_count)} />
             <Metric label="Завершённость" value={percent(details.attention.completion_rate)} />

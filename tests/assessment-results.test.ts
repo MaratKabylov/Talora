@@ -170,7 +170,7 @@ test("v2 dimensions use definition titles and replace overlapping legacy profile
   assert.ok(dimensions.every((dimension) => dimension.interpretationDirection === "neutral"));
 });
 
-test("highlights are deterministic, bounded, and do not call motivation a strength", () => {
+test("highlights are deterministic, bounded, and describe motivation as relative priorities", () => {
   const dimensions = collectAssessmentDimensions({
     sessions: [
       {
@@ -188,7 +188,7 @@ test("highlights are deterministic, bounded, and do not call motivation a streng
   const highlights = buildAssessmentHighlights(groups, 5);
 
   assert.ok(highlights.length <= 5);
-  assert.match(highlights[0].text, /Ведущие мотиваторы/);
+  assert.match(highlights[0].text, /Более приоритетные факторы профиля/);
   assert.doesNotMatch(highlights.map((highlight) => highlight.text).join(" "), /сильн/i);
   assert.deepEqual(highlights, buildAssessmentHighlights(groups, 5));
 });
