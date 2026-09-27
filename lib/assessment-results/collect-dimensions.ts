@@ -92,7 +92,7 @@ const DERIVED_SCORE_TITLES: Record<string, string> = {
   learning_final: "Обучаемость",
   learning_initial: "Первичное усвоение",
   learning_recovery: "Восстановление после обратной связи",
-  sjt_total: "Рабочие ситуации",
+  sjt_total: "Качество решений в рабочих ситуациях",
 };
 
 const SAFE_DERIVED_CRITERION_IDS = new Set(Object.keys(DERIVED_SCORE_TITLES));

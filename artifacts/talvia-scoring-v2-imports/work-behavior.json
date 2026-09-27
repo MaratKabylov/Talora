@@ -1,0 +1,1743 @@
+{
+  "schema_version": "talvia.test.v2",
+  "scoring": {
+    "composites": [],
+    "learning_scoring": null,
+    "norm_assignments": [],
+    "scoring_version": "2.0",
+    "thresholds": [],
+    "assessment_domain": "behavior",
+    "dimensions": [
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "responsibility",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 1,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Ответственность"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "work_organization",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 2,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Организованность"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "work_initiative",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 3,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Инициативность"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "work_result_orientation",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 4,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Ориентация на результат"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "work_collaboration",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 5,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Сотрудничество"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "work_adaptability",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 6,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Самоконтроль и адаптивность"
+      }
+    ],
+    "items": [
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_01",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "responsibility",
+            "keyed_direction": 1,
+            "option_key": "q_01_01_option_01"
+          },
+          {
+            "dimension_key": "work_organization",
+            "keyed_direction": 1,
+            "option_key": "q_01_01_option_02"
+          },
+          {
+            "dimension_key": "work_result_orientation",
+            "keyed_direction": 1,
+            "option_key": "q_01_01_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_02",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_organization",
+            "keyed_direction": 1,
+            "option_key": "q_01_02_option_01"
+          },
+          {
+            "dimension_key": "work_collaboration",
+            "keyed_direction": 1,
+            "option_key": "q_01_02_option_02"
+          },
+          {
+            "dimension_key": "responsibility",
+            "keyed_direction": 1,
+            "option_key": "q_01_02_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_03",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_adaptability",
+            "keyed_direction": 1,
+            "option_key": "q_01_03_option_01"
+          },
+          {
+            "dimension_key": "responsibility",
+            "keyed_direction": 1,
+            "option_key": "q_01_03_option_02"
+          },
+          {
+            "dimension_key": "work_organization",
+            "keyed_direction": 1,
+            "option_key": "q_01_03_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_04",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_initiative",
+            "keyed_direction": 1,
+            "option_key": "q_01_04_option_01"
+          },
+          {
+            "dimension_key": "responsibility",
+            "keyed_direction": 1,
+            "option_key": "q_01_04_option_02"
+          },
+          {
+            "dimension_key": "work_result_orientation",
+            "keyed_direction": 1,
+            "option_key": "q_01_04_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_05",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_collaboration",
+            "keyed_direction": 1,
+            "option_key": "q_01_05_option_01"
+          },
+          {
+            "dimension_key": "work_initiative",
+            "keyed_direction": 1,
+            "option_key": "q_01_05_option_02"
+          },
+          {
+            "dimension_key": "responsibility",
+            "keyed_direction": 1,
+            "option_key": "q_01_05_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_06",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "responsibility",
+            "keyed_direction": 1,
+            "option_key": "q_01_06_option_01"
+          },
+          {
+            "dimension_key": "work_adaptability",
+            "keyed_direction": 1,
+            "option_key": "q_01_06_option_02"
+          },
+          {
+            "dimension_key": "work_initiative",
+            "keyed_direction": 1,
+            "option_key": "q_01_06_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_07",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "responsibility",
+            "keyed_direction": 1,
+            "option_key": "q_01_07_option_01"
+          },
+          {
+            "dimension_key": "work_result_orientation",
+            "keyed_direction": 1,
+            "option_key": "q_01_07_option_02"
+          },
+          {
+            "dimension_key": "work_collaboration",
+            "keyed_direction": 1,
+            "option_key": "q_01_07_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_08",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_result_orientation",
+            "keyed_direction": 1,
+            "option_key": "q_01_08_option_01"
+          },
+          {
+            "dimension_key": "work_adaptability",
+            "keyed_direction": 1,
+            "option_key": "q_01_08_option_02"
+          },
+          {
+            "dimension_key": "responsibility",
+            "keyed_direction": 1,
+            "option_key": "q_01_08_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_09",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_adaptability",
+            "keyed_direction": 1,
+            "option_key": "q_01_09_option_01"
+          },
+          {
+            "dimension_key": "responsibility",
+            "keyed_direction": 1,
+            "option_key": "q_01_09_option_02"
+          },
+          {
+            "dimension_key": "work_collaboration",
+            "keyed_direction": 1,
+            "option_key": "q_01_09_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_10",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_initiative",
+            "keyed_direction": 1,
+            "option_key": "q_01_10_option_01"
+          },
+          {
+            "dimension_key": "work_organization",
+            "keyed_direction": 1,
+            "option_key": "q_01_10_option_02"
+          },
+          {
+            "dimension_key": "work_result_orientation",
+            "keyed_direction": 1,
+            "option_key": "q_01_10_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_11",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_collaboration",
+            "keyed_direction": 1,
+            "option_key": "q_01_11_option_01"
+          },
+          {
+            "dimension_key": "work_initiative",
+            "keyed_direction": 1,
+            "option_key": "q_01_11_option_02"
+          },
+          {
+            "dimension_key": "work_organization",
+            "keyed_direction": 1,
+            "option_key": "q_01_11_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_12",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_organization",
+            "keyed_direction": 1,
+            "option_key": "q_01_12_option_01"
+          },
+          {
+            "dimension_key": "work_adaptability",
+            "keyed_direction": 1,
+            "option_key": "q_01_12_option_02"
+          },
+          {
+            "dimension_key": "work_initiative",
+            "keyed_direction": 1,
+            "option_key": "q_01_12_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_13",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_organization",
+            "keyed_direction": 1,
+            "option_key": "q_01_13_option_01"
+          },
+          {
+            "dimension_key": "work_result_orientation",
+            "keyed_direction": 1,
+            "option_key": "q_01_13_option_02"
+          },
+          {
+            "dimension_key": "work_collaboration",
+            "keyed_direction": 1,
+            "option_key": "q_01_13_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_14",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_result_orientation",
+            "keyed_direction": 1,
+            "option_key": "q_01_14_option_01"
+          },
+          {
+            "dimension_key": "work_adaptability",
+            "keyed_direction": 1,
+            "option_key": "q_01_14_option_02"
+          },
+          {
+            "dimension_key": "work_organization",
+            "keyed_direction": 1,
+            "option_key": "q_01_14_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_15",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_adaptability",
+            "keyed_direction": 1,
+            "option_key": "q_01_15_option_01"
+          },
+          {
+            "dimension_key": "work_organization",
+            "keyed_direction": 1,
+            "option_key": "q_01_15_option_02"
+          },
+          {
+            "dimension_key": "work_collaboration",
+            "keyed_direction": 1,
+            "option_key": "q_01_15_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_16",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_result_orientation",
+            "keyed_direction": 1,
+            "option_key": "q_01_16_option_01"
+          },
+          {
+            "dimension_key": "work_initiative",
+            "keyed_direction": 1,
+            "option_key": "q_01_16_option_02"
+          },
+          {
+            "dimension_key": "work_collaboration",
+            "keyed_direction": 1,
+            "option_key": "q_01_16_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_17",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_adaptability",
+            "keyed_direction": 1,
+            "option_key": "q_01_17_option_01"
+          },
+          {
+            "dimension_key": "work_result_orientation",
+            "keyed_direction": 1,
+            "option_key": "q_01_17_option_02"
+          },
+          {
+            "dimension_key": "work_initiative",
+            "keyed_direction": 1,
+            "option_key": "q_01_17_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_18",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "work_initiative",
+            "keyed_direction": 1,
+            "option_key": "q_01_18_option_01"
+          },
+          {
+            "dimension_key": "work_adaptability",
+            "keyed_direction": 1,
+            "option_key": "q_01_18_option_02"
+          },
+          {
+            "dimension_key": "work_collaboration",
+            "keyed_direction": 1,
+            "option_key": "q_01_18_option_03"
+          }
+        ]
+      },
+      {
+        "max_points": 3,
+        "min_points": 0,
+        "options": [
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_01_option_01",
+            "points": 0
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_01_option_02",
+            "points": 3
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_01_option_03",
+            "points": 1
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_01_option_04",
+            "points": 2
+          }
+        ],
+        "question_key": "q_02_01",
+        "scoring_model": "sjt"
+      },
+      {
+        "max_points": 3,
+        "min_points": 0,
+        "options": [
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_02_option_01",
+            "points": 0
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_02_option_02",
+            "points": 1
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_02_option_03",
+            "points": 3
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_02_option_04",
+            "points": 2
+          }
+        ],
+        "question_key": "q_02_02",
+        "scoring_model": "sjt"
+      },
+      {
+        "max_points": 3,
+        "min_points": 0,
+        "options": [
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_03_option_01",
+            "points": 1
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_03_option_02",
+            "points": 0
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_03_option_03",
+            "points": 3
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_03_option_04",
+            "points": 2
+          }
+        ],
+        "question_key": "q_02_03",
+        "scoring_model": "sjt"
+      },
+      {
+        "max_points": 3,
+        "min_points": 0,
+        "options": [
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_04_option_01",
+            "points": 1
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_04_option_02",
+            "points": 3
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_04_option_03",
+            "points": 0
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_04_option_04",
+            "points": 2
+          }
+        ],
+        "question_key": "q_02_04",
+        "scoring_model": "sjt"
+      },
+      {
+        "max_points": 3,
+        "min_points": 0,
+        "options": [
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_05_option_01",
+            "points": 1
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_05_option_02",
+            "points": 3
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_05_option_03",
+            "points": 2
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_05_option_04",
+            "points": 0
+          }
+        ],
+        "question_key": "q_02_05",
+        "scoring_model": "sjt"
+      },
+      {
+        "max_points": 3,
+        "min_points": 0,
+        "options": [
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_06_option_01",
+            "points": 1
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_06_option_02",
+            "points": 3
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_06_option_03",
+            "points": 0
+          },
+          {
+            "dimension_effects": [],
+            "option_key": "q_02_06_option_04",
+            "points": 2
+          }
+        ],
+        "question_key": "q_02_06",
+        "scoring_model": "sjt"
+      }
+    ],
+    "overall_score": {
+      "source_key": "sjt_total",
+      "source_type": "criterion"
+    },
+    "result_shape": "hybrid"
+  },
+  "test": {
+    "category": "work_behavior",
+    "description": "Системный тест Talvia для оценки типичных рабочих предпочтений и качества решений в стандартных рабочих ситуациях. Forced Choice формирует профиль по шести шкалам: ответственность, организованность, инициативность, ориентация на результат, сотрудничество, самоконтроль и адаптивность. Ситуационные задания отдельно оценивают качество рабочих решений.",
+    "duration_minutes": 15,
+    "instructions": "Тест состоит из двух частей. В заданиях «Вынужденный выбор» отметьте одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него. Все утверждения описывают допустимые рабочие модели, поэтому выбирайте наиболее характерные именно для вас. В ситуационных заданиях выберите действие, которое вы скорее всего предприняли бы на практике. Отвечайте исходя из реального поведения, а не из желаемого образа.",
+    "presentation": {
+      "allow_back": false,
+      "capture_question_time": true,
+      "mode": "one_question"
+    },
+    "scoring_type": "mixed",
+    "sections": [
+      {
+        "content_blocks": [],
+        "description": "В каждом блоке выберите одно утверждение «Больше всего» и одно «Меньше всего». Один вариант нельзя отметить одновременно в обеих колонках.",
+        "key": "section_01",
+        "questions": [
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_01",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "responsibility": 1
+                },
+                "explanation": null,
+                "key": "q_01_01_option_01",
+                "text": "Если я обещал срок, то контролирую выполнение задачи до конца."
+              },
+              {
+                "competency_effects": {
+                  "work_organization": 1
+                },
+                "explanation": null,
+                "key": "q_01_01_option_02",
+                "text": "Перед сложной задачей я обычно определяю последовательность действий."
+              },
+              {
+                "competency_effects": {
+                  "work_result_orientation": 1
+                },
+                "explanation": null,
+                "key": "q_01_01_option_03",
+                "text": "Если возникает препятствие, стараюсь найти другой способ довести задачу до результата."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_02",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_organization": 1
+                },
+                "explanation": null,
+                "key": "q_01_02_option_01",
+                "text": "При нескольких задачах расставляю приоритеты с учётом сроков и зависимостей."
+              },
+              {
+                "competency_effects": {
+                  "work_collaboration": 1
+                },
+                "explanation": null,
+                "key": "q_01_02_option_02",
+                "text": "При разногласии сначала стараюсь понять аргументы другой стороны."
+              },
+              {
+                "competency_effects": {
+                  "responsibility": 1
+                },
+                "explanation": null,
+                "key": "q_01_02_option_03",
+                "text": "Если вижу риск задержки, стараюсь предупредить об этом заранее."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_03",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_adaptability": 1
+                },
+                "explanation": null,
+                "key": "q_01_03_option_01",
+                "text": "Когда требования меняются, быстро определяю, что именно нужно пересмотреть."
+              },
+              {
+                "competency_effects": {
+                  "responsibility": 1
+                },
+                "explanation": null,
+                "key": "q_01_03_option_02",
+                "text": "После передачи части работы другому человеку проверяю, что общий результат не потерян."
+              },
+              {
+                "competency_effects": {
+                  "work_organization": 1
+                },
+                "explanation": null,
+                "key": "q_01_03_option_03",
+                "text": "Перед сдачей важной работы проверяю ключевые детали."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_04",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_initiative": 1
+                },
+                "explanation": null,
+                "key": "q_01_04_option_01",
+                "text": "Если вижу небольшое полезное улучшение, обычно предлагаю его без отдельного поручения."
+              },
+              {
+                "competency_effects": {
+                  "responsibility": 1
+                },
+                "explanation": null,
+                "key": "q_01_04_option_02",
+                "text": "Если допускаю рабочую ошибку, предпочитаю обозначить её и заняться исправлением."
+              },
+              {
+                "competency_effects": {
+                  "work_result_orientation": 1
+                },
+                "explanation": null,
+                "key": "q_01_04_option_03",
+                "text": "Для меня важно различать формально выполненную работу и реально полезный результат."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_05",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_collaboration": 1
+                },
+                "explanation": null,
+                "key": "q_01_05_option_01",
+                "text": "Если коллега просит помощи, учитываю и его срочность, и свои текущие обязательства."
+              },
+              {
+                "competency_effects": {
+                  "work_initiative": 1
+                },
+                "explanation": null,
+                "key": "q_01_05_option_02",
+                "text": "Замечая проблему вне своей зоны, стараюсь помочь довести её до нужного ответственного."
+              },
+              {
+                "competency_effects": {
+                  "responsibility": 1
+                },
+                "explanation": null,
+                "key": "q_01_05_option_03",
+                "text": "Мне важно, чтобы коллеги могли рассчитывать на мои договорённости."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_06",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "responsibility": 1
+                },
+                "explanation": null,
+                "key": "q_01_06_option_01",
+                "text": "Незавершённую задачу я стараюсь оставить с понятным следующим шагом."
+              },
+              {
+                "competency_effects": {
+                  "work_adaptability": 1
+                },
+                "explanation": null,
+                "key": "q_01_06_option_02",
+                "text": "Под давлением стараюсь сначала выделить факты и приоритеты, а затем действовать."
+              },
+              {
+                "competency_effects": {
+                  "work_initiative": 1
+                },
+                "explanation": null,
+                "key": "q_01_06_option_03",
+                "text": "Если общую работу блокирует нерешённый вопрос, предлагаю конкретный следующий шаг."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_07",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "responsibility": 1
+                },
+                "explanation": null,
+                "key": "q_01_07_option_01",
+                "text": "Стараюсь не терять свои обязательства, даже когда их никто специально не контролирует."
+              },
+              {
+                "competency_effects": {
+                  "work_result_orientation": 1
+                },
+                "explanation": null,
+                "key": "q_01_07_option_02",
+                "text": "Если первый подход не срабатывает, анализирую причину и пробую другой способ."
+              },
+              {
+                "competency_effects": {
+                  "work_collaboration": 1
+                },
+                "explanation": null,
+                "key": "q_01_07_option_03",
+                "text": "В совместной работе мне важно, чтобы роли и следующий шаг были понятны участникам."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_08",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_result_orientation": 1
+                },
+                "explanation": null,
+                "key": "q_01_08_option_01",
+                "text": "При ограниченном времени сначала стараюсь защитить критичные требования к результату."
+              },
+              {
+                "competency_effects": {
+                  "work_adaptability": 1
+                },
+                "explanation": null,
+                "key": "q_01_08_option_02",
+                "text": "После резкой обратной связи способен вернуться к содержанию задачи."
+              },
+              {
+                "competency_effects": {
+                  "responsibility": 1
+                },
+                "explanation": null,
+                "key": "q_01_08_option_03",
+                "text": "Готов брать на себя последствия собственных рабочих решений."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_09",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_adaptability": 1
+                },
+                "explanation": null,
+                "key": "q_01_09_option_01",
+                "text": "Если привычный способ перестал работать, спокойно осваиваю новый."
+              },
+              {
+                "competency_effects": {
+                  "responsibility": 1
+                },
+                "explanation": null,
+                "key": "q_01_09_option_02",
+                "text": "Считаю задачу завершённой, когда результат действительно передан и следующий участник может с ним работать."
+              },
+              {
+                "competency_effects": {
+                  "work_collaboration": 1
+                },
+                "explanation": null,
+                "key": "q_01_09_option_03",
+                "text": "Ошибки в совместной работе предпочитаю обсуждать через причины и профилактику, а не через обвинения."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_10",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_initiative": 1
+                },
+                "explanation": null,
+                "key": "q_01_10_option_01",
+                "text": "Самостоятельно принимаю небольшие рабочие решения в пределах своих полномочий."
+              },
+              {
+                "competency_effects": {
+                  "work_organization": 1
+                },
+                "explanation": null,
+                "key": "q_01_10_option_02",
+                "text": "Фиксирую договорённости и следующие шаги, чтобы не держать всё в памяти."
+              },
+              {
+                "competency_effects": {
+                  "work_result_orientation": 1
+                },
+                "explanation": null,
+                "key": "q_01_10_option_03",
+                "text": "Сложную задачу предпочитаю довести до приемлемого результата, а не оставлять после первых неудач."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_11",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_collaboration": 1
+                },
+                "explanation": null,
+                "key": "q_01_11_option_01",
+                "text": "Готов корректировать свои действия, если это помогает общему результату команды."
+              },
+              {
+                "competency_effects": {
+                  "work_initiative": 1
+                },
+                "explanation": null,
+                "key": "q_01_11_option_02",
+                "text": "Ищу возможности упростить повторяющуюся работу, если это даёт заметную пользу."
+              },
+              {
+                "competency_effects": {
+                  "work_organization": 1
+                },
+                "explanation": null,
+                "key": "q_01_11_option_03",
+                "text": "При планировании стараюсь учитывать время на критичные этапы и возможные задержки."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_12",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_organization": 1
+                },
+                "explanation": null,
+                "key": "q_01_12_option_01",
+                "text": "Когда приоритеты меняются, пересобираю план оставшейся работы."
+              },
+              {
+                "competency_effects": {
+                  "work_adaptability": 1
+                },
+                "explanation": null,
+                "key": "q_01_12_option_02",
+                "text": "При неопределённости могу продолжать работу, уточняя ключевые допущения по ходу."
+              },
+              {
+                "competency_effects": {
+                  "work_initiative": 1
+                },
+                "explanation": null,
+                "key": "q_01_12_option_03",
+                "text": "Если мне не хватает информации, обычно сам выясняю, где её получить."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_13",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_organization": 1
+                },
+                "explanation": null,
+                "key": "q_01_13_option_01",
+                "text": "Для повторяющихся процессов предпочитаю использовать контрольные точки или чек-листы."
+              },
+              {
+                "competency_effects": {
+                  "work_result_orientation": 1
+                },
+                "explanation": null,
+                "key": "q_01_13_option_02",
+                "text": "По ходу работы сверяю промежуточный результат с исходной целью."
+              },
+              {
+                "competency_effects": {
+                  "work_collaboration": 1
+                },
+                "explanation": null,
+                "key": "q_01_13_option_03",
+                "text": "Стараюсь заранее сообщать коллегам о решениях, которые заметно повлияют на их работу."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_14",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_result_orientation": 1
+                },
+                "explanation": null,
+                "key": "q_01_14_option_01",
+                "text": "При нехватке ресурсов ищу наиболее эффективный путь к ключевому результату."
+              },
+              {
+                "competency_effects": {
+                  "work_adaptability": 1
+                },
+                "explanation": null,
+                "key": "q_01_14_option_02",
+                "text": "Когда одновременно возникает несколько сбоев, стараюсь сохранять рабочий темп и расставлять приоритеты."
+              },
+              {
+                "competency_effects": {
+                  "work_organization": 1
+                },
+                "explanation": null,
+                "key": "q_01_14_option_03",
+                "text": "Большую задачу стараюсь разбить на понятные управляемые этапы."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_15",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_adaptability": 1
+                },
+                "explanation": null,
+                "key": "q_01_15_option_01",
+                "text": "После напряжённого разговора стараюсь восстановить фокус перед следующим важным решением."
+              },
+              {
+                "competency_effects": {
+                  "work_organization": 1
+                },
+                "explanation": null,
+                "key": "q_01_15_option_02",
+                "text": "Контролирую не только финальный срок, но и важные промежуточные этапы."
+              },
+              {
+                "competency_effects": {
+                  "work_collaboration": 1
+                },
+                "explanation": null,
+                "key": "q_01_15_option_03",
+                "text": "При конфликте интересов предпочитаю сравнивать варианты по общим критериям."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_16",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_result_orientation": 1
+                },
+                "explanation": null,
+                "key": "q_01_16_option_01",
+                "text": "Обратную связь стараюсь использовать для приближения результата к ожидаемому."
+              },
+              {
+                "competency_effects": {
+                  "work_initiative": 1
+                },
+                "explanation": null,
+                "key": "q_01_16_option_02",
+                "text": "Завершив свою часть, смотрю, могу ли я помочь приблизить общий результат."
+              },
+              {
+                "competency_effects": {
+                  "work_collaboration": 1
+                },
+                "explanation": null,
+                "key": "q_01_16_option_03",
+                "text": "Если вижу, что коллега застрял, могу предложить конкретную помощь, не забирая его ответственность."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_17",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_adaptability": 1
+                },
+                "explanation": null,
+                "key": "q_01_17_option_01",
+                "text": "Неожиданные изменения воспринимаю как повод обновить план, а не остановить работу."
+              },
+              {
+                "competency_effects": {
+                  "work_result_orientation": 1
+                },
+                "explanation": null,
+                "key": "q_01_17_option_02",
+                "text": "Если задача буксует, стараюсь определить конкретное препятствие и найти способ его снять."
+              },
+              {
+                "competency_effects": {
+                  "work_initiative": 1
+                },
+                "explanation": null,
+                "key": "q_01_17_option_03",
+                "text": "Стараюсь поднимать потенциальную проблему до того, как она станет срочной."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_01_18",
+            "required": true,
+            "text": "Выберите одно утверждение, которое БОЛЬШЕ всего похоже на ваше обычное рабочее поведение, и одно — которое МЕНЬШЕ всего похоже на него.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "work_initiative": 1
+                },
+                "explanation": null,
+                "key": "q_01_18_option_01",
+                "text": "Если замечаю незакрытую потребность клиента, не рассчитываю только на то, что её заметит кто-то другой."
+              },
+              {
+                "competency_effects": {
+                  "work_adaptability": 1
+                },
+                "explanation": null,
+                "key": "q_01_18_option_02",
+                "text": "В спорной ситуации стараюсь контролировать реакцию и обсуждать факты."
+              },
+              {
+                "competency_effects": {
+                  "work_collaboration": 1
+                },
+                "explanation": null,
+                "key": "q_01_18_option_03",
+                "text": "В сложном обсуждении стараюсь отделять позицию человека от сути рабочей задачи."
+              }
+            ],
+            "type": "forced_choice"
+          }
+        ],
+        "title": "Поведенческие предпочтения"
+      },
+      {
+        "content_blocks": [],
+        "description": "Выберите наиболее вероятное для вас действие в каждой рабочей ситуации.",
+        "key": "section_02",
+        "questions": [
+          {
+            "competency_key": "work_behavior",
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_02_01",
+            "required": true,
+            "text": "Вы понимаете, что задача, обещанная к завтрашнему дню, скорее всего будет завершена позже срока. Как вы поступите?",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "Позднее информирование не оставляет другим участникам времени заранее скорректировать свои планы.",
+                "is_correct": false,
+                "key": "q_02_01_option_01",
+                "points": 0,
+                "text": "Продолжу работать и сообщу о задержке только тогда, когда срок уже будет сорван."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Раннее информирование и конкретный план позволяют управлять риском до фактического срыва срока.",
+                "is_correct": true,
+                "key": "q_02_01_option_02",
+                "points": 3,
+                "text": "Сообщу о риске заранее, кратко объясню причину, предложу реалистичный срок и план дальнейших действий."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Попытка наверстать отставание полезна, но скрытый риск срока может повлиять на работу других людей.",
+                "is_correct": false,
+                "key": "q_02_01_option_03",
+                "points": 1,
+                "text": "Сначала попробую наверстать отставание самостоятельно и сообщу только если станет ясно, что это не получится."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Риск обозначен вовремя, однако более сильное рабочее поведение включает собственное предложение реалистичного решения.",
+                "is_correct": false,
+                "key": "q_02_01_option_04",
+                "points": 2,
+                "text": "Сразу сообщу о риске руководителю и попрошу его определить, что делать дальше."
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "work_behavior",
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_02_02",
+            "required": true,
+            "text": "После отправки клиенту результата вы обнаружили свою ошибку, которую клиент пока не заметил. Что вы сделаете?",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "Ожидание оставляет известную ошибку без контроля и повышает риск последствий.",
+                "is_correct": false,
+                "key": "q_02_02_option_01",
+                "points": 0,
+                "text": "Подожду: если ошибка не повлияет на клиента, возможно, сообщать о ней не потребуется."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Исправление полезно, но клиент может продолжать использовать уже переданную неверную версию.",
+                "is_correct": false,
+                "key": "q_02_02_option_02",
+                "points": 1,
+                "text": "Исправлю данные у себя и сообщу только в случае, если клиент задаст вопрос."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Такой подход сочетает ответственность за ошибку, оценку риска, прозрачность и исправление.",
+                "is_correct": true,
+                "key": "q_02_02_option_03",
+                "points": 3,
+                "text": "Оценю последствия, оперативно сообщу заинтересованным людям и предложу исправленный результат."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Дополнительная проверка может быть полезна, но подтверждённую существенную ошибку важно не задерживать без необходимости.",
+                "is_correct": false,
+                "key": "q_02_02_option_04",
+                "points": 2,
+                "text": "Сначала попрошу коллегу проверить, действительно ли ошибка достаточно существенна, чтобы сообщать о ней."
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "work_behavior",
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_02_03",
+            "required": true,
+            "text": "В середине дня появляется новая срочная задача, которая конфликтует с уже запланированной работой. Как вы поступите?",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "Переключение может быть оправдано, но без пересмотра остальных обязательств возникают скрытые риски.",
+                "is_correct": false,
+                "key": "q_02_03_option_01",
+                "points": 1,
+                "text": "Сразу переключусь на новую задачу, не пересматривая остальные обязательства."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Игнорирование изменившегося приоритета может привести к выполнению уже менее важной работы.",
+                "is_correct": false,
+                "key": "q_02_03_option_02",
+                "points": 0,
+                "text": "Продолжу исходный план: частая смена приоритетов снижает продуктивность."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Такой подход позволяет адаптироваться к новому приоритету, сохраняя контроль над остальными обязательствами.",
+                "is_correct": true,
+                "key": "q_02_03_option_03",
+                "points": 3,
+                "text": "Уточню приоритет и срок новой задачи, оценю влияние на текущие обязательства и перестрою план."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Параллельная работа иногда возможна, но без явного пересмотра приоритетов может снизить качество и предсказуемость.",
+                "is_correct": false,
+                "key": "q_02_03_option_04",
+                "points": 2,
+                "text": "Постараюсь некоторое время выполнять обе задачи параллельно, чтобы ничего не переносить."
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "work_behavior",
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_02_04",
+            "required": true,
+            "text": "На рабочей встрече коллега предлагает подход, с которым вы не согласны. У вас есть аргументы в пользу другого решения. Что вы сделаете?",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "Собственная позиция обозначена, но без понимания логики другой стороны обсуждение может стать менее конструктивным.",
+                "is_correct": false,
+                "key": "q_02_04_option_01",
+                "points": 1,
+                "text": "Сразу объясню, почему предложенный подход неверен, и представлю свой вариант."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Так разногласие переводится в предметное сравнение решений при сохранении конструктивного взаимодействия.",
+                "is_correct": true,
+                "key": "q_02_04_option_02",
+                "points": 3,
+                "text": "Сначала уточню логику и ограничения коллеги, затем изложу свои аргументы и предложу сравнить варианты по общим критериям."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Избегание содержательного несогласия лишает команду важной информации для решения.",
+                "is_correct": false,
+                "key": "q_02_04_option_03",
+                "points": 0,
+                "text": "Не стану возражать на встрече, чтобы не создавать конфликт."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Эскалация может понадобиться, но сначала полезно попытаться сопоставить варианты по понятным критериям.",
+                "is_correct": false,
+                "key": "q_02_04_option_04",
+                "points": 2,
+                "text": "Изложу оба варианта руководителю и попрошу его сразу выбрать один из них."
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "work_behavior",
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_02_05",
+            "required": true,
+            "text": "Вы заметили проблему, которая мешает клиентам, но формально относится к другому подразделению. Вы знаете, кто за неё отвечает. Как поступите?",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "Клиент получает направление, но ответственность за внутреннюю координацию полностью перекладывается на него.",
+                "is_correct": false,
+                "key": "q_02_05_option_01",
+                "points": 1,
+                "text": "Сообщу клиенту контакты нужного подразделения и продолжу свою работу."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Так сохраняется инициативность без нарушения границ ответственности и снижается риск потери клиентской проблемы.",
+                "is_correct": true,
+                "key": "q_02_05_option_02",
+                "points": 3,
+                "text": "Передам проблему ответственным коллегам с необходимым контекстом и проверю, что обращение принято в работу."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Желание помочь полезно, но действия вне полномочий могут привести к ошибкам или дублированию работы.",
+                "is_correct": false,
+                "key": "q_02_05_option_03",
+                "points": 2,
+                "text": "Попробую полностью решить проблему самостоятельно, даже если она находится вне моих полномочий."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Формальная граница зоны ответственности не оправдывает игнорирование известной проблемы клиента.",
+                "is_correct": false,
+                "key": "q_02_05_option_04",
+                "points": 0,
+                "text": "Не буду вмешиваться, поскольку проблема относится к другому подразделению."
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "work_behavior",
+            "description": null,
+            "difficulty": "medium",
+            "key": "q_02_06",
+            "required": true,
+            "text": "Вы несколько раз пытались решить сложную рабочую задачу, но выбранный способ не даёт результата. Что вы сделаете?",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "Настойчивость полезна, но повторение неработающего подхода без анализа не повышает эффективность решения.",
+                "is_correct": false,
+                "key": "q_02_06_option_01",
+                "points": 1,
+                "text": "Продолжу использовать тот же способ: иногда нужно просто приложить больше усилий."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Такой выбор сочетает настойчивость, анализ обратной связи и поиск более эффективного пути к результату.",
+                "is_correct": true,
+                "key": "q_02_06_option_02",
+                "points": 3,
+                "text": "Разберу причины неудачи, изменю подход и при необходимости привлеку подходящую помощь или экспертизу."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Переключение без плана решения оставляет значимую задачу незавершённой.",
+                "is_correct": false,
+                "key": "q_02_06_option_03",
+                "points": 0,
+                "text": "Отложу задачу и займусь тем, что получается лучше."
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Привлечение экспертизы полезно, но полная передача без собственного анализа уменьшает ответственность за результат.",
+                "is_correct": false,
+                "key": "q_02_06_option_04",
+                "points": 2,
+                "text": "Передам задачу более опытному сотруднику и попрошу его довести её до конца."
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          }
+        ],
+        "title": "Рабочие ситуации"
+      }
+    ],
+    "title": "Рабочее поведение"
+  }
+}

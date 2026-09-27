@@ -1,0 +1,1667 @@
+{
+  "schema_version": "talvia.test.v2",
+  "scoring": {
+    "composites": [],
+    "learning_scoring": {
+      "initial_weight": 0.8,
+      "recovery_weight": 0.2
+    },
+    "norm_assignments": [],
+    "scoring_version": "2.0",
+    "thresholds": [],
+    "assessment_domain": "learning",
+    "dimensions": [],
+    "items": [
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_01",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_02",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_03",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_04",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_05",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_06",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_07",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_08",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_01",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_02",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_03",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_04",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_05",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_06",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_07",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_08",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_01",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_02",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_03",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_04",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_05",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_06",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_07",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_08",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_09",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_04_01",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_04_02",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_04_03",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      }
+    ],
+    "overall_score": {
+      "source_key": "learning_final",
+      "source_type": "criterion"
+    },
+    "result_shape": "score"
+  },
+  "test": {
+    "category": "learning_ability",
+    "description": "<!--talora-rich-text-v1--><span data-size=\"5\"><b>TALVIA LEARNING POTENTIAL — LP-01</b></span><br /><br />Оценка способности осваивать новые правила<br />Ориентировочное время: 15–20 минут.",
+    "duration_minutes": 20,
+    "instructions": "<!--talora-rich-text-v1-->В тесте будут несколько совершенно новых для вас систем.<br />От вас не требуется специальных знаний.<br />Ваша задача — понять новые правила и научиться ими пользоваться.<br />В некоторых заданиях после ошибки вы получите объяснение. Затем вам будет предложено похожее задание.<br /><br />В дальнейшем правила могут усложняться или изменяться.<br /><br />Старайтесь отвечать самостоятельно. Скорость важна, но правильность важнее.",
+    "presentation": {
+      "allow_back": true,
+      "capture_question_time": false,
+      "mode": "one_question"
+    },
+    "scoring_type": "points",
+    "sections": [
+      {
+        "content_blocks": [
+          {
+            "description": "<!--talora-rich-text-v1-->В языке LUMA появилось новое правило.<div><br /></div><div><b>Если предмет одновременно ПОЛОСАТЫЙ и БОЛЬШОЙ, окончание -a заменяется на -u.</b></div><div>Все остальные правила остаются прежними.</div><div>Пример:</div><div>Большой полосатый квадрат:</div><div>za-TEV-u</div>",
+            "key": "section_01_block_01",
+            "position_index": 6,
+            "title": "ИЗМЕНЕНИЕ СИСТЕМЫ"
+          }
+        ],
+        "description": "<!--talora-rich-text-v1-->Представьте, что существует искусственный язык LUMA.<br />В нём название предмета составляется из нескольких частей.<br /><br />Форма<br />Треугольник = KOR<br />Круг = LUM<br />Квадрат = TEV<br /><br />Размер<br />Маленький предмет получает окончание: -i<br />Большой предмет получает окончание: -a<br />Поверхность<br />Если предмет полосатый, перед словом добавляется: za-<br />Если предмет точечный: fi-<br />Если поверхность обычная, ничего не добавляется.<br />Примеры:<br />Большой полосатый круг:<br />za-LUM-a<br />Маленький квадрат с обычной поверхностью:<br />TEV-i<br />Большой точечный треугольник:<br />fi-KOR-a",
+        "key": "section_01",
+        "questions": [
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_01",
+            "required": true,
+            "text": "Задание A1\nКак будет называться: маленький точечный треугольник?",
+            "incorrect_feedback": "«Слово собирается из трёх признаков.\n\nТочечный = fi-\nТреугольник = KOR\nМаленький = -i\n\nПоэтому получается fi-KOR-i.»",
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_01_option_01",
+                "points": 0,
+                "text": "za-KOR-i"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_01_01_option_02",
+                "points": 1,
+                "text": "fi-KOR-i"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_01_option_03",
+                "points": 0,
+                "text": "fi-TEV-i"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_01_option_04",
+                "points": 0,
+                "text": "KOR-a"
+              }
+            ],
+            "remediation_question_key": "q_01_02",
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_02",
+            "required": true,
+            "text": "Повторный вопрос A1-R\nКак будет называться большой точечный квадрат?",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_01_02_option_01",
+                "points": 1,
+                "text": "fi-TEV-a"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_02_option_02",
+                "points": 0,
+                "text": "za-TEV-a"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_02_option_03",
+                "points": 0,
+                "text": "fi-TEV-i"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_02_option_04",
+                "points": 0,
+                "text": "TEV-a"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_03",
+            "required": true,
+            "text": "Задание A2\nЧто означает: za-LUM-i",
+            "incorrect_feedback": "Разберите слово на части:\n\nza- = полосатый\nLUM = круг\n-i = маленький.»",
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_01_03_option_01",
+                "points": 1,
+                "text": "Маленький полосатый круг"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_03_option_02",
+                "points": 0,
+                "text": "Большой полосатый круг"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_03_option_03",
+                "points": 0,
+                "text": "Маленький точечный круг"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_03_option_04",
+                "points": 0,
+                "text": "Маленький полосатый квадрат"
+              }
+            ],
+            "remediation_question_key": "q_01_04",
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_04",
+            "required": true,
+            "text": "Повторный вопрос A2-R\nЧто означает: fi-KOR-a",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_04_option_01",
+                "points": 0,
+                "text": "Маленький точечный треугольник"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_04_option_02",
+                "points": 0,
+                "text": "Большой полосатый треугольник"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_01_04_option_03",
+                "points": 1,
+                "text": "Большой точечный треугольник"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_04_option_04",
+                "points": 0,
+                "text": "Большой точечный квадрат"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_05",
+            "required": true,
+            "text": "A3\nЧто означает: za-TEV-a",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_01_05_option_01",
+                "points": 1,
+                "text": "Большой полосатый квадрат"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_05_option_02",
+                "points": 0,
+                "text": "Маленький полосатый квадрат"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_05_option_03",
+                "points": 0,
+                "text": "Большой точечный квадрат"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_05_option_04",
+                "points": 0,
+                "text": "Большой полосатый круг"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_06",
+            "required": true,
+            "text": "A4\nКак называется маленький обычный круг?",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_06_option_01",
+                "points": 0,
+                "text": "LUM-a"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_01_06_option_02",
+                "points": 1,
+                "text": "LUM-i"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_06_option_03",
+                "points": 0,
+                "text": "fi-LUM-i"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_06_option_04",
+                "points": 0,
+                "text": "KOR-i"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_07",
+            "required": true,
+            "text": "A5\nКак теперь называется большой полосатый треугольник?",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_07_option_01",
+                "points": 0,
+                "text": "za-KOR-a"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_07_option_02",
+                "points": 0,
+                "text": "fi-KOR-u"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_01_07_option_03",
+                "points": 1,
+                "text": "za-KOR-u"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_07_option_04",
+                "points": 0,
+                "text": "KOR-u"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_08",
+            "required": true,
+            "text": "A6\nЧто теперь означает:\nza-LUM-u",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_01_08_option_01",
+                "points": 1,
+                "text": "Большой полосатый круг"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_08_option_02",
+                "points": 0,
+                "text": "Маленький полосатый круг"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_08_option_03",
+                "points": 0,
+                "text": "Большой точечный круг"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_08_option_04",
+                "points": 0,
+                "text": "Большой полосатый квадрат"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          }
+        ],
+        "title": "БЛОК 1. ЯЗЫК LUMA"
+      },
+      {
+        "content_blocks": [],
+        "description": "<!--talora-rich-text-v1-->Вы работаете с новой системой распределения обращений.<div><br /></div><div>Каждое обращение имеет четыре характеристики:</div><div><br /></div><div>— риск: низкий / высокий</div><div>— срочность: обычное / срочное</div><div>— клиент: новый / постоянный</div><div>— документы: полные / неполные</div><div><br /></div><div>Обращение необходимо направить в одну из очередей:</div><div><b>A</b>, <b>B</b>, <b>C</b>, <b>D </b>или <b>E</b>.</div><div><br /></div><div>Правила применяются по приоритету.</div><div><b>Правило 1</b></div><div>Если документы НЕПОЛНЫЕ → очередь E.</div><div>Это правило имеет самый высокий приоритет.</div><div><b>Правило 2</b></div><div>Если обращение СРОЧНОЕ и клиент ПОСТОЯННЫЙ → очередь D.</div><div><b>Правило 3</b></div><div>Любое другое СРОЧНОЕ обращение → очередь C.</div><div><b>Правило 4</b></div><div>Если обращение обычное:</div><div>низкий риск → A</div><div>высокий риск → B</div>",
+        "key": "section_02",
+        "questions": [
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->\r<div>Риск: высокий\r</div><div>Срочность: обычное\r</div><div>Клиент: новый\r</div><div>Документы: полные\r</div><div>\r</div><div>Куда направить обращение?</div>",
+            "difficulty": null,
+            "key": "q_02_01",
+            "required": true,
+            "text": "B1",
+            "incorrect_feedback": "«Обращение не срочное, документы полные.\n\nПоэтому специальные правила не применяются.\n\nДля обычного обращения с высоким риском используется очередь B.»",
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_01_option_01",
+                "points": 0,
+                "text": "A"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_02_01_option_02",
+                "points": 1,
+                "text": "B"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_01_option_03",
+                "points": 0,
+                "text": "C"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_01_option_04",
+                "points": 0,
+                "text": "D"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_01_option_05",
+                "points": 0,
+                "text": "E"
+              }
+            ],
+            "remediation_question_key": "q_02_02",
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->Риск: низкий<div>Срочность: обычное</div><div>Клиент: постоянный</div><div>Документы: полные</div>",
+            "difficulty": null,
+            "key": "q_02_02",
+            "required": true,
+            "text": "B1-R",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_02_02_option_01",
+                "points": 1,
+                "text": "A"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_02_option_02",
+                "points": 0,
+                "text": "B"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_02_option_03",
+                "points": 0,
+                "text": "C"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_02_option_04",
+                "points": 0,
+                "text": "D"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_02_option_05",
+                "points": 0,
+                "text": "E"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->Риск: низкий\r<div>Срочность: срочное\r</div><div>Клиент: новый\r</div><div>Документы: полные</div>",
+            "difficulty": null,
+            "key": "q_02_03",
+            "required": true,
+            "text": "B2",
+            "incorrect_feedback": "«Срочность имеет приоритет над уровнем риска.\n\nЕсли обращение срочное и клиент новый, используется очередь C.»",
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_03_option_01",
+                "points": 0,
+                "text": "A"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_03_option_02",
+                "points": 0,
+                "text": "B"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_02_03_option_03",
+                "points": 1,
+                "text": "C"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_03_option_04",
+                "points": 0,
+                "text": "D"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_03_option_05",
+                "points": 0,
+                "text": "E"
+              }
+            ],
+            "remediation_question_key": "q_02_04",
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->Риск: высокий<div>Срочность: срочное</div><div>Клиент: новый</div><div>Документы: полные</div>",
+            "difficulty": null,
+            "key": "q_02_04",
+            "required": true,
+            "text": "B2-R",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_04_option_01",
+                "points": 0,
+                "text": "A"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_04_option_02",
+                "points": 0,
+                "text": "B"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_02_04_option_03",
+                "points": 1,
+                "text": "C"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_04_option_04",
+                "points": 0,
+                "text": "D"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_04_option_05",
+                "points": 0,
+                "text": "E"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->Риск: низкий<div>Срочность: срочное</div><div>Клиент: постоянный</div><div>Документы: полные</div>",
+            "difficulty": null,
+            "key": "q_02_05",
+            "required": true,
+            "text": "B3",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_05_option_01",
+                "points": 0,
+                "text": "A"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_05_option_02",
+                "points": 0,
+                "text": "B"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_05_option_03",
+                "points": 0,
+                "text": "C"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_02_05_option_04",
+                "points": 1,
+                "text": "D"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_05_option_05",
+                "points": 0,
+                "text": "E"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->Риск: низкий<div>Срочность: обычное</div><div>Клиент: постоянный</div><div>Документы: неполные</div>",
+            "difficulty": null,
+            "key": "q_02_06",
+            "required": true,
+            "text": "B4",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_06_option_01",
+                "points": 0,
+                "text": "A"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_06_option_02",
+                "points": 0,
+                "text": "B"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_06_option_03",
+                "points": 0,
+                "text": "C"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_06_option_04",
+                "points": 0,
+                "text": "D"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_02_06_option_05",
+                "points": 1,
+                "text": "E"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->Риск: высокий<div>Срочность: срочное</div><div>Клиент: постоянный</div><div>Документы: неполные</div><div>Обратите внимание: неполные документы имеют более высокий приоритет, чем срочность и тип клиента.</div>",
+            "difficulty": null,
+            "key": "q_02_07",
+            "required": true,
+            "text": "B5",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_07_option_01",
+                "points": 0,
+                "text": "A"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_07_option_02",
+                "points": 0,
+                "text": "B"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_07_option_03",
+                "points": 0,
+                "text": "C"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_07_option_04",
+                "points": 0,
+                "text": "D"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_02_07_option_05",
+                "points": 1,
+                "text": "E"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->Риск: высокий<div>Срочность: обычное</div><div>Клиент: постоянный</div><div>Документы: полные</div>",
+            "difficulty": null,
+            "key": "q_02_08",
+            "required": true,
+            "text": "B6",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_08_option_01",
+                "points": 0,
+                "text": "A"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_02_08_option_02",
+                "points": 1,
+                "text": "B"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_08_option_03",
+                "points": 0,
+                "text": "C"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_08_option_04",
+                "points": 0,
+                "text": "D"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_08_option_05",
+                "points": 0,
+                "text": "E"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          }
+        ],
+        "title": "БЛОК 2. СИСТЕМА ORBIT"
+      },
+      {
+        "content_blocks": [
+          {
+            "description": "<!--talora-rich-text-v1--><div>Теперь операция S изменилась.</div><div>Она больше не сдвигает символ на один шаг.</div><div>Теперь она сдвигает его на ДВА шага:</div><div>A → C</div><div>B → D</div><div>C → A</div><div>D → B</div><div>Операции R и X остаются прежними.</div>",
+            "key": "section_03_block_01",
+            "position_index": 7,
+            "title": "ИЗМЕНЕНИЕ ПРАВИЛА"
+          }
+        ],
+        "description": "<!--talora-rich-text-v1--><div>Машина NEX работает с последовательностями букв.</div><div>Используются четыре символа:</div><div>A → B → C → D → A</div><div>Машина знает три операции.</div><div><b>R — REVERSE</b></div><div>Меняет порядок символов на обратный.</div><div>ABC → CBA</div><div><b>X — EXCHANGE</b></div><div>Меняет местами первые два символа.</div><div>ABC → BAC</div><div><b>S — SHIFT</b></div><div>Каждый символ заменяется следующим:</div><div>A → B</div><div>B → C</div><div>C → D</div><div>D → A</div><div><b>Например:</b></div><div>ACD → BDA</div><div>Если указано несколько операций, они выполняются слева направо.</div><div><b>Например:</b></div><div>ABC → X → R</div><div><b>Сначала X:</b></div><div>ABC → BAC</div><div><b>Затем R:</b></div><div>BAC → CAB</div><div><b>Ответ:</b></div><div>CAB</div>",
+        "key": "section_03",
+        "questions": [
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->ABC → R",
+            "difficulty": null,
+            "key": "q_03_01",
+            "required": true,
+            "text": "C1",
+            "incorrect_feedback": "«R полностью разворачивает последовательность.\n\nABC → CBA.»",
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_01_option_01",
+                "points": 0,
+                "text": "ABC"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_01_option_02",
+                "points": 0,
+                "text": "BAC"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_03_01_option_03",
+                "points": 1,
+                "text": "CBA"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_01_option_04",
+                "points": 0,
+                "text": "BCA"
+              }
+            ],
+            "remediation_question_key": "q_03_02",
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->BCD → R",
+            "difficulty": null,
+            "key": "q_03_02",
+            "required": true,
+            "text": "C1-R",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_02_option_01",
+                "points": 0,
+                "text": "BCD"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_03_02_option_02",
+                "points": 1,
+                "text": "DCB"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_02_option_03",
+                "points": 0,
+                "text": "CBD"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_02_option_04",
+                "points": 0,
+                "text": "DBC"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->ACD → S",
+            "difficulty": null,
+            "key": "q_03_03",
+            "required": true,
+            "text": "C2",
+            "incorrect_feedback": "«S заменяет каждый символ следующим:\nA → B\nC → D\nD → A\nПоэтому:\nACD → BDA.»",
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_03_03_option_01",
+                "points": 1,
+                "text": "BDA"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_03_option_02",
+                "points": 0,
+                "text": "BCD"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_03_option_03",
+                "points": 0,
+                "text": "DAB"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_03_option_04",
+                "points": 0,
+                "text": "BAD"
+              }
+            ],
+            "remediation_question_key": "q_03_04",
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->DAB → S",
+            "difficulty": null,
+            "key": "q_03_04",
+            "required": true,
+            "text": "C2-R",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_03_04_option_01",
+                "points": 1,
+                "text": "ABC"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_04_option_02",
+                "points": 0,
+                "text": "BCD"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_04_option_03",
+                "points": 0,
+                "text": "CDA"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_04_option_04",
+                "points": 0,
+                "text": "BAC"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->ABC → X → R",
+            "difficulty": null,
+            "key": "q_03_05",
+            "required": true,
+            "text": "КОМБИНАЦИИ\nC3",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_05_option_01",
+                "points": 0,
+                "text": "BAC"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_03_05_option_02",
+                "points": 1,
+                "text": "CAB"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_05_option_03",
+                "points": 0,
+                "text": "CBA"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_05_option_04",
+                "points": 0,
+                "text": "BCA"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->DAB → S → X",
+            "difficulty": null,
+            "key": "q_03_06",
+            "required": true,
+            "text": "C4",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_06_option_01",
+                "points": 0,
+                "text": "ABC"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_03_06_option_02",
+                "points": 1,
+                "text": "BAC"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_06_option_03",
+                "points": 0,
+                "text": "BCA"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_06_option_04",
+                "points": 0,
+                "text": "ACB"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->BCD → R → S",
+            "difficulty": null,
+            "key": "q_03_07",
+            "required": true,
+            "text": "C5",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_03_07_option_01",
+                "points": 1,
+                "text": "ADC"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_07_option_02",
+                "points": 0,
+                "text": "DCB"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_07_option_03",
+                "points": 0,
+                "text": "ACD"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_07_option_04",
+                "points": 0,
+                "text": "BDA"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->ABC → S",
+            "difficulty": null,
+            "key": "q_03_08",
+            "required": true,
+            "text": "C6",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_08_option_01",
+                "points": 0,
+                "text": "BCD"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_03_08_option_02",
+                "points": 1,
+                "text": "CDA"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_08_option_03",
+                "points": 0,
+                "text": "DAB"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_08_option_04",
+                "points": 0,
+                "text": "ACD"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->DCA → S → R",
+            "difficulty": null,
+            "key": "q_03_09",
+            "required": true,
+            "text": "C7",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_09_option_01",
+                "points": 0,
+                "text": "BAC"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_03_09_option_02",
+                "points": 1,
+                "text": "CAB"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_09_option_03",
+                "points": 0,
+                "text": "ACB"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_09_option_04",
+                "points": 0,
+                "text": "BCA"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          }
+        ],
+        "title": "БЛОК 3. МАШИНА NEX"
+      },
+      {
+        "content_blocks": [],
+        "description": null,
+        "key": "section_04",
+        "questions": [
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->Что означает:<div>fi-TEV-a</div><div>Используется первоначальная система LUMA.</div>",
+            "difficulty": null,
+            "key": "q_04_01",
+            "required": true,
+            "text": "D1 — LUMA",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_04_01_option_01",
+                "points": 1,
+                "text": "Большой точечный квадрат"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_01_option_02",
+                "points": 0,
+                "text": "Маленький точечный квадрат"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_01_option_03",
+                "points": 0,
+                "text": "Большой полосатый квадрат"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_01_option_04",
+                "points": 0,
+                "text": "Большой точечный круг"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->Риск: низкий<div>Срочность: обычное</div><div>Клиент: новый</div><div>Документы: полные</div>",
+            "difficulty": null,
+            "key": "q_04_02",
+            "required": true,
+            "text": "D2 — ORBIT",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_04_02_option_01",
+                "points": 1,
+                "text": "A"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_02_option_02",
+                "points": 0,
+                "text": "B"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_02_option_03",
+                "points": 0,
+                "text": "C"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_02_option_04",
+                "points": 0,
+                "text": "D"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_02_option_05",
+                "points": 0,
+                "text": "E"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": null,
+            "description": "<!--talora-rich-text-v1-->Используется ПЕРВОНАЧАЛЬНАЯ версия операции S:<div>CAB → S</div>",
+            "difficulty": null,
+            "key": "q_04_03",
+            "required": true,
+            "text": "D3 — NEX",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": true,
+                "key": "q_04_03_option_01",
+                "points": 1,
+                "text": "DBC"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_03_option_02",
+                "points": 0,
+                "text": "BCD"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_03_option_03",
+                "points": 0,
+                "text": "CDA"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_03_option_04",
+                "points": 0,
+                "text": "ADC"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": false,
+            "type": "single_choice"
+          }
+        ],
+        "title": "ОТЛОЖЕННАЯ ПРОВЕРКА"
+      }
+    ],
+    "title": "Обучаемость"
+  }
+}

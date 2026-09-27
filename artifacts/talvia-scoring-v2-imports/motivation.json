@@ -1,0 +1,1912 @@
+{
+  "schema_version": "talvia.test.v2",
+  "scoring": {
+    "composites": [],
+    "learning_scoring": null,
+    "norm_assignments": [],
+    "scoring_version": "2.0",
+    "thresholds": [],
+    "assessment_domain": "motivation",
+    "dimensions": [
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "motivation_result",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 1,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Результат"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "motivation_growth",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 2,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Развитие"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "motivation_autonomy",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 3,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Автономия"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "motivation_influence",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 4,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Влияние"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "motivation_team",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 5,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Команда"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "motivation_stability",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 6,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Стабильность"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "motivation_income",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 7,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Вознаграждение"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "motivation_recognition",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 8,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Признание"
+      },
+      {
+        "aggregation": "sum",
+        "description": null,
+        "interpretation_key": null,
+        "key": "motivation_meaning",
+        "min_answered_items": null,
+        "min_answered_ratio": 1,
+        "missing_policy": "insufficient",
+        "order": 9,
+        "theoretical_max": 9,
+        "theoretical_min": -9,
+        "title": "Смысл"
+      }
+    ],
+    "items": [
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_01",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_result",
+            "keyed_direction": 1,
+            "option_key": "q_01_01_option_01"
+          },
+          {
+            "dimension_key": "motivation_growth",
+            "keyed_direction": 1,
+            "option_key": "q_01_01_option_02"
+          },
+          {
+            "dimension_key": "motivation_influence",
+            "keyed_direction": 1,
+            "option_key": "q_01_01_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_02",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_growth",
+            "keyed_direction": 1,
+            "option_key": "q_01_02_option_01"
+          },
+          {
+            "dimension_key": "motivation_autonomy",
+            "keyed_direction": 1,
+            "option_key": "q_01_02_option_02"
+          },
+          {
+            "dimension_key": "motivation_team",
+            "keyed_direction": 1,
+            "option_key": "q_01_02_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_03",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_autonomy",
+            "keyed_direction": 1,
+            "option_key": "q_01_03_option_01"
+          },
+          {
+            "dimension_key": "motivation_influence",
+            "keyed_direction": 1,
+            "option_key": "q_01_03_option_02"
+          },
+          {
+            "dimension_key": "motivation_stability",
+            "keyed_direction": 1,
+            "option_key": "q_01_03_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_04",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_influence",
+            "keyed_direction": 1,
+            "option_key": "q_01_04_option_01"
+          },
+          {
+            "dimension_key": "motivation_team",
+            "keyed_direction": 1,
+            "option_key": "q_01_04_option_02"
+          },
+          {
+            "dimension_key": "motivation_income",
+            "keyed_direction": 1,
+            "option_key": "q_01_04_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_05",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_team",
+            "keyed_direction": 1,
+            "option_key": "q_01_05_option_01"
+          },
+          {
+            "dimension_key": "motivation_stability",
+            "keyed_direction": 1,
+            "option_key": "q_01_05_option_02"
+          },
+          {
+            "dimension_key": "motivation_recognition",
+            "keyed_direction": 1,
+            "option_key": "q_01_05_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_06",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_stability",
+            "keyed_direction": 1,
+            "option_key": "q_01_06_option_01"
+          },
+          {
+            "dimension_key": "motivation_income",
+            "keyed_direction": 1,
+            "option_key": "q_01_06_option_02"
+          },
+          {
+            "dimension_key": "motivation_meaning",
+            "keyed_direction": 1,
+            "option_key": "q_01_06_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_07",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_income",
+            "keyed_direction": 1,
+            "option_key": "q_01_07_option_01"
+          },
+          {
+            "dimension_key": "motivation_recognition",
+            "keyed_direction": 1,
+            "option_key": "q_01_07_option_02"
+          },
+          {
+            "dimension_key": "motivation_result",
+            "keyed_direction": 1,
+            "option_key": "q_01_07_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_08",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_recognition",
+            "keyed_direction": 1,
+            "option_key": "q_01_08_option_01"
+          },
+          {
+            "dimension_key": "motivation_meaning",
+            "keyed_direction": 1,
+            "option_key": "q_01_08_option_02"
+          },
+          {
+            "dimension_key": "motivation_growth",
+            "keyed_direction": 1,
+            "option_key": "q_01_08_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_09",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_meaning",
+            "keyed_direction": 1,
+            "option_key": "q_01_09_option_01"
+          },
+          {
+            "dimension_key": "motivation_result",
+            "keyed_direction": 1,
+            "option_key": "q_01_09_option_02"
+          },
+          {
+            "dimension_key": "motivation_autonomy",
+            "keyed_direction": 1,
+            "option_key": "q_01_09_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_10",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_result",
+            "keyed_direction": 1,
+            "option_key": "q_01_10_option_01"
+          },
+          {
+            "dimension_key": "motivation_autonomy",
+            "keyed_direction": 1,
+            "option_key": "q_01_10_option_02"
+          },
+          {
+            "dimension_key": "motivation_stability",
+            "keyed_direction": 1,
+            "option_key": "q_01_10_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_11",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_growth",
+            "keyed_direction": 1,
+            "option_key": "q_01_11_option_01"
+          },
+          {
+            "dimension_key": "motivation_influence",
+            "keyed_direction": 1,
+            "option_key": "q_01_11_option_02"
+          },
+          {
+            "dimension_key": "motivation_income",
+            "keyed_direction": 1,
+            "option_key": "q_01_11_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_12",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_autonomy",
+            "keyed_direction": 1,
+            "option_key": "q_01_12_option_01"
+          },
+          {
+            "dimension_key": "motivation_team",
+            "keyed_direction": 1,
+            "option_key": "q_01_12_option_02"
+          },
+          {
+            "dimension_key": "motivation_recognition",
+            "keyed_direction": 1,
+            "option_key": "q_01_12_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_13",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_influence",
+            "keyed_direction": 1,
+            "option_key": "q_01_13_option_01"
+          },
+          {
+            "dimension_key": "motivation_stability",
+            "keyed_direction": 1,
+            "option_key": "q_01_13_option_02"
+          },
+          {
+            "dimension_key": "motivation_meaning",
+            "keyed_direction": 1,
+            "option_key": "q_01_13_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_14",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_team",
+            "keyed_direction": 1,
+            "option_key": "q_01_14_option_01"
+          },
+          {
+            "dimension_key": "motivation_income",
+            "keyed_direction": 1,
+            "option_key": "q_01_14_option_02"
+          },
+          {
+            "dimension_key": "motivation_result",
+            "keyed_direction": 1,
+            "option_key": "q_01_14_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_15",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_stability",
+            "keyed_direction": 1,
+            "option_key": "q_01_15_option_01"
+          },
+          {
+            "dimension_key": "motivation_recognition",
+            "keyed_direction": 1,
+            "option_key": "q_01_15_option_02"
+          },
+          {
+            "dimension_key": "motivation_growth",
+            "keyed_direction": 1,
+            "option_key": "q_01_15_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_16",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_income",
+            "keyed_direction": 1,
+            "option_key": "q_01_16_option_01"
+          },
+          {
+            "dimension_key": "motivation_meaning",
+            "keyed_direction": 1,
+            "option_key": "q_01_16_option_02"
+          },
+          {
+            "dimension_key": "motivation_autonomy",
+            "keyed_direction": 1,
+            "option_key": "q_01_16_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_17",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_recognition",
+            "keyed_direction": 1,
+            "option_key": "q_01_17_option_01"
+          },
+          {
+            "dimension_key": "motivation_result",
+            "keyed_direction": 1,
+            "option_key": "q_01_17_option_02"
+          },
+          {
+            "dimension_key": "motivation_influence",
+            "keyed_direction": 1,
+            "option_key": "q_01_17_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_18",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_meaning",
+            "keyed_direction": 1,
+            "option_key": "q_01_18_option_01"
+          },
+          {
+            "dimension_key": "motivation_growth",
+            "keyed_direction": 1,
+            "option_key": "q_01_18_option_02"
+          },
+          {
+            "dimension_key": "motivation_team",
+            "keyed_direction": 1,
+            "option_key": "q_01_18_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_19",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_result",
+            "keyed_direction": 1,
+            "option_key": "q_01_19_option_01"
+          },
+          {
+            "dimension_key": "motivation_team",
+            "keyed_direction": 1,
+            "option_key": "q_01_19_option_02"
+          },
+          {
+            "dimension_key": "motivation_recognition",
+            "keyed_direction": 1,
+            "option_key": "q_01_19_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_20",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_growth",
+            "keyed_direction": 1,
+            "option_key": "q_01_20_option_01"
+          },
+          {
+            "dimension_key": "motivation_stability",
+            "keyed_direction": 1,
+            "option_key": "q_01_20_option_02"
+          },
+          {
+            "dimension_key": "motivation_meaning",
+            "keyed_direction": 1,
+            "option_key": "q_01_20_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_21",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_autonomy",
+            "keyed_direction": 1,
+            "option_key": "q_01_21_option_01"
+          },
+          {
+            "dimension_key": "motivation_income",
+            "keyed_direction": 1,
+            "option_key": "q_01_21_option_02"
+          },
+          {
+            "dimension_key": "motivation_result",
+            "keyed_direction": 1,
+            "option_key": "q_01_21_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_22",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_influence",
+            "keyed_direction": 1,
+            "option_key": "q_01_22_option_01"
+          },
+          {
+            "dimension_key": "motivation_recognition",
+            "keyed_direction": 1,
+            "option_key": "q_01_22_option_02"
+          },
+          {
+            "dimension_key": "motivation_growth",
+            "keyed_direction": 1,
+            "option_key": "q_01_22_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_23",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_team",
+            "keyed_direction": 1,
+            "option_key": "q_01_23_option_01"
+          },
+          {
+            "dimension_key": "motivation_meaning",
+            "keyed_direction": 1,
+            "option_key": "q_01_23_option_02"
+          },
+          {
+            "dimension_key": "motivation_autonomy",
+            "keyed_direction": 1,
+            "option_key": "q_01_23_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_24",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_stability",
+            "keyed_direction": 1,
+            "option_key": "q_01_24_option_01"
+          },
+          {
+            "dimension_key": "motivation_result",
+            "keyed_direction": 1,
+            "option_key": "q_01_24_option_02"
+          },
+          {
+            "dimension_key": "motivation_influence",
+            "keyed_direction": 1,
+            "option_key": "q_01_24_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_25",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_income",
+            "keyed_direction": 1,
+            "option_key": "q_01_25_option_01"
+          },
+          {
+            "dimension_key": "motivation_growth",
+            "keyed_direction": 1,
+            "option_key": "q_01_25_option_02"
+          },
+          {
+            "dimension_key": "motivation_team",
+            "keyed_direction": 1,
+            "option_key": "q_01_25_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_26",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_recognition",
+            "keyed_direction": 1,
+            "option_key": "q_01_26_option_01"
+          },
+          {
+            "dimension_key": "motivation_autonomy",
+            "keyed_direction": 1,
+            "option_key": "q_01_26_option_02"
+          },
+          {
+            "dimension_key": "motivation_stability",
+            "keyed_direction": 1,
+            "option_key": "q_01_26_option_03"
+          }
+        ]
+      },
+      {
+        "centering": "none",
+        "method": "ipsative",
+        "question_key": "q_01_27",
+        "role_weights": {
+          "least": -1,
+          "most": 1
+        },
+        "scoring_model": "forced_choice",
+        "statements": [
+          {
+            "dimension_key": "motivation_meaning",
+            "keyed_direction": 1,
+            "option_key": "q_01_27_option_01"
+          },
+          {
+            "dimension_key": "motivation_influence",
+            "keyed_direction": 1,
+            "option_key": "q_01_27_option_02"
+          },
+          {
+            "dimension_key": "motivation_income",
+            "keyed_direction": 1,
+            "option_key": "q_01_27_option_03"
+          }
+        ]
+      }
+    ],
+    "overall_score": null,
+    "result_shape": "profile"
+  },
+  "test": {
+    "category": "motivation",
+    "description": "Forced Choice тест для оценки относительного профиля девяти рабочих мотиваторов: результата, развития, автономии, влияния, команды, стабильности, вознаграждения, признания и смысла.",
+    "duration_minutes": 12,
+    "instructions": "В каждом блоке представлены три утверждения о работе. Выберите одно утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и одно утверждение, которое соответствует МЕНЬШЕ всего. Один и тот же вариант нельзя выбрать одновременно как «Больше всего» и «Меньше всего». Правильных и неправильных ответов нет. Выбирайте то, что действительно ближе вам, даже если несколько вариантов кажутся привлекательными.",
+    "presentation": {
+      "allow_back": false,
+      "capture_question_time": true,
+      "mode": "one_question"
+    },
+    "scoring_type": "competency_profile",
+    "sections": [
+      {
+        "content_blocks": [],
+        "description": "27 блоков вынужденного выбора. В каждом блоке выберите наиболее и наименее значимое для вас утверждение.",
+        "key": "section_01",
+        "questions": [
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_01",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_result": 1
+                },
+                "explanation": null,
+                "key": "q_01_01_option_01",
+                "text": "Сильнее вовлекаюсь, когда у задачи есть ясный критерий успешного результата."
+              },
+              {
+                "competency_effects": {
+                  "motivation_growth": 1
+                },
+                "explanation": null,
+                "key": "q_01_01_option_02",
+                "text": "Особенно ценю работу, которая регулярно расширяет мои профессиональные возможности."
+              },
+              {
+                "competency_effects": {
+                  "motivation_influence": 1
+                },
+                "explanation": null,
+                "key": "q_01_01_option_03",
+                "text": "Мне интересно участвовать в решениях, от которых зависит работа других."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_02",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_growth": 1
+                },
+                "explanation": null,
+                "key": "q_01_02_option_01",
+                "text": "Нравятся задачи, в которых приходится осваивать новые способы работы."
+              },
+              {
+                "competency_effects": {
+                  "motivation_autonomy": 1
+                },
+                "explanation": null,
+                "key": "q_01_02_option_02",
+                "text": "Лучше работаю, когда могу сам выбирать способ достижения поставленной цели."
+              },
+              {
+                "competency_effects": {
+                  "motivation_team": 1
+                },
+                "explanation": null,
+                "key": "q_01_02_option_03",
+                "text": "Ценю среду, где коллеги активно обмениваются помощью и информацией."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_03",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_autonomy": 1
+                },
+                "explanation": null,
+                "key": "q_01_03_option_01",
+                "text": "Мне важно самостоятельно расставлять приоритеты в своей зоне ответственности."
+              },
+              {
+                "competency_effects": {
+                  "motivation_influence": 1
+                },
+                "explanation": null,
+                "key": "q_01_03_option_02",
+                "text": "Мне интересно брать ответственность за направление работы других людей."
+              },
+              {
+                "competency_effects": {
+                  "motivation_stability": 1
+                },
+                "explanation": null,
+                "key": "q_01_03_option_03",
+                "text": "Мне комфортно, когда основные правила и ожидания заранее понятны."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_04",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_influence": 1
+                },
+                "explanation": null,
+                "key": "q_01_04_option_01",
+                "text": "Мне нравится добиваться поддержки своих идей и влиять на общий курс."
+              },
+              {
+                "competency_effects": {
+                  "motivation_team": 1
+                },
+                "explanation": null,
+                "key": "q_01_04_option_02",
+                "text": "Мне особенно интересны задачи, где результат зависит от слаженной совместной работы."
+              },
+              {
+                "competency_effects": {
+                  "motivation_income": 1
+                },
+                "explanation": null,
+                "key": "q_01_04_option_03",
+                "text": "Привлекает работа, где увеличение вклада может заметно отражаться на вознаграждении."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_05",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_team": 1
+                },
+                "explanation": null,
+                "key": "q_01_05_option_01",
+                "text": "Мне важно чувствовать себя полноценным участником команды."
+              },
+              {
+                "competency_effects": {
+                  "motivation_stability": 1
+                },
+                "explanation": null,
+                "key": "q_01_05_option_02",
+                "text": "Ценю рабочую среду, в которой изменения происходят обоснованно и предсказуемо."
+              },
+              {
+                "competency_effects": {
+                  "motivation_recognition": 1
+                },
+                "explanation": null,
+                "key": "q_01_05_option_03",
+                "text": "Мне важно, чтобы качественно выполненная работа была замечена."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_06",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_stability": 1
+                },
+                "explanation": null,
+                "key": "q_01_06_option_01",
+                "text": "Предпочитаю условия, в которых можно уверенно планировать работу на ближайшее время."
+              },
+              {
+                "competency_effects": {
+                  "motivation_income": 1
+                },
+                "explanation": null,
+                "key": "q_01_06_option_02",
+                "text": "Для меня существенна возможность улучшать финансовые условия по мере роста вклада."
+              },
+              {
+                "competency_effects": {
+                  "motivation_meaning": 1
+                },
+                "explanation": null,
+                "key": "q_01_06_option_03",
+                "text": "Мне важно понимать, кому и какую пользу приносит моя работа."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_07",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_income": 1
+                },
+                "explanation": null,
+                "key": "q_01_07_option_01",
+                "text": "Дополнительная материальная отдача усиливает мой интерес к высоким результатам."
+              },
+              {
+                "competency_effects": {
+                  "motivation_recognition": 1
+                },
+                "explanation": null,
+                "key": "q_01_07_option_02",
+                "text": "Мне приятно, когда профессиональные достижения укрепляют мою репутацию."
+              },
+              {
+                "competency_effects": {
+                  "motivation_result": 1
+                },
+                "explanation": null,
+                "key": "q_01_07_option_03",
+                "text": "Особенно мотивируют задачи, где можно заметно превзойти исходный уровень результата."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_08",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_recognition": 1
+                },
+                "explanation": null,
+                "key": "q_01_08_option_01",
+                "text": "Для меня важно, чтобы сильный профессиональный вклад получал признание."
+              },
+              {
+                "competency_effects": {
+                  "motivation_meaning": 1
+                },
+                "explanation": null,
+                "key": "q_01_08_option_02",
+                "text": "Сильнее вовлекаюсь в работу, когда считаю её результат действительно значимым."
+              },
+              {
+                "competency_effects": {
+                  "motivation_growth": 1
+                },
+                "explanation": null,
+                "key": "q_01_08_option_03",
+                "text": "Мне интересно становиться специалистом, способным решать всё более сложные задачи."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_09",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_meaning": 1
+                },
+                "explanation": null,
+                "key": "q_01_09_option_01",
+                "text": "Мне важно видеть связь между своей работой и полезными изменениями."
+              },
+              {
+                "competency_effects": {
+                  "motivation_result": 1
+                },
+                "explanation": null,
+                "key": "q_01_09_option_02",
+                "text": "Мне нравится завершать задачи с конкретным и проверяемым результатом."
+              },
+              {
+                "competency_effects": {
+                  "motivation_autonomy": 1
+                },
+                "explanation": null,
+                "key": "q_01_09_option_03",
+                "text": "Ценю возможность действовать без лишнего контроля в рамках своей ответственности."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_10",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_result": 1
+                },
+                "explanation": null,
+                "key": "q_01_10_option_01",
+                "text": "Мне легче сохранять высокий темп, когда цель и критерии успеха определены."
+              },
+              {
+                "competency_effects": {
+                  "motivation_autonomy": 1
+                },
+                "explanation": null,
+                "key": "q_01_10_option_02",
+                "text": "Мне важно иметь пространство для собственного профессионального решения."
+              },
+              {
+                "competency_effects": {
+                  "motivation_stability": 1
+                },
+                "explanation": null,
+                "key": "q_01_10_option_03",
+                "text": "Хорошо работаю в среде с устойчивыми процессами и понятными договорённостями."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_11",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_growth": 1
+                },
+                "explanation": null,
+                "key": "q_01_11_option_01",
+                "text": "Возможность постоянно повышать уровень мастерства делает работу привлекательнее."
+              },
+              {
+                "competency_effects": {
+                  "motivation_influence": 1
+                },
+                "explanation": null,
+                "key": "q_01_11_option_02",
+                "text": "Мне интересны роли, где можно влиять на решения и распределение ресурсов."
+              },
+              {
+                "competency_effects": {
+                  "motivation_income": 1
+                },
+                "explanation": null,
+                "key": "q_01_11_option_03",
+                "text": "Мне важно, чтобы повышение ответственности могло сопровождаться ростом дохода."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_12",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_autonomy": 1
+                },
+                "explanation": null,
+                "key": "q_01_12_option_01",
+                "text": "Предпочитаю, когда руководитель задаёт цель, а способ выполнения можно выбрать самому."
+              },
+              {
+                "competency_effects": {
+                  "motivation_team": 1
+                },
+                "explanation": null,
+                "key": "q_01_12_option_02",
+                "text": "Мне нравится решать задачи вместе с людьми, на которых можно положиться."
+              },
+              {
+                "competency_effects": {
+                  "motivation_recognition": 1
+                },
+                "explanation": null,
+                "key": "q_01_12_option_03",
+                "text": "Меня дополнительно мотивирует заметное признание качественной работы."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_13",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_influence": 1
+                },
+                "explanation": null,
+                "key": "q_01_13_option_01",
+                "text": "Мне интересно брать на себя координацию и направлять совместные действия."
+              },
+              {
+                "competency_effects": {
+                  "motivation_stability": 1
+                },
+                "explanation": null,
+                "key": "q_01_13_option_02",
+                "text": "Для меня важна рабочая среда, где основные приоритеты не меняются хаотично."
+              },
+              {
+                "competency_effects": {
+                  "motivation_meaning": 1
+                },
+                "explanation": null,
+                "key": "q_01_13_option_03",
+                "text": "Мне легче вкладываться в работу, когда я верю в ценность её результата."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_14",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_team": 1
+                },
+                "explanation": null,
+                "key": "q_01_14_option_01",
+                "text": "Общая командная победа даёт мне сильное чувство удовлетворения от работы."
+              },
+              {
+                "competency_effects": {
+                  "motivation_income": 1
+                },
+                "explanation": null,
+                "key": "q_01_14_option_02",
+                "text": "Возможность увеличить доход благодаря результатам делает цель привлекательнее."
+              },
+              {
+                "competency_effects": {
+                  "motivation_result": 1
+                },
+                "explanation": null,
+                "key": "q_01_14_option_03",
+                "text": "Мне нравится видеть измеримый прогресс от собственных усилий."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_15",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_stability": 1
+                },
+                "explanation": null,
+                "key": "q_01_15_option_01",
+                "text": "Ценю надёжную организацию работы и понятную перспективу на будущее."
+              },
+              {
+                "competency_effects": {
+                  "motivation_recognition": 1
+                },
+                "explanation": null,
+                "key": "q_01_15_option_02",
+                "text": "Мне важно со временем занимать признанное положение как сильный специалист."
+              },
+              {
+                "competency_effects": {
+                  "motivation_growth": 1
+                },
+                "explanation": null,
+                "key": "q_01_15_option_03",
+                "text": "Меня привлекает работа, где профессиональный уровень постоянно растёт."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_16",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_income": 1
+                },
+                "explanation": null,
+                "key": "q_01_16_option_01",
+                "text": "Для меня важна связь между вкладом и материальным вознаграждением."
+              },
+              {
+                "competency_effects": {
+                  "motivation_meaning": 1
+                },
+                "explanation": null,
+                "key": "q_01_16_option_02",
+                "text": "Мне важно работать над тем, что я могу считать полезным и стоящим усилий."
+              },
+              {
+                "competency_effects": {
+                  "motivation_autonomy": 1
+                },
+                "explanation": null,
+                "key": "q_01_16_option_03",
+                "text": "Возможность проявлять инициативу без лишних согласований повышает мой интерес."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_17",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_recognition": 1
+                },
+                "explanation": null,
+                "key": "q_01_17_option_01",
+                "text": "Меня мотивирует, когда достижения получают заметную положительную оценку."
+              },
+              {
+                "competency_effects": {
+                  "motivation_result": 1
+                },
+                "explanation": null,
+                "key": "q_01_17_option_02",
+                "text": "Мне нравится отвечать за конкретный конечный результат."
+              },
+              {
+                "competency_effects": {
+                  "motivation_influence": 1
+                },
+                "explanation": null,
+                "key": "q_01_17_option_03",
+                "text": "Меня привлекает возможность запускать изменения и получать поддержку для своих решений."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_18",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_meaning": 1
+                },
+                "explanation": null,
+                "key": "q_01_18_option_01",
+                "text": "Особенно вовлекаюсь, когда понимаю долгосрочную пользу своей работы."
+              },
+              {
+                "competency_effects": {
+                  "motivation_growth": 1
+                },
+                "explanation": null,
+                "key": "q_01_18_option_02",
+                "text": "Мне нравится разбираться в новых областях и расширять профессиональный инструментарий."
+              },
+              {
+                "competency_effects": {
+                  "motivation_team": 1
+                },
+                "explanation": null,
+                "key": "q_01_18_option_03",
+                "text": "Я ценю работу, где люди регулярно обсуждают идеи и помогают друг другу."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_19",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_result": 1
+                },
+                "explanation": null,
+                "key": "q_01_19_option_01",
+                "text": "Предпочитаю задачи, в которых можно однозначно понять, достигнут ли успех."
+              },
+              {
+                "competency_effects": {
+                  "motivation_team": 1
+                },
+                "explanation": null,
+                "key": "q_01_19_option_02",
+                "text": "Мне важно ощущать взаимное доверие и поддержку внутри команды."
+              },
+              {
+                "competency_effects": {
+                  "motivation_recognition": 1
+                },
+                "explanation": null,
+                "key": "q_01_19_option_03",
+                "text": "Мне приятно, когда хороший результат становится заметен окружающим."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_20",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_growth": 1
+                },
+                "explanation": null,
+                "key": "q_01_20_option_01",
+                "text": "Сложная новая задача привлекает меня возможностью чему-то научиться."
+              },
+              {
+                "competency_effects": {
+                  "motivation_stability": 1
+                },
+                "explanation": null,
+                "key": "q_01_20_option_02",
+                "text": "Мне легче сосредоточиться, когда рабочая среда достаточно предсказуема."
+              },
+              {
+                "competency_effects": {
+                  "motivation_meaning": 1
+                },
+                "explanation": null,
+                "key": "q_01_20_option_03",
+                "text": "Мне важно понимать более широкий смысл того, что я делаю."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_21",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_autonomy": 1
+                },
+                "explanation": null,
+                "key": "q_01_21_option_01",
+                "text": "Мне нравится самостоятельно определять последовательность действий для достижения цели."
+              },
+              {
+                "competency_effects": {
+                  "motivation_income": 1
+                },
+                "explanation": null,
+                "key": "q_01_21_option_02",
+                "text": "Возможность материально выиграть от сильного результата повышает мою заинтересованность."
+              },
+              {
+                "competency_effects": {
+                  "motivation_result": 1
+                },
+                "explanation": null,
+                "key": "q_01_21_option_03",
+                "text": "Я особенно вовлекаюсь, когда могу отслеживать конкретный прогресс."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_22",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_influence": 1
+                },
+                "explanation": null,
+                "key": "q_01_22_option_01",
+                "text": "Мне интересно, когда моя позиция способна реально повлиять на принятое решение."
+              },
+              {
+                "competency_effects": {
+                  "motivation_recognition": 1
+                },
+                "explanation": null,
+                "key": "q_01_22_option_02",
+                "text": "Для меня имеет значение признание моего профессионального уровня."
+              },
+              {
+                "competency_effects": {
+                  "motivation_growth": 1
+                },
+                "explanation": null,
+                "key": "q_01_22_option_03",
+                "text": "Возможность осваивать более сложные задачи поддерживает мой интерес к работе."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_23",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_team": 1
+                },
+                "explanation": null,
+                "key": "q_01_23_option_01",
+                "text": "Совместная работа с сильными коллегами заметно повышает мою вовлечённость."
+              },
+              {
+                "competency_effects": {
+                  "motivation_meaning": 1
+                },
+                "explanation": null,
+                "key": "q_01_23_option_02",
+                "text": "Мне важно чувствовать, что итог работы имеет ценность не только формально."
+              },
+              {
+                "competency_effects": {
+                  "motivation_autonomy": 1
+                },
+                "explanation": null,
+                "key": "q_01_23_option_03",
+                "text": "Я предпочитаю иметь право самостоятельно принимать решения в своей зоне ответственности."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_24",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_stability": 1
+                },
+                "explanation": null,
+                "key": "q_01_24_option_01",
+                "text": "Мне важна понятная система работы, на которую можно опираться каждый день."
+              },
+              {
+                "competency_effects": {
+                  "motivation_result": 1
+                },
+                "explanation": null,
+                "key": "q_01_24_option_02",
+                "text": "Меня заряжает возможность улучшать показатели и видеть эффект своих действий."
+              },
+              {
+                "competency_effects": {
+                  "motivation_influence": 1
+                },
+                "explanation": null,
+                "key": "q_01_24_option_03",
+                "text": "Мне интересно брать ответственность за решения, затрагивающие работу других."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_25",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_income": 1
+                },
+                "explanation": null,
+                "key": "q_01_25_option_01",
+                "text": "Мне важно, чтобы рост профессионального вклада открывал возможности для роста дохода."
+              },
+              {
+                "competency_effects": {
+                  "motivation_growth": 1
+                },
+                "explanation": null,
+                "key": "q_01_25_option_02",
+                "text": "Работа становится привлекательнее, если в ней регулярно приходится становиться сильнее как специалисту."
+              },
+              {
+                "competency_effects": {
+                  "motivation_team": 1
+                },
+                "explanation": null,
+                "key": "q_01_25_option_03",
+                "text": "Мне нравится добиваться результата через хорошее взаимодействие с коллегами."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_26",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_recognition": 1
+                },
+                "explanation": null,
+                "key": "q_01_26_option_01",
+                "text": "Мне важно, чтобы профессиональные достижения формировали уважение к моей экспертизе."
+              },
+              {
+                "competency_effects": {
+                  "motivation_autonomy": 1
+                },
+                "explanation": null,
+                "key": "q_01_26_option_02",
+                "text": "Ценю доверие, позволяющее самостоятельно организовать выполнение задачи."
+              },
+              {
+                "competency_effects": {
+                  "motivation_stability": 1
+                },
+                "explanation": null,
+                "key": "q_01_26_option_03",
+                "text": "Мне комфортно, когда роли, правила и ожидания в работе достаточно устойчивы."
+              }
+            ],
+            "type": "forced_choice"
+          },
+          {
+            "competency_key": null,
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_27",
+            "required": true,
+            "text": "Выберите утверждение, которое БОЛЬШЕ всего соответствует тому, что мотивирует вас в работе, и утверждение, которое соответствует МЕНЬШЕ всего.",
+            "forced_choice": {
+              "mode": "most_least"
+            },
+            "options": [
+              {
+                "competency_effects": {
+                  "motivation_meaning": 1
+                },
+                "explanation": null,
+                "key": "q_01_27_option_01",
+                "text": "Мне легче сохранять мотивацию, когда я вижу реальное значение результата своей работы."
+              },
+              {
+                "competency_effects": {
+                  "motivation_influence": 1
+                },
+                "explanation": null,
+                "key": "q_01_27_option_02",
+                "text": "Мне нравится иметь возможность менять способы работы или правила, если вижу лучший вариант."
+              },
+              {
+                "competency_effects": {
+                  "motivation_income": 1
+                },
+                "explanation": null,
+                "key": "q_01_27_option_03",
+                "text": "Для меня важно, чтобы сильные результаты могли ощутимо улучшать материальные условия."
+              }
+            ],
+            "type": "forced_choice"
+          }
+        ],
+        "title": "Мотивационные предпочтения"
+      }
+    ],
+    "title": "Мотивационный профиль"
+  }
+}

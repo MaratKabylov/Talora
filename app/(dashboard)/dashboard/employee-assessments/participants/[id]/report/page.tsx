@@ -25,6 +25,7 @@ import {
   type EmployeeAssessmentReportDetailsData,
 } from "@/lib/employee-assessments/data";
 import type { ReportIntegrityEventType } from "@/lib/reports/data";
+import { formatReportAnswerSummary } from "@/lib/reports/answer-counts";
 import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
 
 type EmployeeReportParams = Promise<{ id: string }>;
@@ -436,8 +437,9 @@ async function EmployeeTestDetails({
       <CardHeader>
         <CardTitle>Тесты</CardTitle>
         <CardDescription>
-          История прохождения тестов. На этой странице верных ответов: {details.answerCounts.correct},
-          неверных: {details.answerCounts.incorrect}.
+          {details.answerCounts.hasCorrectness
+            ? `История прохождения тестов. На этой странице верных ответов: ${details.answerCounts.correct}, неверных: ${details.answerCounts.incorrect}.`
+            : "История прохождения тестов. Для профильных тестов показываются количество ответов и полнота без оценки правильности."}
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
@@ -448,8 +450,7 @@ async function EmployeeTestDetails({
                 <th className="px-4 py-3 font-medium">Тест</th>
                 <th className="px-4 py-3 font-medium">Статус</th>
                 <th className="px-4 py-3 font-medium">Результат</th>
-                <th className="px-4 py-3 font-medium">Верных</th>
-                <th className="px-4 py-3 font-medium">Неверных</th>
+                <th className="px-4 py-3 font-medium">Ответы</th>
                 <th className="px-4 py-3 font-medium">Завершен</th>
               </tr>
             </thead>
@@ -460,9 +461,12 @@ async function EmployeeTestDetails({
                   <td className="px-4 py-3">
                     {TEST_SESSION_STATUS_LABELS[session.status] ?? session.status}
                   </td>
-                  <td className="px-4 py-3">{formatScore(session.percentage)}</td>
-                  <td className="px-4 py-3">{session.correctAnswersCount}</td>
-                  <td className="px-4 py-3">{session.incorrectAnswersCount}</td>
+                  <td className="px-4 py-3">
+                    {session.answerSummary.kind === "correctness"
+                      ? formatScore(session.percentage)
+                      : "Профиль"}
+                  </td>
+                  <td className="px-4 py-3">{formatReportAnswerSummary(session.answerSummary)}</td>
                   <td className="px-4 py-3">
                     {session.completedAt
                       ? new Intl.DateTimeFormat("ru-RU").format(new Date(session.completedAt))
@@ -486,8 +490,7 @@ async function EmployeeTestDetails({
               session.answers.length > 0 || session.scoringDetails ? (
                 <details className="rounded-lg border p-4" key={session.id}>
                   <summary className="cursor-pointer font-medium">
-                    {session.testTitle} / Верных: {session.correctAnswersCount} / Неверных: {" "}
-                    {session.incorrectAnswersCount}
+                    {session.testTitle} / {formatReportAnswerSummary(session.answerSummary)}
                   </summary>
                   <div className="mt-4 space-y-4 border-t pt-4">
                     <ScoringResultDetails details={session.scoringDetails} />
@@ -502,7 +505,8 @@ async function EmployeeTestDetails({
                         <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3">
                           {answer.answer}
                         </p>
-                        {answer.questionType !== "forced_choice" &&
+                        {session.answerSummary.kind === "correctness" &&
+                        answer.questionType !== "forced_choice" &&
                         (answer.pointsAwarded !== null || answer.isCorrect !== null) ? (
                           <p className="text-muted-foreground">
                             {answer.pointsAwarded !== null ? `Баллы: ${answer.pointsAwarded}` : ""}

@@ -1,52 +1,38 @@
 # Текущее состояние Talvia
 
-Обновлено: 2026-09-27. Начата реализация `Talvia_Scoring_V2_TZ.md`: исправлена интерпретация профильных результатов в отчётах без изменения опубликованных версий и исторических результатов. Мотивационные показатели получают competition rank с одинаковым рангом при равных значениях, позиционные группы удалены; ипсативные шкалы явно помечены как несопоставимые между участниками. Детали Learning/Attention показывают требуемые метрики. Новые V2 draft-версии четырёх системных тестов ещё не подготовлены и не опубликованы. PERF-012 indexes и DB-часть PERF-015 async scoring ранее применены и проверены в разрешённом текущем Supabase-проекте (`main PRODUCTION`).
+Обновлено: 2026-09-27. Этап 1 `Talvia_Scoring_V2_TZ.md` технически подготовлен: код отчётов, четыре определения и четыре удалённых V2 draft-версии созданы. Опубликованные версии и исторические результаты не изменялись; новые версии не публиковались.
 
 ## Текущий этап
 
-- **Scoring V2 / отчёты:** `groupForRank()` и жёсткие группы мотивации удалены. `lib/reports/profile-ranking.ts` присваивает ранг вида `1, 1, 3, 3`; таблица мотивации показывает ранг и числовое значение, highlights не разрывают одинаковые верхние/нижние значения между разными формулировками. Для Forced Choice выводится пояснение `within_person_only`.
-- **Learning / Attention details:** Learning показывает initial, recovery, gain, post-feedback и final; отсутствие recovery отображается как «Не применимо». Attention дополнительно показывает correct count; accuracy, completion, errors, omissions и response time остаются раздельными, время не включается в score.
-- **Competency fit:** UI «Веса компетенций» заменён на «Требования к компетенциям» с полями минимума и обязательности. Ручной процент и проверка суммы 100% удалены в candidate/job и employee assessment flows. Мотивационные шкалы не показываются в требованиях и не входят в competency fit.
-- `fit_score` считает простое среднее только доступных немотивационных competency percentages; отсутствующие результаты не считаются нулём. `weighted_score` summary rows хранит равную долю компетенции. Employee fallback на `overall_score` удалён.
-- **UI отчётов:** `components/reports/assessment-dimensions-report.tsx` — независимые нативные `details/summary` для групп показателей, свёрнутые по умолчанию; стрелка состояния, управление с клавиатуры, видимый фокус. Карточки не растягиваются по высоте соседнего блока. В когнитивной сводке `learning_final` отображается как «Обучаемость» перед `attention_accuracy`; промежуточные learning-метрики остаются в подробностях теста. Для legacy-результатов отдельного теста `learning_ability`, где competency row не сохранён, отчёты кандидата и сотрудника используют итоговый процент теста. Код готов; визуальная проверка в браузере и deployment этой правки не выполнены.
-- **PERF-012:** установлены восемь индексов для candidate/employee list/comparison и builder parent-order запросов. Remote catalog: `expected_count=8`, `ready_valid_count=8`, `missing_or_invalid=[]`, PostgreSQL 17.6. [Evidence](performance/PERF012_INDEXES_REMOTE_2026-09-13.json).
-- Индекс `jobs` не добавлялся: измеренный объём около 121 строки и EXPLAIN не подтвердили пользу. Старый `(company_id, job_id)` индекс applications не удалялся.
-- **PERF-015:** установлена durable `scoring_jobs` с RLS, дедупликацией parent/revision, lease claim через `SKIP LOCKED`, пятью попытками с backoff и атомарным queued persistence.
-- Remote catalog подтвердил таблицу, RLS, четыре `SECURITY DEFINER` RPC, пустой `search_path`, закрытый direct table access и service-only execute. Queue пуста; expired leases и tenant-parent mismatches — 0. [Evidence](performance/PERF015_ASYNC_QUEUE_REMOTE_2026-09-13.json).
-- Completion за флагом `ASSESSMENT_ASYNC_SCORING_V2`: enqueue возвращает `processing`, Next `after()` делает best-effort drain, client выполняет bounded polling, отдельный protected endpoint предназначен для scheduler.
-- Флаг по умолчанию выключен. Синхронный completion остаётся рабочим rollback path.
-- **Audit export:** `scripts/export-system-tests-audit.mjs` читает только `test_templates`, `test_versions`, `test_sections`, `questions`, `answer_options` через Supabase service credentials и fetch-guard `GET/HEAD`. Экспортирует по одному JSON на системный тест: последнюю опубликованную версию и все draft-версии, включая raw `settings_json`, `scoring_config_json`, scoring audit index, исходные IDs и связи remediation/options. Участники, результаты, invitations/tokens, пароли и env не запрашиваются и не сериализуются.
+- **V2-определения:** `scripts/build-scoring-v2-imports.mjs` воспроизводимо строит четыре `talvia.test.v2` из read-only audit export. Готовые файлы находятся в `artifacts/talvia-scoring-v2-imports/`: Learning 4/28/121, Attention 4/32/128, Work Behavior 2/24/78, Motivation 1/27/81 (секции/вопросы/варианты).
+- **Удалённые drafts:** Attention v3 `0609ee34-6882-4171-8647-2a03e54a2eed`; Motivation v3 `24b5945a-ff0c-4fdf-9701-ef2029febef7`; Learning v8 `fd88fdf5-3d28-4880-8754-7742a2232b30`; Work Behavior v4 `34c14f4f-cf51-4fdd-9242-8972f074672e`. Все четыре имеют `status=draft`, `scoring_schema_version=2.0` и ожидаемые domain/result shape.
+- **Learning:** `assessment_domain=learning`, `result_shape=score`, criterion items, веса `0.8/0.2`, overall `learning_final`; сохранены 6 recovery-связей и два промежуточных блока изменения правил.
+- **Attention:** `assessment_domain=attention`, overall `attention_accuracy`, 32 criterion items, четыре исходные секции, `shuffle_options=true`; время остаётся наблюдаемой метрикой и не входит в score.
+- **Work Behavior:** 18 ipsative Forced Choice по шести исходным dimensions и 6 SJT с сохранёнными баллами; overall только `sjt_total`. Название показателя в отчёте — «Качество решений в рабочих ситуациях». В `docs/04_BACKLOG.md` добавлена неблокирующая задача `WB-SJT-02`.
+- **Motivation:** 27 ipsative Forced Choice по девяти исходным dimensions, `result_shape=profile`, `overall_score=null`, без норм.
+- **Импорт контента:** parser разрешает criterion single-choice без legacy `competency_key`, что нужно для опубликованной «Обучаемости». Опциональные `content_blocks` проходят строгую проверку ключей/позиций. Миграция `20260927100000_test_import_content_blocks.sql` применена пользователем; доступность RPC и два сохранённых Learning-блока подтверждены read-back. Защитная миграция `20260927110000_scoring_v2_import_remediation.sql` добавлена и локально проверена: будущий V2-импорт материализует `remediation_question_key` в UUID и сохраняет feedback. На удалённой БД она ещё не применена; текущий Learning v8 уже исправлен отдельно и прошёл read-back.
+- **Remote import:** `scripts/import-scoring-v2-drafts.mjs` имеет явный `--execute`, проверяет migration/RPC, published source, единственность draft, counts, overall/scales, scoring models, option UUID mappings и audit. Повторный запуск идемпотентно переиспользует готовые drafts.
+- **Отчёты:** мотивация использует competition ranks (`1, 1, 3, 3`) без позиционных групп; ipsative шкалы помечены `within_person_only`. Learning показывает initial/recovery/gain/post-feedback/final, Attention — correct/errors/omissions/completion/time. Profile-результаты показывают «Ответов / Полнота» без correct/incorrect и баллов.
+- **Fit/recommendation:** мотивационные шкалы исключены из обычного competency `fit_score`; отсутствующие измерения не считаются нулём. Recommendation policy не менялась.
 
-## Реализация и безопасность
+## Данные и безопасность
 
-- Таблицы `job_competency_weights` и `employee_assessment_competency_weights` сохранены как совместимый слой для minimum/required; legacy `weight` записывается как `1`, но scoring его не читает. Миграции и удалённая БД не менялись. Уже сохранённые отчёты сохраняют прежний `fit_score` до явного пересчёта.
-- Миграции: `20260912150000_perf012_confirmed_query_indexes.sql` и `20260912160000_perf015_async_scoring_jobs.sql`; применены через Supabase SQL Editor, поэтому remote migration ledger отдельно не подтверждён.
-- Worker использует случайный UUID, ограничивает batch/lease, не возвращает job IDs, SQL, PII или raw errors. Просроченную lease может забрать другой worker; старый worker после expiry не может завершить job.
-- Enqueue сам выводит `company_id` из parent, проверяет завершённость session rows и привязывает invitation. Клиентский `company_id` не принимается.
-- Parent, invitation, scoring snapshot, revision и job завершаются одной транзакцией. Terminal retry требует явного действия.
-- `/api/internal/scoring/drain` принимает только POST, проверяет 32+ character bearer secret через SHA-256/timing-safe comparison и возвращает безопасные агрегаты.
-- Отдельное отображение terminal failure для HR/admin остаётся rollout follow-up; состояние доступно в operational verification без PII.
-- [Security notes](06_RLS_AND_SECURITY_NOTES.md), [rollout](37_PERF012_INDEXES_AND_PERF015_ASYNC_SCORING_ROLLOUT.md), [baseline §40](17_PERFORMANCE_BASELINE.md).
+- Актуальный read-only экспорт создан из локального `.env.local`: `artifacts/talvia-tests-audit.zip`, 5 шаблонов / 7 версий / 21 секция / 140 вопросов / 532 варианта; обе проверки manifest — `true`.
+- «Универсальная карта потенциала» не преобразовывалась и не изменялась.
+- Источником новых файлов служат последние опубликованные версии, а не черновики. Legacy draft Learning v7 `af1b72f9-e7c3-4fdc-b00f-c52254d655d0` переведён в архив с platform audit event; он не удалён.
+- Remote RPC импортировал Learning без шести remediation settings, несмотря на валидный JSON. Скрипт остановил приёмку, восстановил ровно 6 связей по совпавшим секции/позиции/тексту и записал отдельный `repair_system_test_v2_remediation` audit event. Финальный повторный read-back подтвердил 6/6 links/feedback без дополнительных записей.
+- Production flags не менялись. Service-role credentials не сериализуются и не логируются.
+- PERF-012 индексы и PERF-015 durable scoring queue остаются в ранее принятом состоянии; `ASSESSMENT_ASYNC_SCORING_V2` по умолчанию выключен.
 
 ## Проверки
 
-- Текущий Scoring V2 report slice (2026-09-27): профильные тесты **56/56**, полный `npm test` — **527/527**, `npm run lint`, `npm run typecheck`, `npm run build`, `git diff --check` — успешно. Для typecheck локально восстановлен отсутствовавший установленный dev-пакет `@electric-sql/pglite`; manifest/lockfile не менялись.
-- Текущие изменения (2026-09-18): `npm run lint`, `npm run typecheck`, `npm run build` — успешно; профильные `assessment-results` + `report-test-title` — **25/25**, полный `npm test` — **525/525**.
-- Audit export (2026-09-24): `node --check scripts/export-system-tests-audit.mjs` — успешно; `node scripts/export-system-tests-audit.mjs` — успешно. Экспортировано 5 системных тестов / 6 версий / 17 секций / 112 вопросов / 411 вариантов; `manifest.verification.templateCountMatchesDatabase=true`, `contentCountsMatchDatabase=true`. `tar -tf artifacts/talvia-tests-audit.zip` подтвердил состав ZIP.
-- Предыдущая полная регрессия (2026-09-14): `npm test` — **524/524**; профильная scoring/forms регрессия — **54/54**.
-- PGlite исполняет обе реальные миграции и verification SQL. Покрыты idempotent DDL, tenant isolation, service-only grants, dedup, lease exclusivity/expiry/takeover, bounded retry, explicit terminal retry и rollback атомарной транзакции.
-- Подключённый Chrome: navigation suite **30/30**, включая automatic completion polling, manual retry и recovery без дублирования записи.
-- Local production async acceptance на текущем Supabase: **40/40** для candidate и employee; первый ответ `processing`, polling до результата, неверный worker secret отклонён, retry сохранил revision 1, оба invitation expired. [Evidence](performance/PERF015_ASYNC_LOCAL_ACCEPTANCE_2026-09-13.json).
-- `git diff --check`: успешно; только предупреждения Git о переводе LF в CRLF на Windows.
-- PERF-014 ранее принят на текущем Supabase: staging scoring **30/30**, final integrity без tenant/session/stale mismatches. Исторические пять missing dimension rows обслуживаются bounded fallback.
-- PERF-017 local production/runtime и candidate browser E2E ранее прошли; точные hosting/Supabase regions и production-like latency остаются неизвестны.
+- Четыре generated JSON проходят production `parseTalviaTestImportV2` и `validateQuestionsForPublication`.
+- Профильная проверка V2 import/content-block/remediation migration: **6/6**; полный `npm test`: **536/536**.
+- `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd run build`, JSON schema parse, generator syntax check и `git diff --check` — успешно.
+- Remote final read-back: четыре ожидаемых drafts, 9 motivation + 6 behavior dimensions, 28/32 criterion, 18 FC, 6 SJT, 6 Learning remediation links, 32 Attention shuffle settings, 2 Learning content blocks; все import/audit events найдены, published source IDs сохранили `published`.
+- Визуальный admin preview в этом сеансе не выполнен: подключённая browser session отсутствует. Это не меняет database validation, но UI smoke остаётся перед публикацией.
+- Production build использовал `.env.local`; ожидаемые auth-context failure-события появились только во время static page generation, сборка завершилась успешно.
 
 ## Следующий шаг
 
-Продолжить этап 1 Scoring V2: получить актуальные экспортированные определения четырёх системных тестов, преобразовать их в `talvia.test.v2`, прогнать preview/publication validation и подготовить только новые draft-версии. Публикацию и изменение production-данных без отдельного подтверждения не выполнять.
-
-1. Доработать candidate/employee answer summary для профильных тестов: скрыть correct/incorrect и показывать полное количество ответов/полноту без зависимости от пагинации.
-2. Проверить новые ранги, ипсативное пояснение и Learning/Attention cards в браузере на отчётах кандидата и сотрудника, включая узкий экран.
-3. Если появится внешний hosting, развернуть код с server-only `SCORING_WORKER_SECRET`, затем включить `ASSESSMENT_ASYNC_SCORING_V2` после preview smoke.
-
-`tests/fixtures/*.sql` остаются локальными stand-ins. Удалённые destructive/downgrade операции и production flags без отдельного решения не выполнять.
+Применить `20260927110000_scoring_v2_import_remediation.sql` перед следующим V2 Learning-импортом, затем выполнить визуальный preview smoke четырёх drafts в admin UI (включая последовательное появление Learning content blocks и recovery). Публикацию выполнять только по отдельному подтверждению; до него drafts и действующие published-версии оставить без изменений.

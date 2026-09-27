@@ -1142,6 +1142,41 @@
         }
       ]
     },
+    "contentBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "title",
+        "description",
+        "position_index"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/localKey"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 180,
+          "pattern": "\\S(?:[\\s\\S]*\\S)"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 20000,
+          "pattern": "\\S"
+        },
+        "position_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300
+        }
+      }
+    },
     "section": {
       "type": "object",
       "additionalProperties": false,
@@ -1152,6 +1187,13 @@
         "questions"
       ],
       "properties": {
+        "content_blocks": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/contentBlock"
+          }
+        },
         "key": {
           "$ref": "#/$defs/localKey"
         },
@@ -1366,26 +1408,6 @@
                     }
                   }
                 }
-              }
-            }
-          },
-          "else": {
-            "properties": {
-              "options": {
-                "type": "array",
-                "contains": {
-                  "type": "object",
-                  "required": [
-                    "competency_effects"
-                  ],
-                  "properties": {
-                    "competency_effects": {
-                      "type": "object",
-                      "minProperties": 1
-                    }
-                  }
-                },
-                "minContains": 1
               }
             }
           }

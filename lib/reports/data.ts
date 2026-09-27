@@ -48,7 +48,11 @@ import {
   type ReportDetailsPageParams,
   type ReportDetailsPageState,
 } from "@/lib/reports/details-pagination";
-import { countAnswerCorrectness } from "@/lib/reports/answer-counts";
+import {
+  buildReportAnswerSummary,
+  type ReportAnswerSummary,
+  usesCorrectnessSummary,
+} from "@/lib/reports/answer-counts";
 import { resolveCandidateSessionPassingScore } from "@/lib/reports/candidate-session-passing-score";
 import { resolveReportTestTitle } from "@/lib/reports/test-title";
 
@@ -229,11 +233,10 @@ export type ReportAnswer = {
 };
 
 export type ReportTest = {
+  answerSummary: ReportAnswerSummary;
   answers: ReportAnswer[];
   completedAt: string | null;
-  correctAnswersCount: number;
   id: string;
-  incorrectAnswersCount: number;
   level: string | null;
   percentage: number | null;
   rawScore: number | null;
@@ -310,6 +313,7 @@ export type CandidateReportData = {
 export type CandidateReportDetailsData = {
   answerCounts: {
     correct: number;
+    hasCorrectness: boolean;
     incorrect: number;
   };
   integrity: ReportIntegritySummary;
@@ -852,6 +856,44 @@ async function getCandidateReportDetailsDataUninstrumented(
     answersBySession.set(answer.session_id, existing);
   }
 
+  const completionSessions = sessions.flatMap((session) => {
+    const version = related(session.test_versions);
+    return version && !usesCorrectnessSummary({
+      assessmentDomain: version.assessment_domain,
+      resultShape: version.result_shape,
+      scoringType: version.scoring_type,
+    })
+      ? [{ sessionId: session.id, testVersionId: version.id }]
+      : [];
+  });
+  const completionVersionIds = Array.from(
+    new Set(completionSessions.map((session) => session.testVersionId)),
+  );
+  const [completionAnswerCounts, completionQuestionCounts] = await Promise.all([
+    Promise.all(completionSessions.map(async ({ sessionId }) => {
+      const result = await supabase
+        .from("candidate_answers")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", sessionId);
+      if (result.error || result.count === null) {
+        throw new Error("Unable to count candidate profile answers.");
+      }
+      return [sessionId, result.count] as const;
+    })),
+    Promise.all(completionVersionIds.map(async (testVersionId) => {
+      const result = await supabase
+        .from("questions")
+        .select("id, test_sections!inner(test_version_id)", { count: "exact", head: true })
+        .eq("test_sections.test_version_id", testVersionId);
+      if (result.error || result.count === null) {
+        throw new Error("Unable to count candidate profile questions.");
+      }
+      return [testVersionId, result.count] as const;
+    })),
+  ]);
+  const completionAnswersBySession = new Map(completionAnswerCounts);
+  const completionQuestionsByVersion = new Map(completionQuestionCounts);
+
   const tests = sessions.map((session) => {
     const version = related(session.test_versions);
     const result = resultsBySession.get(session.id);
@@ -888,14 +930,23 @@ async function getCandidateReportDetailsDataUninstrumented(
         question: answer.question,
         questionType: answer.questionType,
       }));
-    const answerCounts = countAnswerCorrectness(answers);
+    const usesCorrectness = usesCorrectnessSummary({
+      assessmentDomain: version?.assessment_domain,
+      resultShape: version?.result_shape,
+      scoringType: version?.scoring_type,
+    });
+    const answerSummary = buildReportAnswerSummary({
+      answeredCount: completionAnswersBySession.get(session.id) ?? answers.length,
+      answers,
+      eligibleCount: version ? completionQuestionsByVersion.get(version.id) ?? 0 : 0,
+      usesCorrectness,
+    });
 
     return {
+      answerSummary,
       answers,
       completedAt: session.completed_at,
-      correctAnswersCount: answerCounts.correct,
       id: session.id,
-      incorrectAnswersCount: answerCounts.incorrect,
       level: result?.level ?? null,
       maxScore: result?.max_score ?? null,
       percentage: result?.percentage ?? session.percentage,
@@ -914,12 +965,13 @@ async function getCandidateReportDetailsDataUninstrumented(
   });
 
   return {
-    answerCounts: tests.reduce(
+    answerCounts: tests.reduce<{ correct: number; hasCorrectness: boolean; incorrect: number }>(
       (counts, test) => ({
-        correct: counts.correct + test.correctAnswersCount,
-        incorrect: counts.incorrect + test.incorrectAnswersCount,
+        correct: counts.correct + (test.answerSummary.kind === "correctness" ? test.answerSummary.correct : 0),
+        hasCorrectness: counts.hasCorrectness || test.answerSummary.kind === "correctness",
+        incorrect: counts.incorrect + (test.answerSummary.kind === "correctness" ? test.answerSummary.incorrect : 0),
       }),
-      { correct: 0, incorrect: 0 },
+      { correct: 0, hasCorrectness: false, incorrect: 0 },
     ),
     integrity: buildCandidateIntegritySummary(
       integrityEventsPage.items,

@@ -24,6 +24,7 @@ import {
   type CandidateReportDetailsData,
   type ReportIntegrityEventType,
 } from "@/lib/reports/data";
+import { formatReportAnswerSummary } from "@/lib/reports/answer-counts";
 import { QUESTION_TYPE_LABELS } from "@/lib/tests/builder-constants";
 
 type ReportParams = Promise<{ id: string }>;
@@ -458,8 +459,9 @@ async function CandidateAnswersDetails({
       <CardHeader>
         <CardTitle>Ответы кандидата</CardTitle>
         <CardDescription>
-          История прохождения по конкретным версиям тестов. На этой странице верных ответов: {" "}
-          {details.answerCounts.correct}, неверных: {details.answerCounts.incorrect}.
+          {details.answerCounts.hasCorrectness
+            ? `История прохождения по конкретным версиям тестов. На этой странице верных ответов: ${details.answerCounts.correct}, неверных: ${details.answerCounts.incorrect}.`
+            : "История прохождения по конкретным версиям тестов. Для профильных тестов показываются количество ответов и полнота без оценки правильности."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 pt-6">
@@ -477,8 +479,10 @@ async function CandidateAnswersDetails({
                   <p className="font-medium">{test.title}</p>
                   <p className="text-sm text-muted-foreground">
                     {TEST_SESSION_STATUS_LABELS[test.status]}
-                    {test.percentage !== null ? ` / ${score(test.percentage)}` : ""}
-                    {` / Верных: ${test.correctAnswersCount} / Неверных: ${test.incorrectAnswersCount}`}
+                    {test.answerSummary.kind === "correctness" && test.percentage !== null
+                      ? ` / ${score(test.percentage)}`
+                      : ""}
+                    {` / ${formatReportAnswerSummary(test.answerSummary)}`}
                     {test.requiresReview ? " / Нужна проверка" : ""}
                   </p>
                 </div>
@@ -508,7 +512,8 @@ async function CandidateAnswersDetails({
                         </span>
                       </div>
                       <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3">{answer.answer}</p>
-                      {answer.pointsAwarded !== null || answer.isCorrect !== null ? (
+                      {test.answerSummary.kind === "correctness" &&
+                      (answer.pointsAwarded !== null || answer.isCorrect !== null) ? (
                         <p className="text-muted-foreground">
                           {answer.pointsAwarded !== null ? `Баллы: ${answer.pointsAwarded}` : ""}
                           {answer.isCorrect !== null

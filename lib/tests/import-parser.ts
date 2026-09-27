@@ -372,13 +372,6 @@ const singleChoiceQuestionSchema = z
         path: ["competency_key"],
       });
     }
-    if (!question.competency_key && !hasEffects) {
-      context.addIssue({
-        code: "custom",
-        message: "Укажите competency_key вопроса или эффект хотя бы у одного варианта.",
-        path: ["competency_key"],
-      });
-    }
   });
 
 const multipleChoiceOptionSchema = z
@@ -662,6 +655,15 @@ const matchingQuestionSchema = z
     });
   });
 
+const contentBlockImportSchema = z
+  .object({
+    description: optionalTrimmedText(20000),
+    key: localKeySchema,
+    position_index: z.number().int().min(0).max(300),
+    title: trimmedText(2, 180, "Название информационного блока должно содержать минимум два символа."),
+  })
+  .strict();
+
 const questionSchema = z.discriminatedUnion("type", [
   singleChoiceQuestionSchema,
   multipleChoiceQuestionSchema,
@@ -674,12 +676,24 @@ const questionSchema = z.discriminatedUnion("type", [
 
 const sectionSchema = z
   .object({
+    content_blocks: z.array(contentBlockImportSchema).max(100).optional().default([]),
     description: optionalTrimmedText(10000),
     key: localKeySchema,
     questions: z.array(questionSchema).min(1, "Секция должна содержать хотя бы один вопрос.").max(300),
     title: trimmedText(2, 180, "Название секции должно содержать минимум два символа."),
   })
-  .strict();
+  .strict()
+  .superRefine((section, context) => {
+    section.content_blocks.forEach((block, index) => {
+      if (block.position_index > section.questions.length) {
+        context.addIssue({
+          code: "custom",
+          message: "Позиция информационного блока выходит за пределы списка вопросов секции.",
+          path: ["content_blocks", index, "position_index"],
+        });
+      }
+    });
+  });
 
 const presentationSchema = z
   .object({
@@ -752,6 +766,16 @@ export const talviaTestImportDocumentSchema = z
 
     document.test.sections.forEach((section, sectionIndex) => {
       registerKey(section.key, ["test", "sections", sectionIndex, "key"]);
+      section.content_blocks.forEach((block, blockIndex) => {
+        registerKey(block.key, [
+          "test",
+          "sections",
+          sectionIndex,
+          "content_blocks",
+          blockIndex,
+          "key",
+        ]);
+      });
       section.questions.forEach((question, questionIndex) => {
         registerKey(question.key, [
           "test",

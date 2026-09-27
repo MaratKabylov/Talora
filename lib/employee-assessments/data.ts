@@ -31,7 +31,11 @@ import {
   buildReportScoringDetails,
   type ReportScoringDetails,
 } from "@/lib/reports/scoring-details";
-import { countAnswerCorrectness } from "@/lib/reports/answer-counts";
+import {
+  buildReportAnswerSummary,
+  type ReportAnswerSummary,
+  usesCorrectnessSummary,
+} from "@/lib/reports/answer-counts";
 import type {
   ReportIntegrityEventType,
   ReportIntegritySummary,
@@ -198,6 +202,7 @@ type ReportTestVersionRecord = {
   result_shape: string | null;
   scoring_config_json: unknown;
   scoring_schema_version: string | null;
+  scoring_type: string;
   test_template_id: string;
   test_templates?: Relation<ReportTestTemplateTitleRecord>;
   title: string;
@@ -383,6 +388,7 @@ type EmployeeComparisonResolvedDimension = Pick<
 export type EmployeeAssessmentReportDetailsData = {
   answerCounts: {
     correct: number;
+    hasCorrectness: boolean;
     incorrect: number;
   };
   integrity: ReportIntegritySummary;
@@ -391,6 +397,7 @@ export type EmployeeAssessmentReportDetailsData = {
     integrityEvents: ReportDetailsPageState;
   };
   sessions: Array<{
+    answerSummary: ReportAnswerSummary;
     answers: Array<{
       answer: string;
       isCorrect: boolean | null;
@@ -399,9 +406,7 @@ export type EmployeeAssessmentReportDetailsData = {
       questionType: QuestionType;
     }>;
     completedAt: string | null;
-    correctAnswersCount: number;
     id: string;
-    incorrectAnswersCount: number;
     percentage: number | null;
     resultLevel: string | null;
     scoringDetails: ReportScoringDetails | null;
@@ -759,7 +764,7 @@ async function getEmployeeComparisonDataUninstrumented(companyId: string, assess
       : supabase
           .from("test_versions")
           .select(
-            "id, title, test_template_id, scoring_schema_version, assessment_domain, result_shape, scoring_config_json",
+            "id, title, test_template_id, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json",
           )
           .in("id", versionIds),
     missingParticipantIds.length === 0
@@ -1054,7 +1059,7 @@ async function getEmployeeAssessmentReportDataUninstrumented(companyId: string, 
       : await supabase
           .from("test_versions")
           .select(
-            "id, title, test_template_id, scoring_schema_version, assessment_domain, result_shape, scoring_config_json, test_templates(title, category)",
+            "id, title, test_template_id, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json, test_templates(title, category)",
           )
           .in("id", versionIds);
 
@@ -1379,7 +1384,7 @@ async function getEmployeeAssessmentReportDetailsDataUninstrumented(
       : await supabase
           .from("test_versions")
           .select(
-            "id, title, test_template_id, scoring_schema_version, assessment_domain, result_shape, scoring_config_json, test_templates(title, category)",
+            "id, title, test_template_id, scoring_type, scoring_schema_version, assessment_domain, result_shape, scoring_config_json, test_templates(title, category)",
           )
           .in("id", versionIds);
 
@@ -1398,8 +1403,47 @@ async function getEmployeeAssessmentReportDetailsDataUninstrumented(
       related(version.test_templates)?.title ?? version.title,
     ]),
   );
+  const versionsById = new Map(versions.map((version) => [version.id, version]));
+  const completionSessions = sessions.flatMap((session) => {
+    const version = versionsById.get(session.test_version_id);
+    return version && !usesCorrectnessSummary({
+      assessmentDomain: version.assessment_domain,
+      resultShape: version.result_shape,
+      scoringType: version.scoring_type,
+    })
+      ? [{ sessionId: session.id, testVersionId: version.id }]
+      : [];
+  });
+  const completionVersionIds = Array.from(
+    new Set(completionSessions.map((session) => session.testVersionId)),
+  );
+  const [completionAnswerCounts, completionQuestionCounts] = await Promise.all([
+    Promise.all(completionSessions.map(async ({ sessionId }) => {
+      const result = await supabase
+        .from("employee_assessment_answers")
+        .select("id", { count: "exact", head: true })
+        .eq("session_id", sessionId);
+      if (result.error || result.count === null) {
+        throw new Error("Unable to count employee profile answers.");
+      }
+      return [sessionId, result.count] as const;
+    })),
+    Promise.all(completionVersionIds.map(async (testVersionId) => {
+      const result = await supabase
+        .from("questions")
+        .select("id, test_sections!inner(test_version_id)", { count: "exact", head: true })
+        .eq("test_sections.test_version_id", testVersionId);
+      if (result.error || result.count === null) {
+        throw new Error("Unable to count employee profile questions.");
+      }
+      return [testVersionId, result.count] as const;
+    })),
+  ]);
+  const completionAnswersBySession = new Map(completionAnswerCounts);
+  const completionQuestionsByVersion = new Map(completionQuestionCounts);
   const sessionsWithAnswers = sessions.map((session) => {
     const result = session.employee_assessment_test_results?.[0] ?? null;
+    const version = versionsById.get(session.test_version_id)!;
     const storedAnswers = session.employee_assessment_answers ?? [];
     const answers = storedAnswers
       .flatMap((answer) => {
@@ -1423,16 +1467,22 @@ async function getEmployeeAssessmentReportDetailsDataUninstrumented(
         question: answer.question,
         questionType: answer.questionType,
       }));
-    const answerCounts = countAnswerCorrectness(
-      storedAnswers.map((answer) => ({ isCorrect: answer.is_correct })),
-    );
+    const answerSummary = buildReportAnswerSummary({
+      answeredCount: completionAnswersBySession.get(session.id) ?? answers.length,
+      answers,
+      eligibleCount: completionQuestionsByVersion.get(session.test_version_id) ?? 0,
+      usesCorrectness: usesCorrectnessSummary({
+        assessmentDomain: version.assessment_domain,
+        resultShape: version.result_shape,
+        scoringType: version.scoring_type,
+      }),
+    });
 
     return {
+      answerSummary,
       answers,
       completedAt: session.completed_at,
-      correctAnswersCount: answerCounts.correct,
       id: session.id,
-      incorrectAnswersCount: answerCounts.incorrect,
       percentage: session.percentage ?? result?.percentage ?? null,
       resultLevel: result?.level ?? null,
       scoringDetails: buildReportScoringDetails(result?.scoring_result_json),
@@ -1444,12 +1494,17 @@ async function getEmployeeAssessmentReportDetailsDataUninstrumented(
   });
 
   return {
-    answerCounts: sessionsWithAnswers.reduce(
+    answerCounts: sessionsWithAnswers.reduce<{
+      correct: number;
+      hasCorrectness: boolean;
+      incorrect: number;
+    }>(
       (counts, session) => ({
-        correct: counts.correct + session.correctAnswersCount,
-        incorrect: counts.incorrect + session.incorrectAnswersCount,
+        correct: counts.correct + (session.answerSummary.kind === "correctness" ? session.answerSummary.correct : 0),
+        hasCorrectness: counts.hasCorrectness || session.answerSummary.kind === "correctness",
+        incorrect: counts.incorrect + (session.answerSummary.kind === "correctness" ? session.answerSummary.incorrect : 0),
       }),
-      { correct: 0, incorrect: 0 },
+      { correct: 0, hasCorrectness: false, incorrect: 0 },
     ),
     integrity: employeeIntegritySummary(
       integrityEventsPage.items,

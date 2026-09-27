@@ -1,0 +1,1794 @@
+{
+  "schema_version": "talvia.test.v2",
+  "scoring": {
+    "composites": [],
+    "learning_scoring": null,
+    "norm_assignments": [],
+    "scoring_version": "2.0",
+    "thresholds": [],
+    "assessment_domain": "attention",
+    "dimensions": [],
+    "items": [
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_01",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_02",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_03",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_04",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_05",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_06",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_07",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_01_08",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_01",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_02",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_03",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_04",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_05",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_06",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_07",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_02_08",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_01",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_02",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_03",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_04",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_05",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_06",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_07",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_03_08",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_04_01",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_04_02",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_04_03",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_04_04",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_04_05",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_04_06",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_04_07",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      },
+      {
+        "competency_bindings": [],
+        "max_points": 1,
+        "min_points": 0,
+        "question_key": "q_04_08",
+        "scoring_model": "criterion",
+        "strategy": "single_choice_points"
+      }
+    ],
+    "overall_score": {
+      "source_key": "attention_accuracy",
+      "source_type": "criterion"
+    },
+    "result_shape": "score"
+  },
+  "test": {
+    "category": "attention_to_detail",
+    "description": "Системный тест Talvia для оценки точности визуального сравнения, обнаружения несоответствий, соблюдения нескольких условий и избирательного поиска. Результат отражает качество выполнения стандартизированных заданий на внимательность к деталям.",
+    "duration_minutes": 12,
+    "instructions": "Тест состоит из 32 коротких заданий на внимательность. В каждом задании только один правильный ответ. Работайте достаточно быстро, но не жертвуйте точностью ради скорости. После подтверждения ответа вернуться к предыдущему вопросу нельзя. Внимательно читайте условия: разные части теста имеют разные правила.",
+    "presentation": {
+      "allow_back": false,
+      "capture_question_time": true,
+      "mode": "one_question"
+    },
+    "scoring_type": "points",
+    "sections": [
+      {
+        "content_blocks": [],
+        "description": "Сверьте варианты с образцом и выберите строку, которая совпадает с ним полностью. Порядок всех букв, цифр и знаков имеет значение.",
+        "key": "section_01",
+        "questions": [
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_01",
+            "required": true,
+            "text": "Образец: K7M-48291-QP\nВыберите строку, которая полностью совпадает с образцом.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_01_option_01",
+                "points": 0,
+                "text": "K7M-42891-QP"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Строка K7M-48291-QP полностью совпадает с образцом.",
+                "is_correct": true,
+                "key": "q_01_01_option_02",
+                "points": 1,
+                "text": "K7M-48291-QP"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_01_option_03",
+                "points": 0,
+                "text": "K7N-48291-QP"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_01_option_04",
+                "points": 0,
+                "text": "K7M-48291-PQ"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_02",
+            "required": true,
+            "text": "Образец: TR-560184-N7\nВыберите строку, которая полностью совпадает с образцом.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_02_option_01",
+                "points": 0,
+                "text": "TR-560148-N7"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_02_option_02",
+                "points": 0,
+                "text": "TR-560184-M7"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_02_option_03",
+                "points": 0,
+                "text": "RT-560184-N7"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Строка TR-560184-N7 полностью совпадает с образцом.",
+                "is_correct": true,
+                "key": "q_01_02_option_04",
+                "points": 1,
+                "text": "TR-560184-N7"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_03",
+            "required": true,
+            "text": "Образец: BQ9-731604-XM\nВыберите строку, которая полностью совпадает с образцом.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "Строка BQ9-731604-XM полностью совпадает с образцом.",
+                "is_correct": true,
+                "key": "q_01_03_option_01",
+                "points": 1,
+                "text": "BQ9-731604-XM"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_03_option_02",
+                "points": 0,
+                "text": "BQ9-736104-XM"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_03_option_03",
+                "points": 0,
+                "text": "BQ9-731640-XM"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_03_option_04",
+                "points": 0,
+                "text": "BQ9-731604-MX"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_04",
+            "required": true,
+            "text": "Образец: L5P8-204731-KR\nВыберите строку, которая полностью совпадает с образцом.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_04_option_01",
+                "points": 0,
+                "text": "L5P8-204713-KR"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_04_option_02",
+                "points": 0,
+                "text": "L5P8-240731-KR"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Строка L5P8-204731-KR полностью совпадает с образцом.",
+                "is_correct": true,
+                "key": "q_01_04_option_03",
+                "points": 1,
+                "text": "L5P8-204731-KR"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_04_option_04",
+                "points": 0,
+                "text": "L5P8-204731-RK"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_05",
+            "required": true,
+            "text": "Образец: NZ-8472615-TQ4\nВыберите строку, которая полностью совпадает с образцом.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_05_option_01",
+                "points": 0,
+                "text": "NZ-8472165-TQ4"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_05_option_02",
+                "points": 0,
+                "text": "NZ-8472615-TP4"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Строка NZ-8472615-TQ4 полностью совпадает с образцом.",
+                "is_correct": true,
+                "key": "q_01_05_option_03",
+                "points": 1,
+                "text": "NZ-8472615-TQ4"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_05_option_04",
+                "points": 0,
+                "text": "NZ-8742615-TQ4"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_06",
+            "required": true,
+            "text": "Образец: R4VK-519273-Q8M\nВыберите строку, которая полностью совпадает с образцом.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "Строка R4VK-519273-Q8M полностью совпадает с образцом.",
+                "is_correct": true,
+                "key": "q_01_06_option_01",
+                "points": 1,
+                "text": "R4VK-519273-Q8M"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_06_option_02",
+                "points": 0,
+                "text": "R4VK-519237-Q8M"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_06_option_03",
+                "points": 0,
+                "text": "R4VK-519273-QM8"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_06_option_04",
+                "points": 0,
+                "text": "R4KV-519273-Q8M"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_07",
+            "required": true,
+            "text": "Образец: PT6-384721-K9XR\nВыберите строку, которая полностью совпадает с образцом.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_07_option_01",
+                "points": 0,
+                "text": "PT6-384712-K9XR"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_07_option_02",
+                "points": 0,
+                "text": "PT6-348721-K9XR"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_07_option_03",
+                "points": 0,
+                "text": "PT6-384721-K9RX"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Строка PT6-384721-K9XR полностью совпадает с образцом.",
+                "is_correct": true,
+                "key": "q_01_07_option_04",
+                "points": 1,
+                "text": "PT6-384721-K9XR"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_01_08",
+            "required": true,
+            "text": "Образец: M7Q2-916384-TP5K\nВыберите строку, которая полностью совпадает с образцом.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_08_option_01",
+                "points": 0,
+                "text": "M7Q2-916348-TP5K"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Строка M7Q2-916384-TP5K полностью совпадает с образцом.",
+                "is_correct": true,
+                "key": "q_01_08_option_02",
+                "points": 1,
+                "text": "M7Q2-916384-TP5K"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_08_option_03",
+                "points": 0,
+                "text": "M7Q2-916384-TPK5"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_01_08_option_04",
+                "points": 0,
+                "text": "M7Q2-961384-TP5K"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          }
+        ],
+        "title": "Точное сравнение"
+      },
+      {
+        "content_blocks": [],
+        "description": "В каждой задаче показаны четыре пары «Источник → Перенесено». В трёх парах информация перенесена полностью правильно. В одной паре есть ошибка. Найдите пару с ошибкой.",
+        "key": "section_02",
+        "questions": [
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_02_01",
+            "required": true,
+            "text": "В трёх парах информация перенесена правильно, а в одной есть ошибка. Найдите пару с ошибкой.\n1. AL-4827 | 18.08 | 64 300 → AL-4827 | 18.08 | 64 300\n2. KP-1954 | 21.08 | 17 850 → KP-1954 | 21.08 | 17 850\n3. TR-7306 | 24.08 | 92 410 → TR-7306 | 24.08 | 92 140\n4. MN-2681 | 27.08 | 38 600 → MN-2681 | 27.08 | 38 600",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_01_option_01",
+                "points": 0,
+                "text": "Пара 1"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_01_option_02",
+                "points": 0,
+                "text": "Пара 2"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "В паре 3 сумма 92 410 перенесена как 92 140.",
+                "is_correct": true,
+                "key": "q_02_01_option_03",
+                "points": 1,
+                "text": "Пара 3"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_01_option_04",
+                "points": 0,
+                "text": "Пара 4"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_02_02",
+            "required": true,
+            "text": "В трёх парах информация перенесена правильно, а в одной есть ошибка. Найдите пару с ошибкой.\n1. NX-541 | 26 шт. | B3 → NX-514 | 26 шт. | B3\n2. KP-208 | 14 шт. | A7 → KP-208 | 14 шт. | A7\n3. TR-936 | 31 шт. | C2 → TR-936 | 31 шт. | C2\n4. LM-472 | 08 шт. | D5 → LM-472 | 08 шт. | D5",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "В паре 1 код NX-541 перенесён как NX-514.",
+                "is_correct": true,
+                "key": "q_02_02_option_01",
+                "points": 1,
+                "text": "Пара 1"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_02_option_02",
+                "points": 0,
+                "text": "Пара 2"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_02_option_03",
+                "points": 0,
+                "text": "Пара 3"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_02_option_04",
+                "points": 0,
+                "text": "Пара 4"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_02_03",
+            "required": true,
+            "text": "В трёх парах информация перенесена правильно, а в одной есть ошибка. Найдите пару с ошибкой.\n1. QZ-1842 | 06.09.2026 | 47 → QZ-1842 | 06.09.2026 | 47\n2. MR-7305 | 08.09.2026 | 63 → MR-7305 | 08.09.2026 | 63\n3. PK-5619 | 11.09.2026 | 28 → PK-5619 | 11.09.2026 | 28\n4. TV-4927 | 14.09.2026 | 35 → TV-4927 | 14.08.2026 | 35",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_03_option_01",
+                "points": 0,
+                "text": "Пара 1"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_03_option_02",
+                "points": 0,
+                "text": "Пара 2"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_03_option_03",
+                "points": 0,
+                "text": "Пара 3"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "В паре 4 дата 14.09.2026 перенесена как 14.08.2026.",
+                "is_correct": true,
+                "key": "q_02_03_option_04",
+                "points": 1,
+                "text": "Пара 4"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_02_04",
+            "required": true,
+            "text": "В трёх парах информация перенесена правильно, а в одной есть ошибка. Найдите пару с ошибкой.\n1. AC-294 | +77714826315 | 204 → AC-294 | +77714826315 | 204\n2. BK-731 | +77025184726 | 317 → BK-731 | +77025187426 | 317\n3. DM-508 | +77763295184 | 126 → DM-508 | +77763295184 | 126\n4. PX-842 | +77081463725 | 408 → PX-842 | +77081463725 | 408",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_04_option_01",
+                "points": 0,
+                "text": "Пара 1"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "В паре 2 номер +77025184726 перенесён как +77025187426.",
+                "is_correct": true,
+                "key": "q_02_04_option_02",
+                "points": 1,
+                "text": "Пара 2"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_04_option_03",
+                "points": 0,
+                "text": "Пара 3"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_04_option_04",
+                "points": 0,
+                "text": "Пара 4"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_02_05",
+            "required": true,
+            "text": "В трёх парах информация перенесена правильно, а в одной есть ошибка. Найдите пару с ошибкой.\n1. LOT-731 | 48 шт. | 12.09 → LOT-731 | 48 шт. | 12.09\n2. LOT-584 | 128 шт. | 13.09 → LOT-584 | 182 шт. | 13.09\n3. LOT-926 | 64 шт. | 15.09 → LOT-926 | 64 шт. | 15.09\n4. LOT-315 | 72 шт. | 17.09 → LOT-315 | 72 шт. | 17.09",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_05_option_01",
+                "points": 0,
+                "text": "Пара 1"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "В паре 2 количество 128 перенесено как 182.",
+                "is_correct": true,
+                "key": "q_02_05_option_02",
+                "points": 1,
+                "text": "Пара 2"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_05_option_03",
+                "points": 0,
+                "text": "Пара 3"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_05_option_04",
+                "points": 0,
+                "text": "Пара 4"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_02_06",
+            "required": true,
+            "text": "В трёх парах информация перенесена правильно, а в одной есть ошибка. Найдите пару с ошибкой.\n1. PK-184 | 42×18×7 | 6.4 → PK-184 | 42×18×7 | 6.4\n2. RT-526 | 31×24×9 | 8.1 → RT-526 | 31×24×9 | 8.1\n3. MN-703 | 55×16×12 | 9.7 → MN-703 | 55×16×12 | 9.7\n4. QX-491 | 38×22×14 | 7.3 → QX-491 | 38×24×14 | 7.3",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_06_option_01",
+                "points": 0,
+                "text": "Пара 1"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_06_option_02",
+                "points": 0,
+                "text": "Пара 2"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_06_option_03",
+                "points": 0,
+                "text": "Пара 3"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "В паре 4 размер 38×22×14 перенесён как 38×24×14.",
+                "is_correct": true,
+                "key": "q_02_06_option_04",
+                "points": 1,
+                "text": "Пара 4"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_02_07",
+            "required": true,
+            "text": "В трёх парах информация перенесена правильно, а в одной есть ошибка. Найдите пару с ошибкой.\n1. KF-38172 | 03.10.2026 | 146280 → KF-31872 | 03.10.2026 | 146280\n2. LM-64095 | 05.10.2026 | 98740 → LM-64095 | 05.10.2026 | 98740\n3. TR-27516 | 07.10.2026 | 213600 → TR-27516 | 07.10.2026 | 213600\n4. PX-90431 | 09.10.2026 | 75420 → PX-90431 | 09.10.2026 | 75420",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "В паре 1 код KF-38172 перенесён как KF-31872.",
+                "is_correct": true,
+                "key": "q_02_07_option_01",
+                "points": 1,
+                "text": "Пара 1"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_07_option_02",
+                "points": 0,
+                "text": "Пара 2"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_07_option_03",
+                "points": 0,
+                "text": "Пара 3"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_07_option_04",
+                "points": 0,
+                "text": "Пара 4"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_02_08",
+            "required": true,
+            "text": "В трёх парах информация перенесена правильно, а в одной есть ошибка. Найдите пару с ошибкой.\n1. BX-174 | Зона A | Ячейка 06 → BX-174 | Зона A | Ячейка 06\n2. KM-529 | Зона B | Ячейка 11 → KM-529 | Зона B | Ячейка 11\n3. TR-863 | Зона C | Ячейка 14 → TR-863 | Зона C | Ячейка 41\n4. PN-406 | Зона D | Ячейка 09 → PN-406 | Зона D | Ячейка 09",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_08_option_01",
+                "points": 0,
+                "text": "Пара 1"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_08_option_02",
+                "points": 0,
+                "text": "Пара 2"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "В паре 3 ячейка 14 перенесена как 41.",
+                "is_correct": true,
+                "key": "q_02_08_option_03",
+                "points": 1,
+                "text": "Пара 3"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_02_08_option_04",
+                "points": 0,
+                "text": "Пара 4"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          }
+        ],
+        "title": "Проверка данных"
+      },
+      {
+        "content_blocks": [],
+        "description": "В каждом задании указано несколько условий. Выберите единственный код, который одновременно соответствует всем условиям.",
+        "key": "section_03",
+        "questions": [
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_03_01",
+            "required": true,
+            "text": "Выберите единственный код, который соответствует всем условиям: начинается с K; содержит ровно две цифры 7; заканчивается буквой M.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_01_option_01",
+                "points": 0,
+                "text": "K7Q-2847-N"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_01_option_02",
+                "points": 0,
+                "text": "K7Q-2843-M"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_01_option_03",
+                "points": 0,
+                "text": "B7Q-2847-M"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "K7Q-2847-M начинается с K, содержит ровно две цифры 7 и заканчивается буквой M.",
+                "is_correct": true,
+                "key": "q_03_01_option_04",
+                "points": 1,
+                "text": "K7Q-2847-M"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_03_02",
+            "required": true,
+            "text": "Выберите единственный код, который соответствует всем условиям: начинается с T; после первого дефиса находится блок ровно из пяти цифр; третья цифра этого блока — 8; код заканчивается буквой R.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_02_option_01",
+                "points": 0,
+                "text": "TQ-71842-M"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "TV-41863-R начинается с T, содержит пятизначный блок 41863 с третьей цифрой 8 и заканчивается R.",
+                "is_correct": true,
+                "key": "q_03_02_option_02",
+                "points": 1,
+                "text": "TV-41863-R"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_02_option_03",
+                "points": 0,
+                "text": "TV-48163-R"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_02_option_04",
+                "points": 0,
+                "text": "KV-41863-R"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_03_03",
+            "required": true,
+            "text": "Выберите единственный код, который соответствует всем условиям: содержит ровно две буквы Q; не содержит цифру 5; заканчивается цифрой 2.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_03_option_01",
+                "points": 0,
+                "text": "Q7M-Q45-2"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_03_option_02",
+                "points": 0,
+                "text": "Q7M-R44-2"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "Q7Q-R44-2 содержит ровно две буквы Q, не содержит цифру 5 и заканчивается цифрой 2.",
+                "is_correct": true,
+                "key": "q_03_03_option_03",
+                "points": 1,
+                "text": "Q7Q-R44-2"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_03_option_04",
+                "points": 0,
+                "text": "Q7Q-R44-3"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_03_04",
+            "required": true,
+            "text": "Выберите единственный код, который соответствует всем условиям: начинается с PR; содержит ровно одну цифру 6; заканчивается буквой K.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "PR-4826-K начинается с PR, содержит одну цифру 6 и заканчивается K.",
+                "is_correct": true,
+                "key": "q_03_04_option_01",
+                "points": 1,
+                "text": "PR-4826-K"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_04_option_02",
+                "points": 0,
+                "text": "PR-4866-K"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_04_option_03",
+                "points": 0,
+                "text": "TR-4826-K"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_04_option_04",
+                "points": 0,
+                "text": "PR-4826-M"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_03_05",
+            "required": true,
+            "text": "Выберите единственный код, который соответствует всем условиям: состоит ровно из трёх блоков, разделённых дефисами; средний блок содержит ровно четыре цифры; первая и последняя цифры среднего блока совпадают; последний блок — Q.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "LM-7387-Q состоит из трёх блоков, средний блок 7387 содержит четыре цифры с одинаковыми первой и последней цифрами, последний блок — Q.",
+                "is_correct": true,
+                "key": "q_03_05_option_01",
+                "points": 1,
+                "text": "LM-7387-Q"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_05_option_02",
+                "points": 0,
+                "text": "LM-7384-Q"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_05_option_03",
+                "points": 0,
+                "text": "LM-7387-R"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_05_option_04",
+                "points": 0,
+                "text": "LM7-387-Q"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_03_06",
+            "required": true,
+            "text": "Выберите единственный код, который соответствует всем условиям: начинается с M; содержит ровно три цифры; содержит ровно одну букву P; не заканчивается буквой P.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_06_option_01",
+                "points": 0,
+                "text": "M7P-42P"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_06_option_02",
+                "points": 0,
+                "text": "N7P-42Q"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "M7P-42Q начинается с M, содержит три цифры 7, 4 и 2, ровно одну букву P и заканчивается Q.",
+                "is_correct": true,
+                "key": "q_03_06_option_03",
+                "points": 1,
+                "text": "M7P-42Q"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_06_option_04",
+                "points": 0,
+                "text": "M7Q-42P"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_03_07",
+            "required": true,
+            "text": "Выберите единственный код, который соответствует всем условиям: начинается с R; содержит последовательность 73 ровно один раз; не содержит цифру 4; заканчивается буквой N.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_07_option_01",
+                "points": 0,
+                "text": "R-173-73-N"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "R-273-61-N начинается с R, содержит последовательность 73 один раз, не содержит 4 и заканчивается N.",
+                "is_correct": true,
+                "key": "q_03_07_option_02",
+                "points": 1,
+                "text": "R-273-61-N"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_07_option_03",
+                "points": 0,
+                "text": "R-273-64-N"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_07_option_04",
+                "points": 0,
+                "text": "R-273-61-M"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_03_08",
+            "required": true,
+            "text": "Выберите единственный код, который соответствует всем условиям: состоит ровно из четырёх блоков; второй блок состоит ровно из двух букв; третий блок состоит ровно из трёх цифр; последний блок полностью совпадает с первым.",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_08_option_01",
+                "points": 0,
+                "text": "K7-MQ-318-K8"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_08_option_02",
+                "points": 0,
+                "text": "K7-M3-318-K7"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_03_08_option_03",
+                "points": 0,
+                "text": "K7-MQ-31-K7"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "K7-MQ-318-K7 состоит из четырёх блоков, второй блок MQ содержит две буквы, третий 318 содержит три цифры, а последний блок K7 совпадает с первым.",
+                "is_correct": true,
+                "key": "q_03_08_option_04",
+                "points": 1,
+                "text": "K7-MQ-318-K7"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          }
+        ],
+        "title": "Соблюдение условий"
+      },
+      {
+        "content_blocks": [],
+        "description": "Быстро находите нужный элемент среди похожих. Сравнивайте коды полностью: перестановка символов означает другой код.",
+        "key": "section_04",
+        "questions": [
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_04_01",
+            "required": true,
+            "text": "Какой код встречается в списке ровно два раза?\nRK-3817   LM-6249   QT-5073   NX-1486   PV-7312   LM-6249   BG-9654   ZS-2831",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "LM-6249 встречается в списке ровно два раза.",
+                "is_correct": true,
+                "key": "q_04_01_option_01",
+                "points": 1,
+                "text": "LM-6249"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_01_option_02",
+                "points": 0,
+                "text": "QT-5073"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_01_option_03",
+                "points": 0,
+                "text": "PV-7312"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_01_option_04",
+                "points": 0,
+                "text": "BG-9654"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_04_02",
+            "required": true,
+            "text": "Какой код присутствует в обоих списках без каких-либо изменений?\nСписок 1: TR-4821   KP-7306   MN-1954   QX-6418   BV-5273\nСписок 2: TR-4281   KP-7036   MN-1594   QX-6418   BV-5723",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_02_option_01",
+                "points": 0,
+                "text": "TR-4821"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_02_option_02",
+                "points": 0,
+                "text": "KP-7306"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "QX-6418 присутствует в обоих списках полностью без изменений.",
+                "is_correct": true,
+                "key": "q_04_02_option_03",
+                "points": 1,
+                "text": "QX-6418"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_02_option_04",
+                "points": 0,
+                "text": "BV-5273"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_04_03",
+            "required": true,
+            "text": "Какой код из первого списка отсутствует во втором в точном виде?\nСписок 1: KQ-1847   TP-5632   RM-7291   NX-4068   BL-3519\nСписок 2: RM-7291   BL-3519   KQ-1847   NX-4068   TP-5362",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_03_option_01",
+                "points": 0,
+                "text": "KQ-1847"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "TP-5632 отсутствует во втором списке; там есть только похожий код TP-5362.",
+                "is_correct": true,
+                "key": "q_04_03_option_02",
+                "points": 1,
+                "text": "TP-5632"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_03_option_03",
+                "points": 0,
+                "text": "RM-7291"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_03_option_04",
+                "points": 0,
+                "text": "NX-4068"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_04_04",
+            "required": true,
+            "text": "Какая трёхсимвольная группа встречается в строке ровно два раза?\nK7M   Q4P   T8R   K7N   B6Q   T8R   M3V",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_04_option_01",
+                "points": 0,
+                "text": "K7M"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_04_option_02",
+                "points": 0,
+                "text": "Q4P"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_04_option_03",
+                "points": 0,
+                "text": "B6Q"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "T8R встречается в строке ровно два раза.",
+                "is_correct": true,
+                "key": "q_04_04_option_04",
+                "points": 1,
+                "text": "T8R"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_04_05",
+            "required": true,
+            "text": "В какой паре числовой блок после дефиса совпадает полностью?",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_05_option_01",
+                "points": 0,
+                "text": "KR-5812 / TP-5182"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_05_option_02",
+                "points": 0,
+                "text": "MN-7046 / QX-7406"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_05_option_03",
+                "points": 0,
+                "text": "BV-2931 / ZR-2391"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "В паре LP-8643 / GT-8643 числовой блок 8643 совпадает полностью.",
+                "is_correct": true,
+                "key": "q_04_05_option_04",
+                "points": 1,
+                "text": "LP-8643 / GT-8643"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_04_06",
+            "required": true,
+            "text": "Какой код встречается в списке ровно два раза?\nKP-417   MN-682   TR-305   KP-417   QX-914   MN-682   MN-682   BV-573",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_06_option_01",
+                "points": 0,
+                "text": "MN-682"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "KP-417 встречается ровно два раза; MN-682 встречается три раза.",
+                "is_correct": true,
+                "key": "q_04_06_option_02",
+                "points": 1,
+                "text": "KP-417"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_06_option_03",
+                "points": 0,
+                "text": "TR-305"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_06_option_04",
+                "points": 0,
+                "text": "QX-914"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_04_07",
+            "required": true,
+            "text": "Какой код присутствует в обоих списках полностью без изменений?\nСписок 1: TQ-68142   KM-73419   RV-20586   PN-94731\nСписок 2: TQ-68124   KM-74319   RV-20586   PN-97431",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_07_option_01",
+                "points": 0,
+                "text": "TQ-68142"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_07_option_02",
+                "points": 0,
+                "text": "KM-73419"
+              },
+              {
+                "competency_effects": {},
+                "explanation": "RV-20586 присутствует в обоих списках полностью без изменений.",
+                "is_correct": true,
+                "key": "q_04_07_option_03",
+                "points": 1,
+                "text": "RV-20586"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_07_option_04",
+                "points": 0,
+                "text": "PN-94731"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          },
+          {
+            "competency_key": "attention_to_detail",
+            "description": null,
+            "difficulty": null,
+            "key": "q_04_08",
+            "required": true,
+            "text": "Какой код повторяется?\nBQ7-1842   LM5-7306   TR8-2951   NK4-8613   PV2-5479   ZX6-3084   TR8-2951   QH3-6728",
+            "incorrect_feedback": null,
+            "options": [
+              {
+                "competency_effects": {},
+                "explanation": "TR8-2951 встречается в списке два раза.",
+                "is_correct": true,
+                "key": "q_04_08_option_01",
+                "points": 1,
+                "text": "TR8-2951"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_08_option_02",
+                "points": 0,
+                "text": "LM5-7306"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_08_option_03",
+                "points": 0,
+                "text": "PV2-5479"
+              },
+              {
+                "competency_effects": {},
+                "explanation": null,
+                "is_correct": false,
+                "key": "q_04_08_option_04",
+                "points": 0,
+                "text": "ZX6-3084"
+              }
+            ],
+            "remediation_question_key": null,
+            "shuffle_options": true,
+            "type": "single_choice"
+          }
+        ],
+        "title": "Избирательный поиск"
+      }
+    ],
+    "title": "Внимательность"
+  }
+}

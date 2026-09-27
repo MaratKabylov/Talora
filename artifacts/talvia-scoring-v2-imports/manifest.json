@@ -1,0 +1,49 @@
+{
+  "generatedAt": "2026-09-27T07:57:46.116Z",
+  "imports": [
+    {
+      "contentBlocks": 0,
+      "fileName": "attention.json",
+      "options": 128,
+      "questions": 32,
+      "sections": 4,
+      "sourceVersionId": "c8be3ee4-0f3d-408a-8949-9e7bb6d4ad6c",
+      "sourceVersionNumber": 2,
+      "templateId": "00000000-0000-4000-8000-000000000103",
+      "title": "Внимательность"
+    },
+    {
+      "contentBlocks": 0,
+      "fileName": "motivation.json",
+      "options": 81,
+      "questions": 27,
+      "sections": 1,
+      "sourceVersionId": "4e6d36ed-67dd-4f65-9f0e-a477424dd0a3",
+      "sourceVersionNumber": 2,
+      "templateId": "00000000-0000-4000-8000-000000000105",
+      "title": "Мотивационный профиль"
+    },
+    {
+      "contentBlocks": 2,
+      "fileName": "learning.json",
+      "options": 121,
+      "questions": 28,
+      "sections": 4,
+      "sourceVersionId": "03692dc1-a443-4777-8a44-6bfa0ed2c235",
+      "sourceVersionNumber": 6,
+      "templateId": "00000000-0000-4000-8000-000000000102",
+      "title": "Обучаемость"
+    },
+    {
+      "contentBlocks": 0,
+      "fileName": "work-behavior.json",
+      "options": 78,
+      "questions": 24,
+      "sections": 2,
+      "sourceVersionId": "4ea6b597-ca14-4ee2-840a-028378e01ea0",
+      "sourceVersionNumber": 2,
+      "templateId": "00000000-0000-4000-8000-000000000104",
+      "title": "Рабочее поведение"
+    }
+  ]
+}
